@@ -1,98 +1,208 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Check, X } from 'lucide-react-native';
+import { useState } from 'react';
+import {
+  Dimensions,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
+import Animated, {
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+const { width } = Dimensions.get('window');
+const SWIPE_THRESHOLD = width * 0.3;
+const CARDS = [1, 2, 3, 4, 5];
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function Index() {
+  const [cards, setCards] = useState(CARDS);
+  const translateX = useSharedValue(0);
+
+  const removeCard = () => {
+    setCards((prev) => prev.slice(1));
+    translateX.value = 0;
+  };
+
+  const swipe = Gesture.Pan()
+    .onUpdate((e) => {
+      translateX.value = e.translationX;
+    })
+    .onEnd((e) => {
+      if (Math.abs(e.translationX) > SWIPE_THRESHOLD) {
+        translateX.value = withSpring(
+          Math.sign(e.translationX) * width * 1.5,
+          {},
+          () => runOnJS(removeCard)()
+        );
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      {
+        rotate: `${interpolate(
+          translateX.value,
+          [-width / 2, 0, width / 2],
+          [-8, 0, 8]
+        )}deg`,
+      },
+    ],
+  }));
+
+  const passStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateX.value,
+      [-SWIPE_THRESHOLD, 0],
+      [1, 0],
+      'clamp'
+    ),
+  }));
+
+  const applyStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateX.value,
+      [0, SWIPE_THRESHOLD],
+      [0, 1],
+      'clamp'
+    ),
+  }));
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <GestureHandlerRootView style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.logo}>bulletin</Text>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        <View style={styles.deck}>
+          {cards.length ? (
+            <GestureDetector gesture={swipe}>
+              <Animated.View style={[styles.card, cardStyle]}>
+                <Animated.Text
+                  style={[styles.badge, styles.pass, passStyle]}
+                >
+                  PASS
+                </Animated.Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+                <Animated.Text
+                  style={[styles.badge, styles.apply, applyStyle]}
+                >
+                  APPLY
+                </Animated.Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+                <Text style={styles.placeholder}>Card #{cards[0]}</Text>
+              </Animated.View>
+            </GestureDetector>
+          ) : (
+            <Text style={styles.empty}>Deck Empty</Text>
+          )}
+        </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
+        <View style={styles.actions}>
+          <Pressable style={styles.button}>
+            <X size={26} color="#FF3B30" />
+          </Pressable>
+
+          <Pressable style={styles.button}>
+            <Check size={26} color="#34C759" />
+          </Pressable>
+        </View>
       </SafeAreaView>
-    </ThemedView>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F7F7F8',
+  },
+
+  logo: {
+    fontSize: 26,
+    fontWeight: '900',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+
+  deck: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  card: {
+    width: width - 32,
+    height: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+
+  placeholder: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#A0A0A0',
+  },
+
+  badge: {
+    position: 'absolute',
+    top: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 2,
+    fontWeight: '800',
+  },
+
+  pass: {
+    right: 24,
+    color: '#FF3B30',
+    borderColor: '#FF3B30',
+  },
+
+  apply: {
+    left: 24,
+    color: '#34C759',
+    borderColor: '#34C759',
+  },
+
+  empty: {
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+
+  actions: {
     flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: 20,
+    paddingBottom: 20,
   },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+
+  button: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
   },
 });
