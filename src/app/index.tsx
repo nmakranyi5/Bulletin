@@ -5,7 +5,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dimensions,
   Pressable,
@@ -33,6 +33,7 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 36;
 const SWIPE_THRESHOLD = width * 0.28;
 const SWIPE_DISTANCE = width * 1.4;
+const SWIPE_VELOCITY = 800;
 
 const DUMMY_CARDS = [
   {
@@ -106,21 +107,36 @@ type Card = (typeof DUMMY_CARDS)[number];
 
 export default function Index() {
   const [cards, setCards] = useState(DUMMY_CARDS);
-  const [deckKey, setDeckKey] = useState(0);
 
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
 
-  const finishSwipe = () => {
-    setCards((prev) => prev.slice(1));
+  const topCard = cards[0];
 
-    requestAnimationFrame(() => {
-      translateX.value = 0;
-      cardOpacity.value = 1;
-    });
+  /*
+   * Whenever React switches to a new top card,
+   * reset its animation state.
+   */
+  useEffect(() => {
+    if (!topCard) return;
+
+    translateX.value = 0;
+    cardOpacity.value = 1;
+  }, [topCard?.id]);
+
+  /*
+   * JS-side state update.
+   * This is only called through runOnJS from gesture animations.
+   */
+  const removeTopCard = () => {
+    setCards((prev) => prev.slice(1));
   };
 
-  const swipeCard = (direction: number) => {
+  /*
+   * Used by the physical X / Check buttons.
+   * This starts from JS, so calling this function directly is safe.
+   */
+  const buttonSwipe = (direction: number) => {
     translateX.value = withTiming(
       direction * SWIPE_DISTANCE,
       { duration: 150 },
@@ -128,28 +144,15 @@ export default function Index() {
         if (!finished) return;
 
         cardOpacity.value = 0;
-        runOnJS(finishSwipe)();
+        runOnJS(removeTopCard)();
       }
     );
   };
 
-  const resetDeck = () => {
-    // Fully unmount the deck before restoring it.
-    // Prevents the first card from inheriting stale swipe state.
-    setCards([]);
-
-    cardOpacity.value = 0;
-    translateX.value = 0;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setDeckKey((prev) => prev + 1);
-        setCards(DUMMY_CARDS);
-        cardOpacity.value = 1;
-      });
-    });
-  };
-
+  /*
+   * Gesture callbacks run as Reanimated worklets on native.
+   * Keep all animation logic directly inside them.
+   */
   const gesture = Gesture.Pan()
     .onUpdate((event) => {
       translateX.value = event.translationX;
@@ -157,15 +160,25 @@ export default function Index() {
     .onEnd((event) => {
       const shouldSwipe =
         Math.abs(event.translationX) > SWIPE_THRESHOLD ||
-        Math.abs(event.velocityX) > 800;
+        Math.abs(event.velocityX) > SWIPE_VELOCITY;
 
       if (shouldSwipe) {
         const direction =
-          Math.abs(event.velocityX) > 800
+          Math.abs(event.velocityX) > SWIPE_VELOCITY
             ? Math.sign(event.velocityX)
             : Math.sign(event.translationX);
 
-        swipeCard(direction || 1);
+        translateX.value = withTiming(
+          (direction || 1) * SWIPE_DISTANCE,
+          { duration: 150 },
+          (finished) => {
+            if (!finished) return;
+
+            cardOpacity.value = 0;
+            runOnJS(removeTopCard)();
+          }
+        );
+
         return;
       }
 
@@ -209,17 +222,27 @@ export default function Index() {
     ),
   }));
 
-  const topCard = cards[0];
+  const resetDeck = () => {
+    /*
+     * Hide/reset stale animation state before restoring cards.
+     */
+    cardOpacity.value = 0;
+    translateX.value = 0;
+
+    setCards(DUMMY_CARDS);
+  };
 
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>bulletin</Text>
           <Text style={styles.subtitle}>Find your next opportunity.</Text>
         </View>
 
-        <View key={deckKey} style={styles.deck}>
+        {/* Deck */}
+        <View style={styles.deck}>
           {topCard ? (
             <>
               {cards
@@ -228,6 +251,9 @@ export default function Index() {
                 .map((card, index, visibleCards) => {
                   const isTop = index === visibleCards.length - 1;
 
+                  /*
+                   * Background cards are real cards, but completely static.
+                   */
                   if (!isTop) {
                     return (
                       <View
@@ -240,9 +266,13 @@ export default function Index() {
                     );
                   }
 
+                  /*
+                   * Only the top card participates in gestures/animation.
+                   */
                   return (
                     <GestureDetector key={card.id} gesture={gesture}>
                       <Animated.View style={[styles.card, cardStyle]}>
+                        {/* Pass badge */}
                         <Animated.View
                           style={[
                             styles.swipeBadge,
@@ -253,6 +283,7 @@ export default function Index() {
                           <Text style={styles.passText}>PASS</Text>
                         </Animated.View>
 
+                        {/* Interested badge */}
                         <Animated.View
                           style={[
                             styles.swipeBadge,
@@ -279,27 +310,41 @@ export default function Index() {
                 No more recruiter profiles right now.
               </Text>
 
-              <Pressable style={styles.refreshButton} onPress={resetDeck}>
-                <Text style={styles.refreshText}>Refresh profiles</Text>
+              <Pressable
+                style={styles.refreshButton}
+                onPress={resetDeck}
+              >
+                <Text style={styles.refreshText}>
+                  Refresh profiles
+                </Text>
               </Pressable>
             </View>
           )}
         </View>
 
+        {/* Actions */}
         {topCard && (
           <View style={styles.actions}>
             <Pressable
               style={[styles.actionButton, styles.passButton]}
-              onPress={() => swipeCard(-1)}
+              onPress={() => buttonSwipe(-1)}
             >
-              <X size={28} color="#EF4444" strokeWidth={2.6} />
+              <X
+                size={28}
+                color="#EF4444"
+                strokeWidth={2.6}
+              />
             </Pressable>
 
             <Pressable
               style={[styles.actionButton, styles.interestedButton]}
-              onPress={() => swipeCard(1)}
+              onPress={() => buttonSwipe(1)}
             >
-              <Check size={30} color="#FFFFFF" strokeWidth={2.7} />
+              <Check
+                size={30}
+                color="#FFFFFF"
+                strokeWidth={2.7}
+              />
             </Pressable>
           </View>
         )}
@@ -311,28 +356,44 @@ export default function Index() {
 function CardContent({ card }: { card: Card }) {
   return (
     <>
+      {/* Recruiter profile */}
       <View style={styles.profileSection}>
-        <UserRound size={92} color="#A1A1AA" strokeWidth={1.5} />
+        <UserRound
+          size={92}
+          color="#A1A1AA"
+          strokeWidth={1.5}
+        />
 
         <View style={styles.profileInfo}>
-          <Text numberOfLines={1} style={styles.name}>
+          <Text
+            numberOfLines={1}
+            style={styles.name}
+          >
             {card.name}
           </Text>
 
           <View style={styles.recruiterMeta}>
-            <Text numberOfLines={1} style={styles.recruiterTitle}>
+            <Text
+              numberOfLines={1}
+              style={styles.recruiterTitle}
+            >
               {card.title}
             </Text>
 
             <View style={styles.companyChip}>
-              <Text style={styles.companyText}>{card.company}</Text>
+              <Text style={styles.companyText}>
+                {card.company}
+              </Text>
             </View>
           </View>
         </View>
       </View>
 
+      {/* Opportunity */}
       <View style={styles.content}>
-        <Text style={styles.sectionLabel}>LOOKING FOR</Text>
+        <Text style={styles.sectionLabel}>
+          LOOKING FOR
+        </Text>
 
         <View style={styles.positionRow}>
           <BriefcaseBusiness
@@ -341,17 +402,29 @@ function CardContent({ card }: { card: Card }) {
             strokeWidth={2.2}
           />
 
-          <Text numberOfLines={1} style={styles.position}>
+          <Text
+            numberOfLines={1}
+            style={styles.position}
+          >
             {card.position}
           </Text>
         </View>
 
-        <Text style={styles.pay}>{card.pay}</Text>
+        <Text style={styles.pay}>
+          {card.pay}
+        </Text>
 
         <View style={styles.locationRow}>
-          <MapPin size={15} color="#71717A" strokeWidth={2} />
+          <MapPin
+            size={15}
+            color="#71717A"
+            strokeWidth={2}
+          />
 
-          <Text numberOfLines={1} style={styles.location}>
+          <Text
+            numberOfLines={1}
+            style={styles.location}
+          >
             {card.location} · {card.workStyle}
           </Text>
         </View>
@@ -360,11 +433,16 @@ function CardContent({ card }: { card: Card }) {
           <Tag text={card.experience} />
 
           {card.skills.map((skill) => (
-            <Tag key={skill} text={skill} />
+            <Tag
+              key={skill}
+              text={skill}
+            />
           ))}
         </View>
 
-        <Text style={styles.note}>“{card.note}”</Text>
+        <Text style={styles.note}>
+          “{card.note}”
+        </Text>
       </View>
     </>
   );
@@ -373,7 +451,9 @@ function CardContent({ card }: { card: Card }) {
 function Tag({ text }: { text: string }) {
   return (
     <View style={styles.tag}>
-      <Text style={styles.tagText}>{text}</Text>
+      <Text style={styles.tagText}>
+        {text}
+      </Text>
     </View>
   );
 }
@@ -417,15 +497,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: CARD_WIDTH,
     height: '88%',
-    borderRadius: 28,
     backgroundColor: '#FFFFFF',
+    borderRadius: 28,
     overflow: 'hidden',
 
     borderWidth: 1,
     borderColor: '#E7E7EA',
 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
     shadowOpacity: 0.08,
     shadowRadius: 20,
 
@@ -558,11 +641,13 @@ const styles = StyleSheet.create({
   swipeBadge: {
     position: 'absolute',
     top: 28,
+    zIndex: 20,
+
     paddingHorizontal: 14,
     paddingVertical: 7,
+
     borderRadius: 10,
     borderWidth: 2,
-    zIndex: 20,
   },
 
   passBadge: {
@@ -593,6 +678,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+
     gap: 24,
     paddingTop: 12,
     paddingBottom: 18,
@@ -603,7 +689,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
     shadowOpacity: 0.08,
     shadowRadius: 10,
 
@@ -614,7 +703,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
+
     backgroundColor: '#FFFFFF',
+
     borderWidth: 1,
     borderColor: '#E4E4E7',
   },
@@ -623,6 +714,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
+
     backgroundColor: '#18181B',
   },
 
@@ -648,6 +740,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 20,
     paddingVertical: 12,
+
     borderRadius: 14,
     backgroundColor: '#18181B',
   },
