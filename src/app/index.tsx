@@ -1,4 +1,10 @@
-import { Check, X } from 'lucide-react-native';
+import {
+  BriefcaseBusiness,
+  Check,
+  MapPin,
+  UserRound,
+  X,
+} from 'lucide-react-native';
 import { useState } from 'react';
 import {
   Dimensions,
@@ -19,45 +25,167 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
-const SWIPE_THRESHOLD = width * 0.3;
-const CARDS = [1, 2, 3, 4, 5];
+
+const CARD_WIDTH = width - 36;
+const SWIPE_THRESHOLD = width * 0.28;
+const SWIPE_DISTANCE = width * 1.4;
+
+const DUMMY_CARDS = [
+  {
+    id: 1,
+    name: 'Maya Chen',
+    title: 'Technical Recruiter',
+    company: 'Linear',
+    position: 'Frontend Engineer',
+    pay: '$135k–$175k',
+    location: 'San Francisco, CA',
+    workStyle: 'Hybrid',
+    experience: '0–3 years',
+    skills: ['React', 'TypeScript', 'Frontend'],
+    note: 'Looking for early-career engineers who love building polished products.',
+  },
+  {
+    id: 2,
+    name: 'Daniel Kim',
+    title: 'University Recruiter',
+    company: 'Ramp',
+    position: 'Software Engineer',
+    pay: '$140k–$185k',
+    location: 'New York, NY',
+    workStyle: 'On-site',
+    experience: 'New Grad',
+    skills: ['Python', 'React', 'Systems'],
+    note: 'Hiring new grads who are curious, fast learners, and strong builders.',
+  },
+  {
+    id: 3,
+    name: 'Sofia Martinez',
+    title: 'Talent Partner',
+    company: 'Figma',
+    position: 'Product Engineer',
+    pay: '$150k–$195k',
+    location: 'San Francisco, CA',
+    workStyle: 'Hybrid',
+    experience: '1–3 years',
+    skills: ['TypeScript', 'React', 'Product'],
+    note: 'Looking for engineers who care about design as much as code.',
+  },
+  {
+    id: 4,
+    name: 'Jordan Lee',
+    title: 'Technical Recruiter',
+    company: 'Vercel',
+    position: 'Frontend Engineer',
+    pay: '$130k–$170k',
+    location: 'Remote',
+    workStyle: 'Remote',
+    experience: '0–2 years',
+    skills: ['Next.js', 'React', 'JavaScript'],
+    note: 'Great fit for someone who enjoys shipping fast and owning features.',
+  },
+  {
+    id: 5,
+    name: 'Avery Patel',
+    title: 'Engineering Recruiter',
+    company: 'Notion',
+    position: 'Software Engineer',
+    pay: '$145k–$190k',
+    location: 'San Francisco, CA',
+    workStyle: 'Hybrid',
+    experience: '1–4 years',
+    skills: ['Full Stack', 'React', 'Node'],
+    note: 'Building out our team with strong product-minded developers.',
+  },
+];
+
+type Card = (typeof DUMMY_CARDS)[number];
 
 export default function Index() {
-  const [cards, setCards] = useState(CARDS);
-  const translateX = useSharedValue(0);
+  const [cards, setCards] = useState(DUMMY_CARDS);
+  const [deckKey, setDeckKey] = useState(0);
 
-  const removeCard = () => {
+  const translateX = useSharedValue(0);
+  const cardOpacity = useSharedValue(1);
+
+  const finishSwipe = () => {
     setCards((prev) => prev.slice(1));
-    translateX.value = 0;
+
+    requestAnimationFrame(() => {
+      translateX.value = 0;
+      cardOpacity.value = 1;
+    });
   };
 
-  const swipe = Gesture.Pan()
-    .onUpdate((e) => {
-      translateX.value = e.translationX;
-    })
-    .onEnd((e) => {
-      if (Math.abs(e.translationX) > SWIPE_THRESHOLD) {
-        translateX.value = withSpring(
-          Math.sign(e.translationX) * width * 1.5,
-          {},
-          () => runOnJS(removeCard)()
-        );
-      } else {
-        translateX.value = withSpring(0);
+  const swipeCard = (direction: number) => {
+    translateX.value = withTiming(
+      direction * SWIPE_DISTANCE,
+      { duration: 150 },
+      (finished) => {
+        if (!finished) return;
+
+        cardOpacity.value = 0;
+        runOnJS(finishSwipe)();
       }
+    );
+  };
+
+  const resetDeck = () => {
+    // Fully unmount the deck before restoring it.
+    // Prevents the first card from inheriting stale swipe state.
+    setCards([]);
+
+    cardOpacity.value = 0;
+    translateX.value = 0;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setDeckKey((prev) => prev + 1);
+        setCards(DUMMY_CARDS);
+        cardOpacity.value = 1;
+      });
+    });
+  };
+
+  const gesture = Gesture.Pan()
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+    })
+    .onEnd((event) => {
+      const shouldSwipe =
+        Math.abs(event.translationX) > SWIPE_THRESHOLD ||
+        Math.abs(event.velocityX) > 800;
+
+      if (shouldSwipe) {
+        const direction =
+          Math.abs(event.velocityX) > 800
+            ? Math.sign(event.velocityX)
+            : Math.sign(event.translationX);
+
+        swipeCard(direction || 1);
+        return;
+      }
+
+      translateX.value = withSpring(0, {
+        damping: 18,
+        stiffness: 180,
+      });
     });
 
   const cardStyle = useAnimatedStyle(() => ({
+    opacity: cardOpacity.value,
     transform: [
-      { translateX: translateX.value },
+      {
+        translateX: translateX.value,
+      },
       {
         rotate: `${interpolate(
           translateX.value,
           [-width / 2, 0, width / 2],
-          [-8, 0, 8]
+          [-7, 0, 7]
         )}deg`,
       },
     ],
@@ -72,7 +200,7 @@ export default function Index() {
     ),
   }));
 
-  const applyStyle = useAnimatedStyle(() => ({
+  const interestedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       translateX.value,
       [0, SWIPE_THRESHOLD],
@@ -81,128 +209,451 @@ export default function Index() {
     ),
   }));
 
+  const topCard = cards[0];
+
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
-        <Text style={styles.logo}>bulletin</Text>
+        <View style={styles.header}>
+          <Text style={styles.logo}>bulletin</Text>
+          <Text style={styles.subtitle}>Find your next opportunity.</Text>
+        </View>
 
-        <View style={styles.deck}>
-          {cards.length ? (
-            <GestureDetector gesture={swipe}>
-              <Animated.View style={[styles.card, cardStyle]}>
-                <Animated.Text
-                  style={[styles.badge, styles.pass, passStyle]}
-                >
-                  PASS
-                </Animated.Text>
+        <View key={deckKey} style={styles.deck}>
+          {topCard ? (
+            <>
+              {cards
+                .slice(0, 3)
+                .reverse()
+                .map((card, index, visibleCards) => {
+                  const isTop = index === visibleCards.length - 1;
 
-                <Animated.Text
-                  style={[styles.badge, styles.apply, applyStyle]}
-                >
-                  APPLY
-                </Animated.Text>
+                  if (!isTop) {
+                    return (
+                      <View
+                        key={card.id}
+                        pointerEvents="none"
+                        style={styles.card}
+                      >
+                        <CardContent card={card} />
+                      </View>
+                    );
+                  }
 
-                <Text style={styles.placeholder}>Card #{cards[0]}</Text>
-              </Animated.View>
-            </GestureDetector>
+                  return (
+                    <GestureDetector key={card.id} gesture={gesture}>
+                      <Animated.View style={[styles.card, cardStyle]}>
+                        <Animated.View
+                          style={[
+                            styles.swipeBadge,
+                            styles.passBadge,
+                            passStyle,
+                          ]}
+                        >
+                          <Text style={styles.passText}>PASS</Text>
+                        </Animated.View>
+
+                        <Animated.View
+                          style={[
+                            styles.swipeBadge,
+                            styles.interestedBadge,
+                            interestedStyle,
+                          ]}
+                        >
+                          <Text style={styles.interestedText}>
+                            INTERESTED
+                          </Text>
+                        </Animated.View>
+
+                        <CardContent card={card} />
+                      </Animated.View>
+                    </GestureDetector>
+                  );
+                })}
+            </>
           ) : (
-            <Text style={styles.empty}>Deck Empty</Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>You’re all caught up.</Text>
+
+              <Text style={styles.emptySubtitle}>
+                No more recruiter profiles right now.
+              </Text>
+
+              <Pressable style={styles.refreshButton} onPress={resetDeck}>
+                <Text style={styles.refreshText}>Refresh profiles</Text>
+              </Pressable>
+            </View>
           )}
         </View>
 
-        <View style={styles.actions}>
-          <Pressable style={styles.button}>
-            <X size={26} color="#FF3B30" />
-          </Pressable>
+        {topCard && (
+          <View style={styles.actions}>
+            <Pressable
+              style={[styles.actionButton, styles.passButton]}
+              onPress={() => swipeCard(-1)}
+            >
+              <X size={28} color="#EF4444" strokeWidth={2.6} />
+            </Pressable>
 
-          <Pressable style={styles.button}>
-            <Check size={26} color="#34C759" />
-          </Pressable>
-        </View>
+            <Pressable
+              style={[styles.actionButton, styles.interestedButton]}
+              onPress={() => swipeCard(1)}
+            >
+              <Check size={30} color="#FFFFFF" strokeWidth={2.7} />
+            </Pressable>
+          </View>
+        )}
       </SafeAreaView>
     </GestureHandlerRootView>
   );
 }
 
+function CardContent({ card }: { card: Card }) {
+  return (
+    <>
+      <View style={styles.profileSection}>
+        <UserRound size={92} color="#A1A1AA" strokeWidth={1.5} />
+
+        <View style={styles.profileInfo}>
+          <Text numberOfLines={1} style={styles.name}>
+            {card.name}
+          </Text>
+
+          <View style={styles.recruiterMeta}>
+            <Text numberOfLines={1} style={styles.recruiterTitle}>
+              {card.title}
+            </Text>
+
+            <View style={styles.companyChip}>
+              <Text style={styles.companyText}>{card.company}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.sectionLabel}>LOOKING FOR</Text>
+
+        <View style={styles.positionRow}>
+          <BriefcaseBusiness
+            size={20}
+            color="#18181B"
+            strokeWidth={2.2}
+          />
+
+          <Text numberOfLines={1} style={styles.position}>
+            {card.position}
+          </Text>
+        </View>
+
+        <Text style={styles.pay}>{card.pay}</Text>
+
+        <View style={styles.locationRow}>
+          <MapPin size={15} color="#71717A" strokeWidth={2} />
+
+          <Text numberOfLines={1} style={styles.location}>
+            {card.location} · {card.workStyle}
+          </Text>
+        </View>
+
+        <View style={styles.tags}>
+          <Tag text={card.experience} />
+
+          {card.skills.map((skill) => (
+            <Tag key={skill} text={skill} />
+          ))}
+        </View>
+
+        <Text style={styles.note}>“{card.note}”</Text>
+      </View>
+    </>
+  );
+}
+
+function Tag({ text }: { text: string }) {
+  return (
+    <View style={styles.tag}>
+      <Text style={styles.tagText}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#F5F5F7',
+  },
+
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F8',
+  },
+
+  header: {
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    paddingBottom: 14,
   },
 
   logo: {
-    fontSize: 26,
+    fontSize: 29,
     fontWeight: '900',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    letterSpacing: -1.3,
+    color: '#18181B',
+  },
+
+  subtitle: {
+    marginTop: 2,
+    fontSize: 13,
+    color: '#71717A',
   },
 
   deck: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
   card: {
-    width: width - 32,
-    height: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-
-  placeholder: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#A0A0A0',
-  },
-
-  badge: {
     position: 'absolute',
-    top: 24,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 2,
+    width: CARD_WIDTH,
+    height: '88%',
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+
+    elevation: 5,
+  },
+
+  profileSection: {
+    height: '45%',
+    backgroundColor: '#E4E4E7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  profileInfo: {
+    position: 'absolute',
+    left: 22,
+    right: 22,
+    bottom: 18,
+  },
+
+  name: {
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '800',
+    letterSpacing: -0.8,
+    color: '#18181B',
   },
 
-  pass: {
-    right: 24,
-    color: '#FF3B30',
-    borderColor: '#FF3B30',
+  recruiterMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
   },
 
-  apply: {
-    left: 24,
-    color: '#34C759',
-    borderColor: '#34C759',
+  recruiterTitle: {
+    flexShrink: 1,
+    fontSize: 14,
+    color: '#52525B',
   },
 
-  empty: {
-    color: '#8E8E93',
-    fontWeight: '500',
+  companyChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+  },
+
+  companyText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#18181B',
+  },
+
+  content: {
+    flex: 1,
+    padding: 22,
+  },
+
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: '#A1A1AA',
+  },
+
+  positionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 9,
+  },
+
+  position: {
+    flex: 1,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: '#18181B',
+  },
+
+  pay: {
+    marginTop: 9,
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#27272A',
+  },
+
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+  },
+
+  location: {
+    flex: 1,
+    fontSize: 14,
+    color: '#71717A',
+  },
+
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 18,
+  },
+
+  tag: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F5',
+  },
+
+  tagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#52525B',
+  },
+
+  note: {
+    marginTop: 20,
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#52525B',
+  },
+
+  swipeBadge: {
+    position: 'absolute',
+    top: 28,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 2,
+    zIndex: 20,
+  },
+
+  passBadge: {
+    right: 22,
+    borderColor: '#EF4444',
+    transform: [{ rotate: '8deg' }],
+  },
+
+  interestedBadge: {
+    left: 22,
+    borderColor: '#22C55E',
+    transform: [{ rotate: '-8deg' }],
+  },
+
+  passText: {
+    color: '#EF4444',
+    fontWeight: '900',
+    fontSize: 15,
+  },
+
+  interestedText: {
+    color: '#22C55E',
+    fontWeight: '900',
+    fontSize: 15,
   },
 
   actions: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
-    paddingBottom: 20,
+    alignItems: 'center',
+    gap: 24,
+    paddingTop: 12,
+    paddingBottom: 18,
   },
 
-  button: {
+  actionButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+
+    elevation: 3,
+  },
+
+  passButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+  },
+
+  interestedButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#18181B',
+  },
+
+  emptyState: {
     alignItems: 'center',
-    elevation: 2,
+    paddingHorizontal: 40,
+  },
+
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#18181B',
+  },
+
+  emptySubtitle: {
+    marginTop: 8,
+    fontSize: 15,
+    color: '#71717A',
+    textAlign: 'center',
+  },
+
+  refreshButton: {
+    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#18181B',
+  },
+
+  refreshText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });
