@@ -1,7 +1,10 @@
 import {
   BriefcaseBusiness,
   Check,
+  HeartHandshake,
   MapPin,
+  MessageCircle,
+  Search,
   UserRound,
   X,
 } from 'lucide-react-native';
@@ -27,6 +30,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -105,8 +109,18 @@ const DUMMY_CARDS = [
 
 type Card = (typeof DUMMY_CARDS)[number];
 
+type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
+
+const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
+  { key: 'discover', label: 'Discover', Icon: Search },
+  { key: 'interests', label: 'Interests', Icon: HeartHandshake },
+  { key: 'messages', label: 'Messages', Icon: MessageCircle },
+  { key: 'profile', label: 'Profile', Icon: UserRound },
+];
+
 export default function Index() {
   const [cards, setCards] = useState(DUMMY_CARDS);
+  const [activeTab, setActiveTab] = useState<TabKey>('discover');
 
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
@@ -237,7 +251,7 @@ export default function Index() {
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logo}>bulletin</Text>
+          <Text style={styles.logo}>bulletin.</Text>
           <Text style={styles.subtitle}>Find your next opportunity.</Text>
         </View>
 
@@ -349,6 +363,9 @@ export default function Index() {
           </View>
         )}
       </SafeAreaView>
+
+      {/* Tab bar — outside SafeAreaView so it sits flush at the true bottom edge */}
+      <TabBar activeTab={activeTab} onTabPress={setActiveTab} />
     </GestureHandlerRootView>
   );
 }
@@ -458,6 +475,46 @@ function Tag({ text }: { text: string }) {
   );
 }
 
+function TabBar({
+  activeTab,
+  onTabPress,
+}: {
+  activeTab: TabKey;
+  onTabPress: (tab: TabKey) => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={[styles.tabBar, { paddingBottom: insets.bottom || 12 }]}>
+      {TABS.map(({ key, label, Icon }) => {
+        const isActive = key === activeTab;
+
+        return (
+          <Pressable
+            key={key}
+            style={styles.tabItem}
+            onPress={() => onTabPress(key)}
+          >
+            <Icon
+              size={24}
+              color={isActive ? '#18181B' : '#A1A1AA'}
+              strokeWidth={isActive ? 2.4 : 2}
+            />
+            <Text
+              style={[
+                styles.tabLabel,
+                isActive && styles.tabLabelActive,
+              ]}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -496,7 +553,7 @@ const styles = StyleSheet.create({
   card: {
     position: 'absolute',
     width: CARD_WIDTH,
-    height: '88%',
+    height: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
     overflow: 'hidden',
@@ -531,17 +588,19 @@ const styles = StyleSheet.create({
 
   name: {
     fontSize: 28,
-    lineHeight: 34,
+    lineHeight: 32,
     fontWeight: '800',
     letterSpacing: -0.8,
     color: '#18181B',
+    marginTop:6,
+    marginBottom: 2,
   },
 
   recruiterMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 4,
+    marginTop: 0,
   },
 
   recruiterTitle: {
@@ -748,5 +807,30 @@ const styles = StyleSheet.create({
   refreshText: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#E7E7EA',
+    backgroundColor: '#FFFFFF',
+    paddingTop: 10,
+  },
+
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#A1A1AA',
+  },
+
+  tabLabelActive: {
+    color: '#18181B',
   },
 });
