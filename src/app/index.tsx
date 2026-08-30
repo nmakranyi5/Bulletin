@@ -5,8 +5,9 @@ import {
   MapPin,
   MessageCircle,
   Search,
+  Settings,
   UserRound,
-  X,
+  X
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -37,7 +38,7 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 36;
 const SWIPE_THRESHOLD = width * 0.28;
 const SWIPE_DISTANCE = width * 1.4;
-const SWIPE_VELOCITY = 800;
+const SWIPE_VELOCITY = 400;
 
 const DUMMY_CARDS = [
   {
@@ -121,6 +122,7 @@ const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
 export default function Index() {
   const [cards, setCards] = useState(DUMMY_CARDS);
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
+  const [interestsRemaining, setInterestsRemaining] = useState(10);
 
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
@@ -249,124 +251,226 @@ export default function Index() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>bulletin.</Text>
-          <Text style={styles.subtitle}>Find your next opportunity.</Text>
-        </View>
-
-        {/* Deck */}
-        <View style={styles.deck}>
-          {topCard ? (
-            <>
-              {cards
-                .slice(0, 3)
-                .reverse()
-                .map((card, index, visibleCards) => {
-                  const isTop = index === visibleCards.length - 1;
-
-                  /*
-                   * Background cards are real cards, but completely static.
-                   */
-                  if (!isTop) {
-                    return (
-                      <View
-                        key={card.id}
-                        pointerEvents="none"
-                        style={styles.card}
-                      >
-                        <CardContent card={card} />
-                      </View>
-                    );
-                  }
-
-                  /*
-                   * Only the top card participates in gestures/animation.
-                   */
-                  return (
-                    <GestureDetector key={card.id} gesture={gesture}>
-                      <Animated.View style={[styles.card, cardStyle]}>
-                        {/* Pass badge */}
-                        <Animated.View
-                          style={[
-                            styles.swipeBadge,
-                            styles.passBadge,
-                            passStyle,
-                          ]}
-                        >
-                          <Text style={styles.passText}>PASS</Text>
-                        </Animated.View>
-
-                        {/* Interested badge */}
-                        <Animated.View
-                          style={[
-                            styles.swipeBadge,
-                            styles.interestedBadge,
-                            interestedStyle,
-                          ]}
-                        >
-                          <Text style={styles.interestedText}>
-                            INTERESTED
-                          </Text>
-                        </Animated.View>
-
-                        <CardContent card={card} />
-                      </Animated.View>
-                    </GestureDetector>
-                  );
-                })}
-            </>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>You’re all caught up.</Text>
-
-              <Text style={styles.emptySubtitle}>
-                No more recruiter profiles right now.
-              </Text>
-
-              <Pressable
-                style={styles.refreshButton}
-                onPress={resetDeck}
-              >
-                <Text style={styles.refreshText}>
-                  Refresh profiles
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-
-        {/* Actions */}
-        {topCard && (
-          <View style={styles.actions}>
-            <Pressable
-              style={[styles.actionButton, styles.passButton]}
-              onPress={() => buttonSwipe(-1)}
-            >
-              <X
-                size={28}
-                color="#EF4444"
-                strokeWidth={2.6}
-              />
-            </Pressable>
-
-            <Pressable
-              style={[styles.actionButton, styles.interestedButton]}
-              onPress={() => buttonSwipe(1)}
-            >
-              <Check
-                size={30}
-                color="#FFFFFF"
-                strokeWidth={2.7}
-              />
-            </Pressable>
-          </View>
+        {activeTab === 'discover' && (
+          <DiscoverScreen
+            cards={cards}
+            topCard={topCard}
+            cardStyle={cardStyle}
+            passStyle={passStyle}
+            interestedStyle={interestedStyle}
+            gesture={gesture}
+            buttonSwipe={buttonSwipe}
+            resetDeck={resetDeck}
+          />
         )}
+
+        {activeTab === 'interests' && <InterestsScreen />}
+        {activeTab === 'messages' && <MessagesScreen />}
+        {activeTab === 'profile' && <ProfileScreen />}
       </SafeAreaView>
 
       {/* Tab bar — outside SafeAreaView so it sits flush at the true bottom edge */}
       <TabBar activeTab={activeTab} onTabPress={setActiveTab} />
     </GestureHandlerRootView>
+  );
+}
+
+function DiscoverScreen({
+  cards,
+  topCard,
+  cardStyle,
+  passStyle,
+  interestedStyle,
+  gesture,
+  buttonSwipe,
+  resetDeck,
+}: {
+  cards: Card[];
+  topCard: Card | undefined;
+  cardStyle: any;
+  passStyle: any;
+  interestedStyle: any;
+  gesture: any;
+  buttonSwipe: (direction: number) => void;
+  resetDeck: () => void;
+}) {
+  return (
+    <>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.logo}>bulletin.</Text>
+        <Text style={styles.subtitle}>Find your next opportunity.</Text>
+      </View>
+
+      {/* Deck */}
+      <View style={styles.deck}>
+        {topCard ? (
+          <>
+            {cards
+              .slice(0, 3)
+              .reverse()
+              .map((card, index, visibleCards) => {
+                const isTop = index === visibleCards.length - 1;
+
+                /*
+                 * Background cards are real cards, but completely static.
+                 */
+                if (!isTop) {
+                  return (
+                    <View
+                      key={card.id}
+                      pointerEvents="none"
+                      style={styles.card}
+                    >
+                      <CardContent card={card} />
+                    </View>
+                  );
+                }
+
+                /*
+                 * Only the top card participates in gestures/animation.
+                 */
+                return (
+                  <GestureDetector key={card.id} gesture={gesture}>
+                    <Animated.View style={[styles.card, cardStyle]}>
+                      {/* Pass badge */}
+                      <Animated.View
+                        style={[
+                          styles.swipeBadge,
+                          styles.passBadge,
+                          passStyle,
+                        ]}
+                      >
+                        <Text style={styles.passText}>PASS</Text>
+                      </Animated.View>
+
+                      {/* Interested badge */}
+                      <Animated.View
+                        style={[
+                          styles.swipeBadge,
+                          styles.interestedBadge,
+                          interestedStyle,
+                        ]}
+                      >
+                        <Text style={styles.interestedText}>
+                          INTERESTED
+                        </Text>
+                      </Animated.View>
+
+                      <CardContent card={card} />
+                    </Animated.View>
+                  </GestureDetector>
+                );
+              })}
+          </>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>You’re all caught up.</Text>
+
+            <Text style={styles.emptySubtitle}>
+              No more recruiter profiles right now.
+            </Text>
+
+            <Pressable
+              style={styles.refreshButton}
+              onPress={resetDeck}
+            >
+              <Text style={styles.refreshText}>
+                Refresh profiles
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+
+      {/* Actions */}
+      {topCard && (
+        <View style={styles.actions}>
+          <Pressable
+            style={[styles.actionButton, styles.passButton]}
+            onPress={() => buttonSwipe(-1)}
+          >
+            <X
+              size={28}
+              color="#EF4444"
+              strokeWidth={2.6}
+            />
+          </Pressable>
+
+          <Pressable
+            style={[styles.actionButton, styles.interestedButton]}
+            onPress={() => buttonSwipe(1)}
+          >
+            <Check
+              size={30}
+              color="#FFFFFF"
+              strokeWidth={2.7}
+            />
+          </Pressable>
+        </View>
+      )}
+    </>
+  );
+}
+
+function InterestsScreen() {
+  return (
+    <View style={styles.simpleScreen}>
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>bulletin.</Text>
+        <Text style={styles.subtitle}>Explore your interests.</Text>
+      </View>
+
+      <View style={styles.emptyState}>
+        <HeartHandshake size={48} color="#A1A1AA" strokeWidth={1.5} />
+        <Text style={styles.emptyTitle}>No interests yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Swipe right on Discover to start expressing interest.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function MessagesScreen() {
+  return (
+    <View style={styles.simpleScreen}>
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>bulletin.</Text>
+        <Text style={styles.subtitle}>Real conversations. No BS.</Text>
+      </View>
+
+      <View style={styles.emptyState}>
+        <MessageCircle size={48} color="#A1A1AA" strokeWidth={1.5} />
+        <Text style={styles.emptyTitle}>No messages yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Once you match with someone, your conversation shows up here.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function ProfileScreen() {
+  return (
+    <View style={styles.simpleScreen}>
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>bulletin.</Text>
+        <Text style={styles.subtitle}>Manage your account.</Text>
+      </View>
+
+      <View style={styles.profileCard}>
+        <UserRound size={72} color="#A1A1AA" strokeWidth={1.5} />
+        <Text style={styles.profileName}>Your Name</Text>
+        <Text style={styles.profileSubtext}>Complete your profile</Text>
+      </View>
+
+      <View style={styles.profileCard}>
+        <Settings size={72} color="#A1A1AA" strokeWidth={1.5} />
+        <Text style={styles.profileName}>Settings</Text>
+        <Text style={styles.profileSubtext}>Manage your account settings</Text>
+      </View>
+    </View>
   );
 }
 
@@ -499,6 +603,7 @@ function TabBar({
               size={24}
               color={isActive ? '#18181B' : '#A1A1AA'}
               strokeWidth={isActive ? 2.4 : 2}
+              fill={isActive && key === 'interests' ? '#18181B' : 'none'}
             />
             <Text
               style={[
@@ -553,7 +658,7 @@ const styles = StyleSheet.create({
   card: {
     position: 'absolute',
     width: CARD_WIDTH,
-    height: '100%',
+    height: '96%',
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
     overflow: 'hidden',
@@ -588,19 +693,18 @@ const styles = StyleSheet.create({
 
   name: {
     fontSize: 28,
-    lineHeight: 32,
+    lineHeight: 34,
     fontWeight: '800',
     letterSpacing: -0.8,
     color: '#18181B',
-    marginTop:6,
-    marginBottom: 2,
+    marginBottom: 6,
   },
 
   recruiterMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 0,
+    marginTop: 4,
   },
 
   recruiterTitle: {
@@ -778,8 +882,11 @@ const styles = StyleSheet.create({
   },
 
   emptyState: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 40,
+    gap: 4,
   },
 
   emptyTitle: {
@@ -832,5 +939,46 @@ const styles = StyleSheet.create({
 
   tabLabelActive: {
     color: '#18181B',
+  },
+
+  simpleScreen: {
+    flex: 1,
+  },
+
+  screenHeader: {
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    paddingBottom: 14,
+  },
+
+  screenTitle: {
+    fontSize: 29,
+    fontWeight: '900',
+    letterSpacing: -1.3,
+    color: '#18181B',
+  },
+
+  profileCard: {
+    marginTop: 40,
+    marginHorizontal: 22,
+    padding: 28,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  profileName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#18181B',
+    marginTop: 8,
+  },
+
+  profileSubtext: {
+    fontSize: 14,
+    color: '#71717A',
   },
 });
