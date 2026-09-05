@@ -144,8 +144,11 @@ export default function Index() {
    * JS-side state update.
    * This is only called through runOnJS from gesture animations.
    */
-  const removeTopCard = () => {
+  const removeTopCard = (interested: number) => {
     setCards((prev) => prev.slice(1));
+    if(interested > 0) {
+      setInterestsRemaining((prev) => (prev > 0 ? prev - 1 : prev));
+    }
   };
 
   /*
@@ -160,7 +163,7 @@ export default function Index() {
         if (!finished) return;
 
         cardOpacity.value = 0;
-        runOnJS(removeTopCard)();
+        runOnJS(removeTopCard)(direction);
       }
     );
   };
@@ -191,7 +194,7 @@ export default function Index() {
             if (!finished) return;
 
             cardOpacity.value = 0;
-            runOnJS(removeTopCard)();
+            runOnJS(removeTopCard)(direction);
           }
         );
 
@@ -261,6 +264,7 @@ export default function Index() {
             gesture={gesture}
             buttonSwipe={buttonSwipe}
             resetDeck={resetDeck}
+            interestsRemaining={interestsRemaining}
           />
         )}
 
@@ -284,6 +288,7 @@ function DiscoverScreen({
   gesture,
   buttonSwipe,
   resetDeck,
+  interestsRemaining,
 }: {
   cards: Card[];
   topCard: Card | undefined;
@@ -293,13 +298,23 @@ function DiscoverScreen({
   gesture: any;
   buttonSwipe: (direction: number) => void;
   resetDeck: () => void;
+  interestsRemaining: number;
 }) {
   return (
     <>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>bulletin.</Text>
-        <Text style={styles.subtitle}>Find your next opportunity.</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.logo}>bulletin.</Text>
+            <Text style={styles.subtitle}>Find your next opportunity.</Text>
+          </View>
+
+          <View style={styles.interestCounter}>
+            <HeartHandshake size={14} color="#18181B" strokeWidth={2.4} />
+            <Text style={styles.interestCounterText}>{interestsRemaining}</Text>
+          </View>
+        </View>
       </View>
 
       {/* Deck */}
@@ -980,5 +995,28 @@ const styles = StyleSheet.create({
   profileSubtext: {
     fontSize: 14,
     color: '#71717A',
+  },
+
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+
+  interestCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F5',
+    marginTop: 2,
+  },
+
+  interestCounterText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#18181B',
   },
 });
