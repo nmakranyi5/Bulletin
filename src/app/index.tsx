@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Pressable,
   SafeAreaView,
@@ -128,6 +129,7 @@ export default function Index() {
   const cardOpacity = useSharedValue(1);
 
   const topCard = cards[0];
+  const interestsRemainingSV = useSharedValue(interestsRemaining);
 
   /*
    * Whenever React switches to a new top card,
@@ -139,6 +141,14 @@ export default function Index() {
     translateX.value = 0;
     cardOpacity.value = 1;
   }, [topCard?.id]);
+
+  useEffect(() => {
+    interestsRemainingSV.value = interestsRemaining;
+  }, [interestsRemaining]);
+
+  const showOutOfInterests = () => {
+    Alert.alert('Out of interests', 'You are out of interests.');
+  };
 
   /*
    * JS-side state update.
@@ -156,6 +166,12 @@ export default function Index() {
    * This starts from JS, so calling this function directly is safe.
    */
   const buttonSwipe = (direction: number) => {
+    if (direction > 0 && interestsRemaining <= 0) {
+      translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
+      showOutOfInterests();
+      return;
+    }
+
     translateX.value = withTiming(
       direction * SWIPE_DISTANCE,
       { duration: 150 },
@@ -187,14 +203,22 @@ export default function Index() {
             ? Math.sign(event.velocityX)
             : Math.sign(event.translationX);
 
+        const resolvedDirection = direction || 1;
+
+        if (resolvedDirection > 0 && interestsRemainingSV.value <= 0) {
+          translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
+          runOnJS(showOutOfInterests)();
+          return;
+        }
+
         translateX.value = withTiming(
-          (direction || 1) * SWIPE_DISTANCE,
+          resolvedDirection * SWIPE_DISTANCE,
           { duration: 150 },
           (finished) => {
             if (!finished) return;
 
             cardOpacity.value = 0;
-            runOnJS(removeTopCard)(direction);
+            runOnJS(removeTopCard)(resolvedDirection);
           }
         );
 
@@ -205,7 +229,7 @@ export default function Index() {
         damping: 18,
         stiffness: 180,
       });
-    });
+  });
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,
