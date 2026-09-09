@@ -1,7 +1,7 @@
 import {
   BriefcaseBusiness,
   Check,
-  HeartHandshake,
+  Handshake,
   MapPin,
   MessageCircle,
   Search,
@@ -41,6 +41,7 @@ const CARD_WIDTH = width - 36;
 const SWIPE_THRESHOLD = width * 0.28;
 const SWIPE_DISTANCE = width * 1.4;
 const SWIPE_VELOCITY = 400;
+const MAX_INTERESTS = 10;
 
 const DUMMY_CARDS = [
   {
@@ -116,7 +117,7 @@ type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
 
 const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
   { key: 'discover', label: 'Discover', Icon: Search },
-  { key: 'interests', label: 'Interests', Icon: HeartHandshake },
+  { key: 'interests', label: 'Interests', Icon: Handshake },
   { key: 'messages', label: 'Messages', Icon: MessageCircle },
   { key: 'profile', label: 'Profile', Icon: UserRound },
 ];
@@ -124,7 +125,7 @@ const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
 export default function Index() {
   const [cards, setCards] = useState(DUMMY_CARDS);
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
-  const [interestsRemaining, setInterestsRemaining] = useState(10);
+  const [interestsRemaining, setInterestsRemaining] = useState(MAX_INTERESTS);
   const [interestedCards, setInterestedCards] = useState<Card[]>([]);
 
   const translateX = useSharedValue(0);
@@ -166,6 +167,11 @@ export default function Index() {
     if (interested > 0) {
       setInterestsRemaining((prev) => (prev > 0 ? prev - 1 : prev));
     }
+  };
+
+  const removeInterest = (card: Card) => {
+    setInterestedCards((prev) => prev.filter((c) => c.id !== card.id));
+    setInterestsRemaining((prev) => Math.min(prev + 1, MAX_INTERESTS));
   };
 
   /*
@@ -273,13 +279,26 @@ export default function Index() {
   }));
 
   const resetDeck = () => {
-    /*
-     * Hide/reset stale animation state before restoring cards.
-     */
     cardOpacity.value = 0;
     translateX.value = 0;
 
     setCards(DUMMY_CARDS);
+  };
+
+  const handleInterestPress = (card: Card) => {
+    Alert.alert(
+      card.name,
+      'Keep this interest, or remove it and get your point back?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => removeInterest(card),
+        },
+        { text: 'Keep', style: 'default' },
+      ]
+    );
   };
 
   return (
@@ -299,7 +318,12 @@ export default function Index() {
           />
         )}
 
-        {activeTab === 'interests' && <InterestsScreen interestedCards={interestedCards} />}
+        {activeTab === 'interests' && (
+          <InterestsScreen
+            interestedCards={interestedCards}
+            onInterestPress={handleInterestPress}
+          />
+        )}
         {activeTab === 'messages' && <MessagesScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </SafeAreaView>
@@ -342,7 +366,7 @@ function DiscoverScreen({
           </View>
 
           <View style={styles.interestCounter}>
-            <HeartHandshake size={14} color="#18181B" strokeWidth={2.4} />
+            <Handshake size={14} color="#18181B" strokeWidth={2.4} />
             <Text style={styles.interestCounterText}>{interestsRemaining}</Text>
           </View>
         </View>
@@ -459,7 +483,13 @@ function DiscoverScreen({
   );
 }
 
-function InterestsScreen({ interestedCards }: { interestedCards: Card[] }) {
+function InterestsScreen({
+    interestedCards,
+    onInterestPress,
+  }: {
+    interestedCards: Card[];
+    onInterestPress: (card: Card) => void;
+  }) {
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
@@ -469,7 +499,7 @@ function InterestsScreen({ interestedCards }: { interestedCards: Card[] }) {
 
       {interestedCards.length === 0 ? (
         <View style={styles.emptyState}>
-          <HeartHandshake size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <Handshake size={48} color="#A1A1AA" strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No interests yet</Text>
           <Text style={styles.emptySubtitle}>
             Swipe right on Discover to start expressing interest.
@@ -481,7 +511,10 @@ function InterestsScreen({ interestedCards }: { interestedCards: Card[] }) {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.interestsList}
           renderItem={({ item }) => (
-            <View style={styles.interestRow}>
+            <Pressable
+              style={styles.interestRow}
+              onPress={() => onInterestPress(item)}
+            >
               <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
 
               <View style={styles.interestRowInfo}>
@@ -492,7 +525,7 @@ function InterestsScreen({ interestedCards }: { interestedCards: Card[] }) {
                   {item.position} · {item.company}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           )}
         />
       )}
@@ -667,12 +700,11 @@ function TabBar({
             style={styles.tabItem}
             onPress={() => onTabPress(key)}
           >
-            <Icon
-              size={24}
-              color={isActive ? '#18181B' : '#A1A1AA'}
-              strokeWidth={isActive ? 2.4 : 2}
-              fill={isActive && key === 'interests' ? '#18181B' : 'none'}
-            />
+          <Icon
+            size={24}
+            color={isActive ? '#18181B' : '#A1A1AA'}
+            strokeWidth={isActive ? 2.4 : 2}
+          />
             <Text
               style={[
                 styles.tabLabel,
