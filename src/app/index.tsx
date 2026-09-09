@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  FlatList,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -124,6 +125,7 @@ export default function Index() {
   const [cards, setCards] = useState(DUMMY_CARDS);
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [interestsRemaining, setInterestsRemaining] = useState(10);
+  const [interestedCards, setInterestedCards] = useState<Card[]>([]);
 
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
@@ -155,8 +157,13 @@ export default function Index() {
    * This is only called through runOnJS from gesture animations.
    */
   const removeTopCard = (interested: number) => {
+    if (interested > 0 && topCard) {
+      setInterestedCards((prev) => [...prev, topCard]);
+    }
+
     setCards((prev) => prev.slice(1));
-    if(interested > 0) {
+
+    if (interested > 0) {
       setInterestsRemaining((prev) => (prev > 0 ? prev - 1 : prev));
     }
   };
@@ -292,7 +299,7 @@ export default function Index() {
           />
         )}
 
-        {activeTab === 'interests' && <InterestsScreen />}
+        {activeTab === 'interests' && <InterestsScreen interestedCards={interestedCards} />}
         {activeTab === 'messages' && <MessagesScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </SafeAreaView>
@@ -452,7 +459,7 @@ function DiscoverScreen({
   );
 }
 
-function InterestsScreen() {
+function InterestsScreen({ interestedCards }: { interestedCards: Card[] }) {
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
@@ -460,13 +467,35 @@ function InterestsScreen() {
         <Text style={styles.subtitle}>Explore your interests.</Text>
       </View>
 
-      <View style={styles.emptyState}>
-        <HeartHandshake size={48} color="#A1A1AA" strokeWidth={1.5} />
-        <Text style={styles.emptyTitle}>No interests yet</Text>
-        <Text style={styles.emptySubtitle}>
-          Swipe right on Discover to start expressing interest.
-        </Text>
-      </View>
+      {interestedCards.length === 0 ? (
+        <View style={styles.emptyState}>
+          <HeartHandshake size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <Text style={styles.emptyTitle}>No interests yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Swipe right on Discover to start expressing interest.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={interestedCards}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.interestsList}
+          renderItem={({ item }) => (
+            <View style={styles.interestRow}>
+              <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+
+              <View style={styles.interestRowInfo}>
+                <Text numberOfLines={1} style={styles.interestRowName}>
+                  {item.name}
+                </Text>
+                <Text numberOfLines={1} style={styles.interestRowMeta}>
+                  {item.position} · {item.company}
+                </Text>
+              </View>
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -1042,5 +1071,38 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#18181B',
+  },
+
+  interestsList: {
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    gap: 12,
+  },
+
+  interestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+  },
+
+  interestRowInfo: {
+    flex: 1,
+  },
+
+  interestRowName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#18181B',
+  },
+
+  interestRowMeta: {
+    marginTop: 2,
+    fontSize: 13,
+    color: '#71717A',
   },
 });
