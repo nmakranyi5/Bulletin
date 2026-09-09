@@ -355,7 +355,6 @@ export default function Index() {
       card.name,
       'Keep this interest, or remove it and get your point back?',
       [
-        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
