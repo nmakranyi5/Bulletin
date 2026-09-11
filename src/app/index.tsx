@@ -1,10 +1,12 @@
 import {
+  ArrowLeft,
   BriefcaseBusiness,
   Check,
   Handshake,
   MapPin,
   MessageCircle,
   Search,
+  Send,
   Settings,
   UserRound,
   X
@@ -14,10 +16,13 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import {
@@ -199,6 +204,12 @@ type Card = (typeof DUMMY_CARDS)[number];
 
 type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
 
+type ChatMessage = {
+  id: string;
+  text: string;
+  fromMe: boolean;
+};
+
 const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
   { key: 'discover', label: 'Discover', Icon: Search },
   { key: 'interests', label: 'Interests', Icon: Handshake },
@@ -214,6 +225,8 @@ export default function Index() {
   const [receivedInterests, setReceivedInterests] = useState<ReceivedInterest[]>(
   DUMMY_RECEIVED_INTERESTS);
   const [matches, setMatches] = useState<ReceivedInterest[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<ReceivedInterest | null>(null);
+  const [messagesByMatch, setMessagesByMatch] = useState<Record<number, ChatMessage[]>>({});
 
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
@@ -411,6 +424,22 @@ export default function Index() {
     );
   };
 
+  const sendMessage = (matchId: number, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const newMessage: ChatMessage = {
+      id: `${Date.now()}`,
+      text: trimmed,
+      fromMe: true,
+    };
+
+    setMessagesByMatch((prev) => ({
+      ...prev,
+      [matchId]: [...(prev[matchId] ?? []), newMessage],
+    }));
+  };
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
@@ -436,12 +465,23 @@ export default function Index() {
             onReceivedPress={handleReceivedPress}
           />
         )}
-        {activeTab === 'messages' && <MessagesScreen matches={matches} />}
+        {activeTab === 'messages' && (
+          selectedMatch ? (
+            <ChatScreen
+              match={selectedMatch}
+              messages={messagesByMatch[selectedMatch.id] ?? []}
+              onSend={(text) => sendMessage(selectedMatch.id, text)}
+              onBack={() => setSelectedMatch(null)}
+            />
+          ) : (
+            <MessagesScreen matches={matches} onMatchPress={setSelectedMatch} />
+          )
+        )}
         {activeTab === 'profile' && <ProfileScreen />}
       </SafeAreaView>
-
-      {/* Tab bar — outside SafeAreaView so it sits flush at the true bottom edge */}
-      <TabBar activeTab={activeTab} onTabPress={setActiveTab} unseenReceivedCount={unseenReceivedCount} />
+      {!selectedMatch && (
+        <TabBar activeTab={activeTab} onTabPress={setActiveTab} unseenReceivedCount={unseenReceivedCount} />
+      )}
     </GestureHandlerRootView>
   );
 }
@@ -720,7 +760,7 @@ function InterestsScreen({
   );
 }
 
-function MessagesScreen({ matches }: { matches: ReceivedInterest[] }) {
+function MessagesScreen({ matches, onMatchPress }: { matches: ReceivedInterest[]; onMatchPress: (match: ReceivedInterest) => void }) {
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
@@ -742,7 +782,7 @@ function MessagesScreen({ matches }: { matches: ReceivedInterest[] }) {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.interestsList}
           renderItem={({ item }) => (
-            <Pressable style={styles.interestRow}>
+            <Pressable style={styles.interestRow} onPress={() => onMatchPress(item)}>
               <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
               
               <View style={styles.interestRowInfo}>
@@ -758,6 +798,96 @@ function MessagesScreen({ matches }: { matches: ReceivedInterest[] }) {
         />
       )}
     </View>
+  );
+}
+
+function ChatScreen({
+  match,
+  messages,
+  onSend,
+  onBack,
+}: {
+  match: ReceivedInterest;
+  messages: ChatMessage[];
+  onSend: (text: string) => void;
+  onBack: () => void;
+}) {
+  const [draft, setDraft] = useState('');
+
+  const handleSend = () => {
+    if (!draft.trim()) return;
+    onSend(draft);
+    setDraft('');
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.chatContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <View style={styles.chatHeader}>
+        <Pressable onPress={onBack} style={styles.chatBackButton}>
+          <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+        </Pressable>
+
+        <View style={styles.chatHeaderInfo}>
+          <Text numberOfLines={1} style={styles.chatHeaderName}>
+            {match.name}
+          </Text>
+          <Text numberOfLines={1} style={styles.chatHeaderMeta}>
+            {match.position} · {match.company}
+          </Text>
+        </View>
+      </View>
+
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.chatMessages}
+        renderItem={({ item }) => (
+          <View
+            style={[
+              styles.chatBubble,
+              item.fromMe ? styles.chatBubbleMine : styles.chatBubbleTheirs,
+            ]}
+          >
+            <Text
+              style={[
+                styles.chatBubbleText,
+                item.fromMe && styles.chatBubbleTextMine,
+              ]}
+            >
+              {item.text}
+            </Text>
+          </View>
+        )}
+        ListEmptyComponent={
+          <Text style={styles.chatEmptyText}>
+            Say hello to {match.name.split(' ')[0]}.
+          </Text>
+        }
+      />
+
+      <View style={styles.chatInputRow}>
+        <TextInput
+          style={styles.chatInput}
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Message..."
+          placeholderTextColor="#A1A1AA"
+          multiline
+        />
+
+        <Pressable
+          style={[styles.chatSendButton, !draft.trim() && styles.chatSendButtonDisabled]}
+          onPress={handleSend}
+          disabled={!draft.trim()}
+        >
+          <Send size={18} color="#FFFFFF" strokeWidth={2.4} />
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1410,5 +1540,118 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
+  },
+
+  chatContainer: {
+    flex: 1,
+  },
+
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E7E7EA',
+  },
+
+  chatBackButton: {
+    padding: 4,
+  },
+
+  chatHeaderInfo: {
+    flex: 1,
+  },
+
+  chatHeaderName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#18181B',
+  },
+
+  chatHeaderMeta: {
+    marginTop: 1,
+    fontSize: 12,
+    color: '#71717A',
+  },
+
+  chatMessages: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 8,
+    flexGrow: 1,
+  },
+
+  chatBubble: {
+    maxWidth: '78%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+  },
+
+  chatBubbleMine: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#18181B',
+    borderBottomRightRadius: 4,
+  },
+
+  chatBubbleTheirs: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F4F4F5',
+    borderBottomLeftRadius: 4,
+  },
+
+  chatBubbleText: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: '#18181B',
+  },
+
+  chatBubbleTextMine: {
+    color: '#FFFFFF',
+  },
+
+  chatEmptyText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 14,
+    color: '#A1A1AA',
+  },
+
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E7E7EA',
+    backgroundColor: '#FFFFFF',
+  },
+
+  chatInput: {
+    flex: 1,
+    maxHeight: 100,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F5',
+    fontSize: 15,
+    color: '#18181B',
+  },
+
+  chatSendButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#18181B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  chatSendButtonDisabled: {
+    backgroundColor: '#D4D4D8',
   },
 });
