@@ -176,6 +176,25 @@ const DUMMY_CARDS = [
   },
 ];
 
+const DUMMY_RECEIVED_INTERESTS = [
+  {
+    id: 101,
+    name: 'Priya Anand',
+    title: 'Recruiter',
+    company: 'Stripe',
+    position: 'Backend Engineer',
+  },
+  {
+    id: 102,
+    name: 'Marcus Webb',
+    title: 'Talent Partner',
+    company: 'Airbnb',
+    position: 'Full Stack Engineer',
+  },
+];
+
+type ReceivedInterest = (typeof DUMMY_RECEIVED_INTERESTS)[number];
+
 type Card = (typeof DUMMY_CARDS)[number];
 
 type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
@@ -192,6 +211,8 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [interestsRemaining, setInterestsRemaining] = useState(MAX_INTERESTS);
   const [interestedCards, setInterestedCards] = useState<Card[]>([]);
+  const [receivedInterests, setReceivedInterests] = useState<ReceivedInterest[]>(
+  DUMMY_RECEIVED_INTERESTS);
 
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
@@ -386,6 +407,7 @@ export default function Index() {
           <InterestsScreen
             interestedCards={interestedCards}
             onInterestPress={handleInterestPress}
+            receivedInterests={receivedInterests}
           />
         )}
         {activeTab === 'messages' && <MessagesScreen />}
@@ -548,12 +570,16 @@ function DiscoverScreen({
 }
 
 function InterestsScreen({
-    interestedCards,
-    onInterestPress,
-  }: {
-    interestedCards: Card[];
-    onInterestPress: (card: Card) => void;
-  }) {
+  interestedCards,
+  receivedInterests,
+  onInterestPress,
+}: {
+  interestedCards: Card[];
+  receivedInterests: ReceivedInterest[];
+  onInterestPress: (card: Card) => void;
+}) {
+  const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
+
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
@@ -561,7 +587,64 @@ function InterestsScreen({
         <Text style={styles.subtitle}>Explore your interests.</Text>
       </View>
 
-      {interestedCards.length === 0 ? (
+      <View style={styles.subTabBar}>
+        <Pressable
+          style={[styles.subTabItem, subTab === 'received' && styles.subTabItemActive]}
+          onPress={() => setSubTab('received')}
+        >
+          <Text
+            style={[
+              styles.subTabText,
+              subTab === 'received' && styles.subTabTextActive,
+            ]}
+          >
+            Received ({receivedInterests.length})
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.subTabItem, subTab === 'sent' && styles.subTabItemActive]}
+          onPress={() => setSubTab('sent')}
+        >
+          <Text
+            style={[styles.subTabText, subTab === 'sent' && styles.subTabTextActive]}
+          >
+            Sent ({interestedCards.length})
+          </Text>
+        </Pressable>
+      </View>
+
+      {subTab === 'received' ? (
+        receivedInterests.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Handshake size={48} color="#A1A1AA" strokeWidth={1.5} />
+            <Text style={styles.emptyTitle}>No interests yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Recruiters who show interest in you will show up here.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={receivedInterests}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={styles.interestsList}
+            renderItem={({ item }) => (
+              <View style={styles.interestRow}>
+                <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+
+                <View style={styles.interestRowInfo}>
+                  <Text numberOfLines={1} style={styles.interestRowName}>
+                    {item.name}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.interestRowMeta}>
+                    {item.position} · {item.company}
+                  </Text>
+                </View>
+              </View>
+            )}
+          />
+        )
+      ) : interestedCards.length === 0 ? (
         <View style={styles.emptyState}>
           <Handshake size={48} color="#A1A1AA" strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No interests yet</Text>
@@ -1200,5 +1283,40 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 13,
     color: '#71717A',
+  },
+
+  subTabBar: {
+  flexDirection: 'row',
+  marginHorizontal: 22,
+  marginBottom: 12,
+  padding: 4,
+  borderRadius: 14,
+  backgroundColor: '#F4F4F5',
+},
+
+  subTabItem: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  subTabItemActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+
+  subTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#71717A',
+  },
+
+  subTabTextActive: {
+    color: '#18181B',
   },
 });
