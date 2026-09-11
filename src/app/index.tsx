@@ -213,6 +213,7 @@ export default function Index() {
   const [interestedCards, setInterestedCards] = useState<Card[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<ReceivedInterest[]>(
   DUMMY_RECEIVED_INTERESTS);
+  const [matches, setMatches] = useState<ReceivedInterest[]>([]);
 
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
@@ -401,9 +402,10 @@ export default function Index() {
         {
           text: 'Accept',
           style: 'default',
-          onPress: () =>
+          onPress: () => {
             setReceivedInterests((prev) => prev.filter((r) => r.id !== interest.id)),
-          // TODO: accepting should eventually create a match/conversation
+            setMatches((prev) => [...prev, interest]);
+          },
         },
       ]
     );
@@ -434,7 +436,7 @@ export default function Index() {
             onReceivedPress={handleReceivedPress}
           />
         )}
-        {activeTab === 'messages' && <MessagesScreen />}
+        {activeTab === 'messages' && <MessagesScreen matches={matches} />}
         {activeTab === 'profile' && <ProfileScreen />}
       </SafeAreaView>
 
@@ -718,7 +720,7 @@ function InterestsScreen({
   );
 }
 
-function MessagesScreen() {
+function MessagesScreen({ matches }: { matches: ReceivedInterest[] }) {
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
@@ -726,13 +728,35 @@ function MessagesScreen() {
         <Text style={styles.subtitle}>Real conversations. No BS.</Text>
       </View>
 
-      <View style={styles.emptyState}>
-        <MessageCircle size={48} color="#A1A1AA" strokeWidth={1.5} />
-        <Text style={styles.emptyTitle}>No messages yet</Text>
-        <Text style={styles.emptySubtitle}>
-          Once you match with someone, your conversation shows up here.
-        </Text>
-      </View>
+      {matches.length === 0 ? (
+        <View style={styles.emptyState}>
+          <MessageCircle size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <Text style={styles.emptyTitle}>No messages yet.</Text>
+          <Text style={styles.emptySubtitle}>
+            Once you match with someone, your conversation shows up here.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={matches}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.interestsList}
+          renderItem={({ item }) => (
+            <Pressable style={styles.interestRow}>
+              <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+              
+              <View style={styles.interestRowInfo}>
+                <Text numberOfLines={1} style={styles.interestRowName}>
+                  {item.name}
+                </Text>
+                <Text numberOfLines={1} style={styles.interestRowMeta}>
+                  {item.position} · {item.company}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+        />
+      )}
     </View>
   );
 }
