@@ -219,6 +219,7 @@ export default function Index() {
 
   const topCard = cards[0];
   const interestsRemainingSV = useSharedValue(interestsRemaining);
+  const unseenReceivedCount = receivedInterests.length;
 
   /*
    * Whenever React switches to a new top card,
@@ -386,6 +387,28 @@ export default function Index() {
     );
   };
 
+  const handleReceivedPress = (interest: ReceivedInterest) => {
+    Alert.alert(
+      interest.name,
+      `${interest.name} is interested in you for ${interest.position} at ${interest.company}.`,
+      [
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: () =>
+            setReceivedInterests((prev) => prev.filter((r) => r.id !== interest.id)),
+        },
+        {
+          text: 'Accept',
+          style: 'default',
+          onPress: () =>
+            setReceivedInterests((prev) => prev.filter((r) => r.id !== interest.id)),
+          // TODO: accepting should eventually create a match/conversation
+        },
+      ]
+    );
+  };
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
@@ -408,6 +431,7 @@ export default function Index() {
             interestedCards={interestedCards}
             onInterestPress={handleInterestPress}
             receivedInterests={receivedInterests}
+            onReceivedPress={handleReceivedPress}
           />
         )}
         {activeTab === 'messages' && <MessagesScreen />}
@@ -415,7 +439,7 @@ export default function Index() {
       </SafeAreaView>
 
       {/* Tab bar — outside SafeAreaView so it sits flush at the true bottom edge */}
-      <TabBar activeTab={activeTab} onTabPress={setActiveTab} />
+      <TabBar activeTab={activeTab} onTabPress={setActiveTab} unseenReceivedCount={unseenReceivedCount} />
     </GestureHandlerRootView>
   );
 }
@@ -573,10 +597,12 @@ function InterestsScreen({
   interestedCards,
   receivedInterests,
   onInterestPress,
+  onReceivedPress,
 }: {
   interestedCards: Card[];
   receivedInterests: ReceivedInterest[];
   onInterestPress: (card: Card) => void;
+  onReceivedPress: (interest: ReceivedInterest) => void;
 }) {
   const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
 
@@ -589,7 +615,10 @@ function InterestsScreen({
 
       <View style={styles.subTabBar}>
         <Pressable
-          style={[styles.subTabItem, subTab === 'received' && styles.subTabItemActive]}
+          style={[
+            styles.subTabItem,
+            subTab === 'received' && styles.subTabItemActive,
+          ]}
           onPress={() => setSubTab('received')}
         >
           <Text
@@ -603,11 +632,17 @@ function InterestsScreen({
         </Pressable>
 
         <Pressable
-          style={[styles.subTabItem, subTab === 'sent' && styles.subTabItemActive]}
+          style={[
+            styles.subTabItem,
+            subTab === 'sent' && styles.subTabItemActive,
+          ]}
           onPress={() => setSubTab('sent')}
         >
           <Text
-            style={[styles.subTabText, subTab === 'sent' && styles.subTabTextActive]}
+            style={[
+              styles.subTabText,
+              subTab === 'sent' && styles.subTabTextActive,
+            ]}
           >
             Sent ({interestedCards.length})
           </Text>
@@ -629,7 +664,10 @@ function InterestsScreen({
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.interestsList}
             renderItem={({ item }) => (
-              <View style={styles.interestRow}>
+              <Pressable
+                style={styles.interestRow}
+                onPress={() => onReceivedPress(item)}
+              >
                 <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
 
                 <View style={styles.interestRowInfo}>
@@ -640,7 +678,7 @@ function InterestsScreen({
                     {item.position} · {item.company}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             )}
           />
         )
@@ -830,9 +868,11 @@ function Tag({ text }: { text: string }) {
 function TabBar({
   activeTab,
   onTabPress,
+  unseenReceivedCount,
 }: {
   activeTab: TabKey;
   onTabPress: (tab: TabKey) => void;
+  unseenReceivedCount: number;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -847,11 +887,20 @@ function TabBar({
             style={styles.tabItem}
             onPress={() => onTabPress(key)}
           >
-          <Icon
-            size={24}
-            color={isActive ? '#18181B' : '#A1A1AA'}
-            strokeWidth={isActive ? 2.4 : 2}
-          />
+          <View>
+            <Icon
+              size={24}
+              color={isActive ? '#18181B' : '#A1A1AA'}
+              strokeWidth={isActive ? 2.4 : 2}
+            />
+            {key === 'interests' && unseenReceivedCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unseenReceivedCount > 9 ? '9+' : unseenReceivedCount}
+                </Text>
+              </View>
+            )}
+          </View>
             <Text
               style={[
                 styles.tabLabel,
@@ -1318,5 +1367,24 @@ const styles = StyleSheet.create({
 
   subTabTextActive: {
     color: '#18181B',
+  },
+
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
 });
