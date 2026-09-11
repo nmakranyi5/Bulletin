@@ -14,16 +14,15 @@ import {
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions
 } from 'react-native';
 import {
   Gesture,
@@ -38,14 +37,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
-
-const CARD_WIDTH = width - 36;
-const SWIPE_THRESHOLD = width * 0.28;
-const SWIPE_DISTANCE = width * 1.4;
-const SWIPE_VELOCITY = 400;
 const MAX_INTERESTS = 10;
 
 const DUMMY_CARDS = [
@@ -218,6 +211,13 @@ const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
 ];
 
 export default function Index() {
+
+  const { width } = useWindowDimensions();
+  const CARD_WIDTH = width - 36;
+  const SWIPE_THRESHOLD = width * 0.28;
+  const SWIPE_DISTANCE = width * 1.4;
+  const SWIPE_VELOCITY = 400;
+
   const [cards, setCards] = useState(DUMMY_CARDS);
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [interestsRemaining, setInterestsRemaining] = useState(MAX_INTERESTS);
@@ -454,6 +454,7 @@ export default function Index() {
             buttonSwipe={buttonSwipe}
             resetDeck={resetDeck}
             interestsRemaining={interestsRemaining}
+            CARD_WIDTH={CARD_WIDTH}
           />
         )}
 
@@ -496,6 +497,7 @@ function DiscoverScreen({
   buttonSwipe,
   resetDeck,
   interestsRemaining,
+  CARD_WIDTH,
 }: {
   cards: Card[];
   topCard: Card | undefined;
@@ -506,6 +508,7 @@ function DiscoverScreen({
   buttonSwipe: (direction: number) => void;
   resetDeck: () => void;
   interestsRemaining: number;
+  CARD_WIDTH: number;
 }) {
   return (
     <>
@@ -542,7 +545,7 @@ function DiscoverScreen({
                     <View
                       key={card.id}
                       pointerEvents="none"
-                      style={styles.card}
+                      style={[styles.card, { width: CARD_WIDTH }]}
                     >
                       <CardContent card={card} />
                     </View>
@@ -554,7 +557,7 @@ function DiscoverScreen({
                  */
                 return (
                   <GestureDetector key={card.id} gesture={gesture}>
-                    <Animated.View style={[styles.card, cardStyle]}>
+                    <Animated.View style={[styles.card, { width: CARD_WIDTH }, cardStyle]}>
                       {/* Pass badge */}
                       <Animated.View
                         style={[
@@ -1107,7 +1110,6 @@ const styles = StyleSheet.create({
 
   card: {
     position: 'absolute',
-    width: CARD_WIDTH,
     height: '96%',
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
@@ -1294,7 +1296,6 @@ const styles = StyleSheet.create({
 
     gap: 24,
     paddingTop: 12,
-    paddingBottom: 18,
   },
 
   actionButton: {
