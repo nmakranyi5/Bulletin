@@ -528,7 +528,7 @@ export default function Index() {
             <MessagesScreen matches={matches} onMatchPress={setSelectedMatch} />
           )
         )}
-        {activeTab === 'profile' && <ProfileScreen />}
+        {activeTab === 'profile' && <ProfileScreen session={session} />}
       </SafeAreaView>
       {!selectedMatch && (
         <TabBar activeTab={activeTab} onTabPress={setActiveTab} unseenReceivedCount={unseenReceivedCount} />
@@ -942,11 +942,50 @@ function ChatScreen({
   );
 }
 
-function ProfileScreen() {
+function ProfileScreen({ session }: { session: Session }) {
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const testConnection = async () => {
-    const { data, error } = await supabase.auth.getSession();
-    console.log('Session:', data, 'Error:', error);
+  useEffect(() => {
+    const loadProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        setName(data?.name ?? '');
+      }
+
+      setLoading(false);
+    };
+
+    loadProfile();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ name: name.trim() })
+      .eq('id', session.user.id);
+
+    setSaving(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Saved', 'Your profile has been updated.');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
   };
 
   return (
@@ -956,14 +995,32 @@ function ProfileScreen() {
         <Text style={styles.subtitle}>Manage your account.</Text>
       </View>
 
-      <Pressable style={styles.refreshButton} onPress={testConnection}>
-        <Text style={styles.refreshText}>Test Supabase Connection</Text>
-      </Pressable>
-
       <View style={styles.profileCard}>
         <UserRound size={72} color="#A1A1AA" strokeWidth={1.5} />
-        <Text style={styles.profileName}>Your Name</Text>
-        <Text style={styles.profileSubtext}>Complete your profile</Text>
+
+        {loading ? (
+          <Text style={styles.profileSubtext}>Loading...</Text>
+        ) : (
+          <>
+            <TextInput
+              style={styles.profileNameInput}
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor="#A1A1AA"
+            />
+
+            <Pressable
+              style={[styles.authButton, saving && styles.authButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.authButtonText}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       <View style={styles.profileCard}>
@@ -971,6 +1028,10 @@ function ProfileScreen() {
         <Text style={styles.profileName}>Settings</Text>
         <Text style={styles.profileSubtext}>Manage your account settings</Text>
       </View>
+
+      <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </Pressable>
     </View>
   );
 }
@@ -1875,5 +1936,34 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginTop: 20,
     marginBottom: 4,
+  },
+
+  profileNameInput: {
+    marginTop: 8,
+    width: '100%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#F4F4F5',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#18181B',
+    textAlign: 'center',
+  },
+
+  signOutButton: {
+    marginTop: 20,
+    marginHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    alignItems: 'center',
+  },
+
+  signOutText: {
+    color: '#EF4444',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
