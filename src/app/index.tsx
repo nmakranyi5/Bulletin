@@ -1,3 +1,4 @@
+import { Session } from '@supabase/supabase-js';
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -236,6 +237,9 @@ export default function Index() {
   const interestsRemainingSV = useSharedValue(interestsRemaining);
   const unseenReceivedCount = receivedInterests.length;
 
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   /*
    * Whenever React switches to a new top card,
    * reset its animation state.
@@ -254,6 +258,40 @@ export default function Index() {
   const showOutOfInterests = () => {
     Alert.alert('Out of interests', 'You are out of interests.');
   };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+
+  useEffect(() => {
+    if (!session) return;
+
+    const ensureProfile = async () => {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from('profiles').insert({ id: session.user.id });
+      }
+    };
+
+    ensureProfile();
+  }, [session]);
 
   /*
    * JS-side state update.
@@ -440,6 +478,18 @@ export default function Index() {
       [matchId]: [...(prev[matchId] ?? []), newMessage],
     }));
   };
+
+  if (authLoading) {
+    return (
+      <View style={styles.authLoadingContainer}>
+        <Text style={styles.subtitle}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen />;
+  }
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -922,6 +972,105 @@ function ProfileScreen() {
         <Text style={styles.profileSubtext}>Manage your account settings</Text>
       </View>
     </View>
+  );
+}
+
+function AuthScreen() {
+  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Missing info', 'Please enter both email and password.');
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } =
+      mode === 'signUp'
+        ? await supabase.auth.signUp({ email: email.trim(), password })
+        : await supabase.auth.signInWithPassword({ email: email.trim(), password });
+
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    if (mode === 'signUp') {
+      Alert.alert('Check your email', 'Confirm your email to finish signing up.');
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.authContainer}>
+      <KeyboardAvoidingView
+        style={styles.authInner}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Text style={styles.logo}>bulletin.</Text>
+        <Text style={styles.subtitle}>
+          {mode === 'signIn' ? 'Welcome back.' : 'Create your account.'}
+        </Text>
+
+        <View style={[styles.subTabBar, styles.authModeToggle]}>
+          <Pressable
+            style={[styles.subTabItem, mode === 'signIn' && styles.subTabItemActive]}
+            onPress={() => setMode('signIn')}
+          >
+            <Text
+              style={[styles.subTabText, mode === 'signIn' && styles.subTabTextActive]}
+            >
+              Log In
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.subTabItem, mode === 'signUp' && styles.subTabItemActive]}
+            onPress={() => setMode('signUp')}
+          >
+            <Text
+              style={[styles.subTabText, mode === 'signUp' && styles.subTabTextActive]}
+            >
+              Sign Up
+            </Text>
+          </Pressable>
+        </View>
+
+        <TextInput
+          style={styles.authInput}
+          placeholder="Email"
+          placeholderTextColor="#A1A1AA"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+
+        <TextInput
+          style={styles.authInput}
+          placeholder="Password"
+          placeholderTextColor="#A1A1AA"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+
+        <Pressable
+          style={[styles.authButton, loading && styles.authButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.authButtonText}>
+            {loading ? 'Please wait...' : mode === 'signIn' ? 'Log In' : 'Sign Up'}
+          </Text>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -1664,5 +1813,67 @@ const styles = StyleSheet.create({
 
   chatSendButtonDisabled: {
     backgroundColor: '#D4D4D8',
+  },
+
+  authContainer: {
+    flex: 1,
+    backgroundColor: '#F5F5F7',
+  },
+
+  authInner: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    gap: 12,
+  },
+
+  authInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+    fontSize: 15,
+    color: '#18181B',
+    marginTop: 8,
+  },
+
+  authButton: {
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#18181B',
+    alignItems: 'center',
+  },
+
+  authButtonDisabled: {
+    backgroundColor: '#A1A1AA',
+  },
+
+  authButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+
+  authToggleText: {
+    marginTop: 16,
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#71717A',
+  },
+
+  authLoadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F5F7',
+  },
+
+  authModeToggle: {
+    marginHorizontal: 0,
+    marginTop: 20,
+    marginBottom: 4,
   },
 });
