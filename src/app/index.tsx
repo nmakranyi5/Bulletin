@@ -39,6 +39,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -892,12 +893,22 @@ function ChatScreen({
 }
 
 function ProfileScreen() {
+
+  const testConnection = async () => {
+    const { data, error } = await supabase.auth.getSession();
+    console.log('Session:', data, 'Error:', error);
+  };
+
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
         <Text style={styles.screenTitle}>bulletin.</Text>
         <Text style={styles.subtitle}>Manage your account.</Text>
       </View>
+
+      <Pressable style={styles.refreshButton} onPress={testConnection}>
+        <Text style={styles.refreshText}>Test Supabase Connection</Text>
+      </Pressable>
 
       <View style={styles.profileCard}>
         <UserRound size={72} color="#A1A1AA" strokeWidth={1.5} />
