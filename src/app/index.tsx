@@ -1146,7 +1146,7 @@ function OnboardingScreen({
     if (error) throw error;
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
+    return `${data.publicUrl}?t=${Date.now()}`;
   };
 
   const handleSubmit = async () => {
