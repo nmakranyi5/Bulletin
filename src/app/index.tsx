@@ -1,4 +1,6 @@
 import { Session } from '@supabase/supabase-js';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -242,6 +244,7 @@ export default function Index() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
 
   /*
    * Whenever React switches to a new top card,
@@ -461,7 +464,7 @@ export default function Index() {
           text: 'Accept',
           style: 'default',
           onPress: () => {
-            setReceivedInterests((prev) => prev.filter((r) => r.id !== interest.id)),
+            setReceivedInterests((prev) => prev.filter((r) => r.id !== interest.id));
             setMatches((prev) => [...prev, interest]);
           },
         },
@@ -501,6 +504,16 @@ export default function Index() {
     return <OnboardingScreen session={session} onComplete={() => setOnboarded(true)} />;
   }
 
+  if (editingProfile) {
+    return (
+      <OnboardingScreen
+        session={session}
+        onComplete={() => setEditingProfile(false)}
+        onCancel={() => setEditingProfile(false)}
+      />
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
@@ -538,7 +551,9 @@ export default function Index() {
             <MessagesScreen matches={matches} onMatchPress={setSelectedMatch} />
           )
         )}
-        {activeTab === 'profile' && <ProfileScreen session={session} />}
+        {activeTab === 'profile' && (
+          <ProfileScreen session={session} onEditProfile={() => setEditingProfile(true)} />
+        )}
       </SafeAreaView>
       {!selectedMatch && (
         <TabBar activeTab={activeTab} onTabPress={setActiveTab} unseenReceivedCount={unseenReceivedCount} />
@@ -952,23 +967,32 @@ function ChatScreen({
   );
 }
 
-function ProfileScreen({ session }: { session: Session }) {
-  const [name, setName] = useState('');
+function ProfileScreen({
+  session,
+  onEditProfile,
+}: {
+  session: Session;
+  onEditProfile: () => void;
+}) {
+  const [profile, setProfile] = useState<{
+    name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('name')
+        .select('name, username, avatar_url')
         .eq('id', session.user.id)
         .single();
 
       if (error) {
         Alert.alert('Error', error.message);
       } else {
-        setName(data?.name ?? '');
+        setProfile(data);
       }
 
       setLoading(false);
@@ -976,23 +1000,6 @@ function ProfileScreen({ session }: { session: Session }) {
 
     loadProfile();
   }, []);
-
-  const handleSave = async () => {
-    setSaving(true);
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ name: name.trim() })
-      .eq('id', session.user.id);
-
-    setSaving(false);
-
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      Alert.alert('Saved', 'Your profile has been updated.');
-    }
-  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -1006,32 +1013,27 @@ function ProfileScreen({ session }: { session: Session }) {
       </View>
 
       <View style={styles.profileCard}>
-        <UserRound size={72} color="#A1A1AA" strokeWidth={1.5} />
+        {profile?.avatar_url ? (
+          <Image source={{ uri: profile.avatar_url }} style={styles.avatarPreview} />
+        ) : (
+          <UserRound size={72} color="#A1A1AA" strokeWidth={1.5} />
+        )}
 
         {loading ? (
           <Text style={styles.profileSubtext}>Loading...</Text>
         ) : (
           <>
-            <TextInput
-              style={styles.profileNameInput}
-              value={name}
-              onChangeText={setName}
-              placeholder="Your name"
-              placeholderTextColor="#A1A1AA"
-            />
-
-            <Pressable
-              style={[styles.authButton, saving && styles.authButtonDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              <Text style={styles.authButtonText}>
-                {saving ? 'Saving...' : 'Save'}
-              </Text>
-            </Pressable>
+            <Text style={styles.profileName}>{profile?.name || 'Your Name'}</Text>
+            <Text style={styles.profileSubtext}>
+              {profile?.username ? `@${profile.username}` : 'Complete your profile'}
+            </Text>
           </>
         )}
       </View>
+
+      <Pressable style={styles.refreshButton} onPress={onEditProfile}>
+        <Text style={styles.refreshText}>Edit Profile</Text>
+      </Pressable>
 
       <View style={styles.profileCard}>
         <Settings size={72} color="#A1A1AA" strokeWidth={1.5} />
@@ -1046,15 +1048,14 @@ function ProfileScreen({ session }: { session: Session }) {
   );
 }
 
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
-
 function OnboardingScreen({
   session,
   onComplete,
+  onCancel,
 }: {
   session: Session;
   onComplete: () => void;
+  onCancel?: () => void;
 }) {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -1063,6 +1064,32 @@ function OnboardingScreen({
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadExisting = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('name, username, certifications, description, avatar_url, resume_url')
+        .eq('id', session.user.id)
+        .single();
+
+      if (data) {
+        setName(data.name ?? '');
+        setUsername(data.username ?? '');
+        setCertifications(data.certifications ?? '');
+        setDescription(data.description ?? '');
+        if (data.avatar_url) setAvatarUri(data.avatar_url);
+        if (data.resume_url) {
+          setResumeFile({ uri: data.resume_url, name: 'resume.pdf' });
+        }
+      }
+
+      setLoading(false);
+    };
+
+    loadExisting();
+  }, []);
 
   const pickAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1130,11 +1157,11 @@ function OnboardingScreen({
       let avatarUrl: string | undefined;
       let resumeUrl: string | undefined;
 
-      if (avatarUri) {
+      if (avatarUri && avatarUri.startsWith('file://')) {
         avatarUrl = await uploadFile('avatars', avatarUri, 'avatar.jpg', 'image/jpeg');
       }
 
-      if (resumeFile) {
+      if (resumeFile && resumeFile.uri.startsWith('file://')) {
         resumeUrl = await uploadFile(
           'resumes',
           resumeFile.uri,
@@ -1180,69 +1207,83 @@ function OnboardingScreen({
           contentContainerStyle={{ gap: 12 }}
           keyboardShouldPersistTaps="handled"
         >
+          {onCancel && (
+            <Pressable onPress={onCancel} style={styles.chatBackButton}>
+              <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+            </Pressable>
+          )}
+
           <Text style={styles.logo}>bulletin.</Text>
-          <Text style={styles.subtitle}>Set up your profile.</Text>
+          <Text style={styles.subtitle}>
+            {onCancel ? 'Edit your profile.' : 'Set up your profile.'}
+          </Text>
 
-          <Pressable style={styles.avatarPicker} onPress={pickAvatar}>
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
-            ) : (
-              <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
-            )}
-            <Text style={styles.avatarPickerText}>
-              {avatarUri ? 'Change photo' : 'Add profile photo'}
-            </Text>
-          </Pressable>
+          {loading ? (
+            <Text style={styles.subtitle}>Loading...</Text>
+          ) : (
+            <>
+              <Pressable style={styles.avatarPicker} onPress={pickAvatar}>
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
+                ) : (
+                  <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+                )}
+                <Text style={styles.avatarPickerText}>
+                  {avatarUri ? 'Change photo' : 'Add profile photo'}
+                </Text>
+              </Pressable>
 
-          <TextInput
-            style={styles.authInput}
-            placeholder="Name"
-            placeholderTextColor="#A1A1AA"
-            value={name}
-            onChangeText={setName}
-          />
+              <TextInput
+                style={styles.authInput}
+                placeholder="Name"
+                placeholderTextColor="#A1A1AA"
+                value={name}
+                onChangeText={setName}
+              />
 
-          <TextInput
-            style={styles.authInput}
-            placeholder="Username"
-            placeholderTextColor="#A1A1AA"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
+              <TextInput
+                style={styles.authInput}
+                placeholder="Username"
+                placeholderTextColor="#A1A1AA"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+              />
 
-          <TextInput
-            style={styles.authInput}
-            placeholder="Certifications (e.g. EPA 608 Universal)"
-            placeholderTextColor="#A1A1AA"
-            value={certifications}
-            onChangeText={setCertifications}
-          />
+              <TextInput
+                style={styles.authInput}
+                placeholder="Certifications (e.g. EPA 608 Universal)"
+                placeholderTextColor="#A1A1AA"
+                value={certifications}
+                onChangeText={setCertifications}
+              />
 
-          <TextInput
-            style={[styles.authInput, styles.authTextArea]}
-            placeholder="A bit about yourself"
-            placeholderTextColor="#A1A1AA"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-          />
+              <TextInput
+                style={[styles.authInput, styles.authTextArea]}
+                placeholder="A bit about yourself"
+                placeholderTextColor="#A1A1AA"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+              />
 
-          <Pressable style={styles.resumePicker} onPress={pickResume}>
-            <Text style={styles.resumePickerText}>
-              {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
-            </Text>
-          </Pressable>
+              <Pressable style={styles.resumePicker} onPress={pickResume}>
+                <Text style={styles.resumePickerText}>
+                  {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
+                </Text>
+              </Pressable>
 
-          <Pressable
-            style={[styles.authButton, submitting && styles.authButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting}
-          >
-            <Text style={styles.authButtonText}>
-              {submitting ? 'Saving...' : 'Finish setup'}
-            </Text>
-          </Pressable>
+              <Pressable
+                style={[styles.authButton, submitting && styles.authButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={submitting}
+              >
+                <Text style={styles.authButtonText}>
+                  {submitting ? 'Saving...' : 'Finish setup'}
+                </Text>
+              </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1923,13 +1964,13 @@ const styles = StyleSheet.create({
   },
 
   subTabBar: {
-  flexDirection: 'row',
-  marginHorizontal: 22,
-  marginBottom: 12,
-  padding: 4,
-  borderRadius: 14,
-  backgroundColor: '#F4F4F5',
-},
+    flexDirection: 'row',
+    marginHorizontal: 22,
+    marginBottom: 12,
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: '#F4F4F5',
+  },
 
   subTabItem: {
     flex: 1,
@@ -2131,13 +2172,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  authToggleText: {
-    marginTop: 16,
-    textAlign: 'center',
-    fontSize: 13,
-    color: '#71717A',
-  },
-
   authLoadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -2149,19 +2183,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginTop: 20,
     marginBottom: 4,
-  },
-
-  profileNameInput: {
-    marginTop: 8,
-    width: '100%',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#F4F4F5',
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#18181B',
-    textAlign: 'center',
   },
 
   signOutButton: {
