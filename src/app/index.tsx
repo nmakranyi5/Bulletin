@@ -17,10 +17,12 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -239,6 +241,7 @@ export default function Index() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
   /*
    * Whenever React switches to a new top card,
@@ -281,12 +284,15 @@ export default function Index() {
     const ensureProfile = async () => {
       const { data: existing } = await supabase
         .from('profiles')
-        .select('id')
+        .select('onboarded')
         .eq('id', session.user.id)
         .maybeSingle();
 
       if (!existing) {
         await supabase.from('profiles').insert({ id: session.user.id });
+        setOnboarded(false);
+      } else {
+        setOnboarded(existing.onboarded ?? false);
       }
     };
 
@@ -479,7 +485,7 @@ export default function Index() {
     }));
   };
 
-  if (authLoading) {
+  if (authLoading || (session && onboarded === null)) {
     return (
       <View style={styles.authLoadingContainer}>
         <Text style={styles.subtitle}>Loading...</Text>
@@ -489,6 +495,10 @@ export default function Index() {
 
   if (!session) {
     return <AuthScreen />;
+  }
+
+  if (!onboarded) {
+    return <OnboardingScreen session={session} onComplete={() => setOnboarded(true)} />;
   }
 
   return (
@@ -1033,6 +1043,209 @@ function ProfileScreen({ session }: { session: Session }) {
         <Text style={styles.signOutText}>Sign Out</Text>
       </Pressable>
     </View>
+  );
+}
+
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+
+function OnboardingScreen({
+  session,
+  onComplete,
+}: {
+  session: Session;
+  onComplete: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [certifications, setCertifications] = useState('');
+  const [description, setDescription] = useState('');
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const pickAvatar = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const pickResume = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'application/pdf',
+      copyToCacheDirectory: true,
+    });
+
+    if (!result.canceled) {
+      setResumeFile({
+        uri: result.assets[0].uri,
+        name: result.assets[0].name,
+      });
+    }
+  };
+
+  const uploadFile = async (
+    bucket: string,
+    uri: string,
+    fileName: string,
+    contentType: string
+  ) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const path = `${session.user.id}/${fileName}`;
+
+    const { error } = await supabase.storage.from(bucket).upload(path, blob, {
+      contentType,
+      upsert: true,
+    });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !username.trim()) {
+      Alert.alert('Missing info', 'Name and username are required.');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      let avatarUrl: string | undefined;
+      let resumeUrl: string | undefined;
+
+      if (avatarUri) {
+        avatarUrl = await uploadFile('avatars', avatarUri, 'avatar.jpg', 'image/jpeg');
+      }
+
+      if (resumeFile) {
+        resumeUrl = await uploadFile(
+          'resumes',
+          resumeFile.uri,
+          'resume.pdf',
+          'application/pdf'
+        );
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: name.trim(),
+          username: username.trim(),
+          certifications: certifications.trim(),
+          description: description.trim(),
+          ...(avatarUrl && { avatar_url: avatarUrl }),
+          ...(resumeUrl && { resume_url: resumeUrl }),
+          onboarded: true,
+        })
+        .eq('id', session.user.id);
+
+      if (error) throw error;
+
+      onComplete();
+    } catch (err: any) {
+      const message =
+        err?.code === '23505'
+          ? 'That username is already taken.'
+          : err?.message ?? 'Something went wrong.';
+      Alert.alert('Error', message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.authContainer}>
+      <KeyboardAvoidingView
+        style={styles.authInner}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={{ gap: 12 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.logo}>bulletin.</Text>
+          <Text style={styles.subtitle}>Set up your profile.</Text>
+
+          <Pressable style={styles.avatarPicker} onPress={pickAvatar}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
+            ) : (
+              <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+            )}
+            <Text style={styles.avatarPickerText}>
+              {avatarUri ? 'Change photo' : 'Add profile photo'}
+            </Text>
+          </Pressable>
+
+          <TextInput
+            style={styles.authInput}
+            placeholder="Name"
+            placeholderTextColor="#A1A1AA"
+            value={name}
+            onChangeText={setName}
+          />
+
+          <TextInput
+            style={styles.authInput}
+            placeholder="Username"
+            placeholderTextColor="#A1A1AA"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+
+          <TextInput
+            style={styles.authInput}
+            placeholder="Certifications (e.g. EPA 608 Universal)"
+            placeholderTextColor="#A1A1AA"
+            value={certifications}
+            onChangeText={setCertifications}
+          />
+
+          <TextInput
+            style={[styles.authInput, styles.authTextArea]}
+            placeholder="A bit about yourself"
+            placeholderTextColor="#A1A1AA"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+          />
+
+          <Pressable style={styles.resumePicker} onPress={pickResume}>
+            <Text style={styles.resumePickerText}>
+              {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.authButton, submitting && styles.authButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            <Text style={styles.authButtonText}>
+              {submitting ? 'Saving...' : 'Finish setup'}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -1965,5 +2178,42 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontWeight: '700',
     fontSize: 15,
+  },
+
+  avatarPicker: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+
+  avatarPreview: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+
+  avatarPickerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#71717A',
+  },
+
+  authTextArea: {
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+
+  resumePicker: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+  },
+
+  resumePickerText: {
+    fontSize: 15,
+    color: '#71717A',
   },
 });
