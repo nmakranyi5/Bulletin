@@ -5,9 +5,11 @@ import {
   ArrowLeft,
   BriefcaseBusiness,
   Check,
+  ChevronRight,
   Handshake,
   MapPin,
   MessageCircle,
+  Pencil,
   Search,
   Send,
   Settings,
@@ -1013,6 +1015,10 @@ function ProfileScreen({
       </View>
 
       <View style={styles.profileCard}>
+        <Pressable style={styles.profileEditButton} onPress={onEditProfile}>
+          <Pencil size={16} color="#FFFFFF" strokeWidth={2.4} />
+        </Pressable>
+
         {profile?.avatar_url ? (
           <Image source={{ uri: profile.avatar_url }} style={styles.avatarPreview} />
         ) : (
@@ -1031,14 +1037,12 @@ function ProfileScreen({
         )}
       </View>
 
-      <Pressable style={styles.refreshButton} onPress={onEditProfile}>
-        <Text style={styles.refreshText}>Edit Profile</Text>
-      </Pressable>
-
-      <View style={styles.profileCard}>
-        <Settings size={72} color="#A1A1AA" strokeWidth={1.5} />
-        <Text style={styles.profileName}>Settings</Text>
-        <Text style={styles.profileSubtext}>Manage your account settings</Text>
+      <View style={styles.accountActions}>
+        <Pressable style={styles.accountActionRow}>
+          <Settings size={20} color="#71717A" strokeWidth={2} />
+          <Text style={styles.accountActionText}>Settings</Text>
+          <ChevronRight size={18} color="#A1A1AA" strokeWidth={2} />
+        </Pressable>
       </View>
 
       <Pressable style={styles.signOutButton} onPress={handleSignOut}>
@@ -1883,18 +1887,6 @@ const styles = StyleSheet.create({
     color: '#18181B',
   },
 
-  profileCard: {
-    marginTop: 40,
-    marginHorizontal: 22,
-    padding: 28,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-    alignItems: 'center',
-    gap: 6,
-  },
-
   profileName: {
     fontSize: 20,
     fontWeight: '800',
@@ -2236,5 +2228,55 @@ const styles = StyleSheet.create({
   resumePickerText: {
     fontSize: 15,
     color: '#71717A',
+  },
+
+  profileCard: {
+    marginTop: 24,
+    marginHorizontal: 22,
+    padding: 28,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+    alignItems: 'center',
+    gap: 6,
+    position: 'relative',
+  },
+
+  profileEditButton: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#18181B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  accountActions: {
+    marginTop: 16,
+    marginHorizontal: 22,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+    overflow: 'hidden',
+  },
+
+  accountActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+
+  accountActionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#18181B',
   },
 });
