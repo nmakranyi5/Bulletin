@@ -1134,18 +1134,24 @@ function OnboardingScreen({
     fileName: string,
     contentType: string
   ) => {
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    const arrayBuffer = await fetch(uri).then((res) => res.arrayBuffer());
+
     const path = `${session.user.id}/${fileName}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(path, blob, {
-      contentType,
-      upsert: true,
-    });
+    const { error } = await supabase.storage.from(bucket).upload(
+      path,
+      arrayBuffer,
+      {
+        contentType,
+        upsert: true,
+        cacheControl: '3600',
+      }
+    );
 
     if (error) throw error;
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+
     return `${data.publicUrl}?t=${Date.now()}`;
   };
 
@@ -1161,11 +1167,11 @@ function OnboardingScreen({
       let avatarUrl: string | undefined;
       let resumeUrl: string | undefined;
 
-      if (avatarUri && avatarUri.startsWith('file://')) {
+      if (avatarUri && !avatarUri.startsWith('http')) {
         avatarUrl = await uploadFile('avatars', avatarUri, 'avatar.jpg', 'image/jpeg');
       }
 
-      if (resumeFile && resumeFile.uri.startsWith('file://')) {
+      if (resumeFile && !resumeFile.uri.startsWith('http')) {
         resumeUrl = await uploadFile(
           'resumes',
           resumeFile.uri,
