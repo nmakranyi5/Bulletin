@@ -30,6 +30,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -246,6 +247,7 @@ export default function Index() {
   const [authLoading, setAuthLoading] = useState(true);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [managingPositions, setManagingPositions] = useState(false);
 
   /*
    * Whenever React switches to a new top card,
@@ -551,6 +553,15 @@ export default function Index() {
     );
   }
 
+  if (managingPositions) {
+    return (
+      <PositionsScreen
+        session={session}
+        onBack={() => setManagingPositions(false)}
+      />
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
@@ -588,7 +599,7 @@ export default function Index() {
           )
         )}
         {activeTab === 'profile' && (
-          <ProfileScreen session={session} onEditProfile={() => setEditingProfile(true)} />
+          <ProfileScreen session={session} onEditProfile={() => setEditingProfile(true)} onManagePositions={() => setManagingPositions(true)} />
         )}
       </SafeAreaView>
       {!selectedMatch && (
@@ -994,14 +1005,17 @@ function ChatScreen({
 function ProfileScreen({
   session,
   onEditProfile,
+  onManagePositions,
 }: {
   session: Session;
   onEditProfile: () => void;
+  onManagePositions: () => void;
 }) {
   const [profile, setProfile] = useState<{
     name: string | null;
     username: string | null;
     avatar_url: string | null;
+    is_recruiter: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -1009,7 +1023,7 @@ function ProfileScreen({
     const loadProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('name, username, avatar_url')
+        .select('name, username, avatar_url, is_recruiter')
         .eq('id', session.user.id)
         .single();
 
@@ -1024,6 +1038,20 @@ function ProfileScreen({
 
     loadProfile();
   }, []);
+
+  const toggleRecruiterMode = async (value: boolean) => {
+    setProfile((prev) => (prev ? { ...prev, is_recruiter: value } : prev));
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_recruiter: value })
+      .eq('id', session.user.id);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      setProfile((prev) => (prev ? { ...prev, is_recruiter: !value } : prev));
+    }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -1060,6 +1088,23 @@ function ProfileScreen({
       </View>
 
       <View style={styles.accountActions}>
+        <View style={styles.accountActionRow}>
+          <Handshake size={20} color="#71717A" strokeWidth={2} />
+          <Text style={styles.accountActionText}>Recruiter Mode</Text>
+          <Switch
+            value={profile?.is_recruiter ?? false}
+            onValueChange={toggleRecruiterMode}
+          />
+        </View>
+
+        {profile?.is_recruiter && (
+          <Pressable style={styles.accountActionRow} onPress={onManagePositions}>
+            <BriefcaseBusiness size={20} color="#71717A" strokeWidth={2} />
+            <Text style={styles.accountActionText}>Manage Positions</Text>
+            <ChevronRight size={18} color="#A1A1AA" strokeWidth={2} />
+          </Pressable>
+        )}
+
         <Pressable style={styles.accountActionRow}>
           <Settings size={20} color="#71717A" strokeWidth={2} />
           <Text style={styles.accountActionText}>Settings</Text>
@@ -1419,6 +1464,323 @@ function AuthScreen() {
           </Text>
         </Pressable>
       </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function PositionsScreen({
+  session,
+  onBack,
+}: {
+  session: Session;
+  onBack: () => void;
+}) {
+  const [positions, setPositions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'list' | 'form'>('list');
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [title, setTitle] = useState('');
+  const [company, setCompany] = useState('');
+  const [payRange, setPayRange] = useState('');
+  const [location, setLocation] = useState('');
+  const [workStyle, setWorkStyle] = useState('');
+  const [experienceLevel, setExperienceLevel] = useState('');
+  const [description, setDescription] = useState('');
+  const [skills, setSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchPositions = async () => {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from('positions')
+      .select('*')
+      .eq('recruiter_id', session.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) Alert.alert('Error', error.message);
+    else setPositions(data ?? []);
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchPositions();
+  }, []);
+
+  const resetForm = () => {
+    setTitle('');
+    setCompany('');
+    setPayRange('');
+    setLocation('');
+    setWorkStyle('');
+    setExperienceLevel('');
+    setDescription('');
+    setSkills([]);
+    setSkillInput('');
+    setEditingId(null);
+  };
+
+  const openAddForm = () => {
+    resetForm();
+    setView('form');
+  };
+
+  const openEditForm = (position: any) => {
+    setTitle(position.title ?? '');
+    setCompany(position.company ?? '');
+    setPayRange(position.pay_range ?? '');
+    setLocation(position.location ?? '');
+    setWorkStyle(position.work_style ?? '');
+    setExperienceLevel(position.experience_level ?? '');
+    setDescription(position.description ?? '');
+    setSkills(position.skills ?? []);
+    setEditingId(position.id);
+    setView('form');
+  };
+
+  const addSkill = () => {
+    const trimmed = skillInput.trim();
+    if (!trimmed || skills.includes(trimmed)) {
+      setSkillInput('');
+      return;
+    }
+    setSkills((prev) => [...prev, trimmed]);
+    setSkillInput('');
+  };
+
+  const removeSkill = (skill: string) => {
+    setSkills((prev) => prev.filter((s) => s !== skill));
+  };
+
+  const handleSave = async () => {
+    if (!title.trim() || !company.trim()) {
+      Alert.alert('Missing info', 'Title and company are required.');
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      recruiter_id: session.user.id,
+      title: title.trim(),
+      company: company.trim(),
+      pay_range: payRange.trim() || null,
+      location: location.trim() || null,
+      work_style: workStyle.trim() || null,
+      experience_level: experienceLevel.trim() || null,
+      description: description.trim() || null,
+      skills,
+    };
+
+    const { error } = editingId
+      ? await supabase.from('positions').update(payload).eq('id', editingId)
+      : await supabase.from('positions').insert(payload);
+
+    setSaving(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setView('list');
+    fetchPositions();
+  };
+
+  const handleDelete = (id: string) => {
+    Alert.alert('Delete position', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('positions').delete().eq('id', id);
+          if (error) Alert.alert('Error', error.message);
+          else fetchPositions();
+        },
+      },
+    ]);
+  };
+
+  if (view === 'form') {
+    return (
+      <SafeAreaView style={styles.authContainer}>
+        <KeyboardAvoidingView
+          style={styles.authInner}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled">
+            <Pressable onPress={() => setView('list')} style={styles.chatBackButton}>
+              <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+            </Pressable>
+
+            <Text style={styles.logo}>bulletin.</Text>
+            <Text style={styles.subtitle}>
+              {editingId ? 'Edit position.' : 'Add a position.'}
+            </Text>
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Job title"
+              placeholderTextColor="#A1A1AA"
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Company"
+              placeholderTextColor="#A1A1AA"
+              value={company}
+              onChangeText={setCompany}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Pay range (e.g. $50k–$65k)"
+              placeholderTextColor="#A1A1AA"
+              value={payRange}
+              onChangeText={setPayRange}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Location"
+              placeholderTextColor="#A1A1AA"
+              value={location}
+              onChangeText={setLocation}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Work style (e.g. On-site, Hybrid)"
+              placeholderTextColor="#A1A1AA"
+              value={workStyle}
+              onChangeText={setWorkStyle}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Experience level (e.g. 2+ years)"
+              placeholderTextColor="#A1A1AA"
+              value={experienceLevel}
+              onChangeText={setExperienceLevel}
+            />
+
+            <View style={styles.skillInputRow}>
+              <TextInput
+                style={[styles.authInput, styles.skillInput]}
+                placeholder="Add a skill or requirement"
+                placeholderTextColor="#A1A1AA"
+                value={skillInput}
+                onChangeText={setSkillInput}
+                onSubmitEditing={addSkill}
+                returnKeyType="done"
+              />
+              <Pressable style={styles.skillAddButton} onPress={addSkill}>
+                <Text style={styles.skillAddButtonText}>Add</Text>
+              </Pressable>
+            </View>
+
+            {skills.length > 0 && (
+              <View style={styles.tags}>
+                {skills.map((skill) => (
+                  <Pressable
+                    key={skill}
+                    style={styles.skillTag}
+                    onPress={() => removeSkill(skill)}
+                  >
+                    <Text style={styles.skillTagText}>{skill}</Text>
+                    <X size={12} color="#52525B" strokeWidth={2.4} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <TextInput
+              style={[styles.authInput, styles.authTextArea]}
+              placeholder="Description"
+              placeholderTextColor="#A1A1AA"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
+
+            <Pressable
+              style={[styles.authButton, saving && styles.authButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.authButtonText}>
+                {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add position'}
+              </Text>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.simpleScreen}>
+      <View style={styles.chatHeader}>
+        <Pressable onPress={onBack} style={styles.chatBackButton}>
+          <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+        </Pressable>
+        <View style={styles.chatHeaderInfo}>
+          <Text style={styles.chatHeaderName}>Your Positions</Text>
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptySubtitle}>Loading...</Text>
+        </View>
+      ) : positions.length === 0 ? (
+        <View style={styles.emptyState}>
+          <BriefcaseBusiness size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <Text style={styles.emptyTitle}>No positions yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Add an open position for candidates to discover.
+          </Text>
+          <Pressable
+            style={[styles.refreshButton, { marginTop: 16, marginBottom: 12 }]}
+            onPress={openAddForm}
+          >
+            <Text style={styles.refreshText}>Add Position</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={positions}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.interestsList}
+          ListHeaderComponent={
+            <Pressable style={[styles.refreshButton, { marginTop: 0, marginBottom: 12 }]} onPress={openAddForm}>
+              <Text style={styles.refreshText}>Add Position</Text>
+            </Pressable>
+          }
+          renderItem={({ item }) => (
+            <Pressable style={styles.interestRow} onPress={() => openEditForm(item)}>
+              <BriefcaseBusiness size={32} color="#A1A1AA" strokeWidth={1.5} />
+              <View style={styles.interestRowInfo}>
+                <Text numberOfLines={1} style={styles.interestRowName}>
+                  {item.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.interestRowMeta}>
+                  {item.company}
+                </Text>
+              </View>
+              <Pressable onPress={() => handleDelete(item.id)} style={{ padding: 6 }}>
+                <X size={18} color="#EF4444" strokeWidth={2.2} />
+              </Pressable>
+            </Pressable>
+          )}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -2301,6 +2663,8 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 18,
     paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F1',
   },
 
   accountActionText: {
@@ -2308,5 +2672,45 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#18181B',
+  },
+
+  skillInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+
+  skillInput: {
+    flex: 1,
+    marginTop: 0,
+  },
+
+  skillAddButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#18181B',
+  },
+
+  skillAddButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  skillTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F5',
+  },
+
+  skillTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#52525B',
   },
 });
