@@ -25,6 +25,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -59,149 +60,16 @@ const SWIPE_DISTANCE = width * 1.4;
 const SWIPE_VELOCITY = 400;
 const MAX_INTERESTS = 10;
 
-const DUMMY_CARDS = [
-  {
-    id: 1,
-    name: 'Maya Chen',
-    title: 'Technical Recruiter',
-    company: 'Linear',
-    position: 'Frontend Engineer',
-    pay: '$135k–$175k',
-    location: 'San Francisco, CA',
-    workStyle: 'Hybrid',
-    experience: '0–3 years',
-    skills: ['React', 'TypeScript', 'Frontend'],
-    note: 'Looking for early-career engineers who love building polished products.',
-  },
-  {
-    id: 2,
-    name: 'Daniel Kim',
-    title: 'University Recruiter',
-    company: 'Ramp',
-    position: 'Software Engineer',
-    pay: '$140k–$185k',
-    location: 'New York, NY',
-    workStyle: 'On-site',
-    experience: 'New Grad',
-    skills: ['Python', 'React', 'Systems'],
-    note: 'Hiring new grads who are curious, fast learners, and strong builders.',
-  },
-  {
-    id: 3,
-    name: 'Sofia Martinez',
-    title: 'Talent Partner',
-    company: 'Figma',
-    position: 'Product Engineer',
-    pay: '$150k–$195k',
-    location: 'San Francisco, CA',
-    workStyle: 'Hybrid',
-    experience: '1–3 years',
-    skills: ['TypeScript', 'React', 'Product'],
-    note: 'Looking for engineers who care about design as much as code.',
-  },
-  {
-    id: 4,
-    name: 'Jordan Lee',
-    title: 'Technical Recruiter',
-    company: 'Vercel',
-    position: 'Frontend Engineer',
-    pay: '$130k–$170k',
-    location: 'Remote',
-    workStyle: 'Remote',
-    experience: '0–2 years',
-    skills: ['Next.js', 'React', 'JavaScript'],
-    note: 'Great fit for someone who enjoys shipping fast and owning features.',
-  },
-  {
-    id: 5,
-    name: 'Avery Patel',
-    title: 'Engineering Recruiter',
-    company: 'Notion',
-    position: 'Software Engineer',
-    pay: '$145k–$190k',
-    location: 'San Francisco, CA',
-    workStyle: 'Hybrid',
-    experience: '1–4 years',
-    skills: ['Full Stack', 'React', 'Node'],
-    note: 'Building out our team with strong product-minded developers.',
-  },
-  {
-    id: 6,
-    name: 'Reuben Philip',
-    title: 'Gamer',
-    company: 'N/A',
-    position: 'N/A',
-    pay: '$0',
-    location: 'Mountain House, CA',
-    workStyle: 'Hybrid',
-    experience: '1–4 years',
-    skills: ['Full Stack', 'React', 'Node'],
-    note: 'You can call me ghost because you dont know who I am or where I am.',
-  },
-  {
-    id: 7,
-    name: 'Connor Dam',
-    title: 'Haram Man',
-    company: 'N/A',
-    position: 'N/A',
-    pay: '$0',
-    location: 'Foster City, CA',
-    workStyle: 'Hybrid',
-    experience: '1–4 years',
-    skills: ['Full Stack', 'React', 'Node'],
-    note: 'AHHHHHHHH.',
-  },
-  {
-    id: 8,
-    name: 'Aritro Datta',
-    title: 'Data Scientist',
-    company: 'N/A',
-    position: 'N/A',
-    pay: '$0',
-    location: 'Foster City, CA',
-    workStyle: 'Hybrid',
-    experience: '1–4 years',
-    skills: ['Full Stack', 'React', 'Node'],
-    note: 'AHHHHHHHH.',
-  },
-  {
-    id: 9,
-    name: 'Galen Guo',
-    title: 'Haram',
-    company: 'N/A',
-    position: 'N/A',
-    pay: '$0',
-    location: 'Foster City, CA',
-    workStyle: 'Hybrid',
-    experience: '1–4 years',
-    skills: ['Full Stack', 'React', 'Node'],
-    note: 'AHHHHHHHH.',
-  },
-  {
-    id: 10,
-    name: 'Victoria Grammit',
-    title: 'Model',
-    company: 'N/A',
-    position: 'N/A',
-    pay: '$0',
-    location: 'Foster City, CA',
-    workStyle: 'Hybrid',
-    experience: '1–4 years',
-    skills: ['Full Stack', 'React', 'Node'],
-    note: 'AHHHHHHHH.',
-  },
-];
-
 type InterestRow = {
   id: string;
   from_user: string;
   to_user: string;
   status: string;
+  position_id: string | null;
   from_profile?: { id: string; name: string; username: string };
   to_profile?: { id: string; name: string; username: string };
+  position?: { id: string; title: string; company: string } | null;
 };
-
-type Card = (typeof DUMMY_CARDS)[number];
 
 type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
 
@@ -227,7 +95,6 @@ const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
 ];
 
 export default function Index() {
-  const [cards, setCards] = useState(DUMMY_CARDS);
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [interestsRemaining, setInterestsRemaining] = useState(MAX_INTERESTS);
   const [sentInterests, setSentInterests] = useState<InterestRow[]>([]);
@@ -236,10 +103,18 @@ export default function Index() {
   const [selectedMatch, setSelectedMatch] = useState<MatchStub | null>(null);
   const [messagesByMatch, setMessagesByMatch] = useState<Record<number, ChatMessage[]>>({});
 
+  const [discoverCards, setDiscoverCards] = useState<any[]>([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [myPositions, setMyPositions] = useState<any[]>([]);
+  const [pendingInterestTarget, setPendingInterestTarget] = useState<{
+    card: any;
+    positions: any[];
+  } | null>(null);
+
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
 
-  const topCard = cards[0];
+  const topCard = discoverCards[0];
   const interestsRemainingSV = useSharedValue(interestsRemaining);
   const unseenReceivedCount = receivedInterests.length;
 
@@ -248,6 +123,14 @@ export default function Index() {
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [managingPositions, setManagingPositions] = useState(false);
+
+  const [myProfile, setMyProfile] = useState<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+    is_recruiter: boolean;
+  } | null>(null);
 
   /*
    * Whenever React switches to a new top card,
@@ -304,12 +187,106 @@ export default function Index() {
     ensureProfile();
   }, [session]);
 
+  const fetchMyProfile = async () => {
+    if (!session) return;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name, username, avatar_url, is_recruiter')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setMyProfile(data);
+  };
+
+  useEffect(() => {
+    if (session && onboarded) fetchMyProfile();
+  }, [session, onboarded]);
+
+  const fetchMyPositions = async () => {
+    if (!session) return;
+
+    const { data, error } = await supabase
+      .from('positions')
+      .select('id, title')
+      .eq('recruiter_id', session.user.id)
+      .eq('active', true);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setMyPositions(data ?? []);
+  };
+
+  const fetchDiscoverCards = async () => {
+    if (!session || !myProfile) return;
+
+    setDiscoverLoading(true);
+
+    const { data: alreadyContacted } = await supabase
+      .from('interests')
+      .select('to_user')
+      .eq('from_user', session.user.id);
+
+    const excludeIds = (alreadyContacted ?? []).map((r) => r.to_user);
+    excludeIds.push(session.user.id);
+
+    if (myProfile.is_recruiter) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url, description, certifications')
+        .eq('is_recruiter', false)
+        .not('id', 'in', `(${excludeIds.join(',')})`);
+
+      if (error) Alert.alert('Error', error.message);
+      else setDiscoverCards(data ?? []);
+    } else {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(
+          'id, name, username, avatar_url, positions:positions!recruiter_id(id, title, company, pay_range, location, work_style, experience_level, skills, description, active)'
+        )
+        .eq('is_recruiter', true)
+        .not('id', 'in', `(${excludeIds.join(',')})`);
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        const withOpenPositions = (data ?? [])
+          .map((r: any) => ({
+            ...r,
+            positions: (r.positions ?? []).filter((p: any) => p.active),
+          }))
+          .filter((r: any) => r.positions.length > 0);
+        setDiscoverCards(withOpenPositions);
+      }
+    }
+
+    setDiscoverLoading(false);
+  };
+
+  useEffect(() => {
+    if (myProfile) {
+      fetchDiscoverCards();
+      if (myProfile.is_recruiter) fetchMyPositions();
+    }
+  }, [myProfile?.is_recruiter]);
+
   const fetchInterests = async () => {
     if (!session) return;
 
     const { data: sent, error: sentError } = await supabase
       .from('interests')
-      .select('*, to_profile:profiles!to_user(id, name, username)')
+      .select(
+        '*, to_profile:profiles!to_user(id, name, username), position:positions(id, title, company)'
+      )
       .eq('from_user', session.user.id);
 
     if (sentError) Alert.alert('Error', sentError.message);
@@ -317,7 +294,9 @@ export default function Index() {
 
     const { data: received, error: receivedError } = await supabase
       .from('interests')
-      .select('*, from_profile:profiles!from_user(id, name, username)')
+      .select(
+        '*, from_profile:profiles!from_user(id, name, username), position:positions(id, title, company)'
+      )
       .eq('to_user', session.user.id)
       .eq('status', 'pending');
 
@@ -329,12 +308,13 @@ export default function Index() {
     if (session && onboarded) fetchInterests();
   }, [session, onboarded]);
 
-  const sendInterest = async (toUserId: string) => {
+  const sendInterest = async (toUserId: string, positionId: string | null) => {
     if (!session) return;
 
     const { error } = await supabase.from('interests').insert({
       from_user: session.user.id,
       to_user: toUserId,
+      position_id: positionId,
     });
 
     if (error && error.code !== '23505') {
@@ -345,18 +325,38 @@ export default function Index() {
     }
   };
 
+  const handlePositionSubmit = (selectedIds: string[]) => {
+    if (!pendingInterestTarget) return;
+
+    if (selectedIds.length === 0) {
+      sendInterest(pendingInterestTarget.card.id, null);
+    } else {
+      selectedIds.forEach((id) => sendInterest(pendingInterestTarget.card.id, id));
+    }
+
+    setPendingInterestTarget(null);
+  };
+
   /*
    * JS-side state update.
    * This is only called through runOnJS from gesture animations.
    */
   const removeTopCard = (interested: number) => {
-    if (interested > 0 && topCard) {
-      sendInterest(String(topCard.id));
-    }
+    const swipedCard = discoverCards[0];
 
-    setCards((prev) => prev.slice(1));
+    setDiscoverCards((prev) => prev.slice(1));
 
-    if (interested > 0) {
+    if (interested > 0 && swipedCard) {
+      const relevantPositions = myProfile?.is_recruiter
+        ? myPositions
+        : swipedCard.positions ?? [];
+
+      if (relevantPositions.length === 0) {
+        sendInterest(swipedCard.id, null);
+      } else {
+        setPendingInterestTarget({ card: swipedCard, positions: relevantPositions });
+      }
+
       setInterestsRemaining((prev) => (prev > 0 ? prev - 1 : prev));
     }
   };
@@ -465,13 +465,6 @@ export default function Index() {
     ),
   }));
 
-  const resetDeck = () => {
-    cardOpacity.value = 0;
-    translateX.value = 0;
-
-    setCards(DUMMY_CARDS);
-  };
-
   const respondToInterest = async (interestId: string, status: 'accepted' | 'rejected') => {
     const { error } = await supabase
       .from('interests')
@@ -492,10 +485,13 @@ export default function Index() {
 
   const handleReceivedPress = (interest: InterestRow) => {
     const name = interest.from_profile?.name ?? 'Someone';
+    const positionText = interest.position?.title
+      ? ` about ${interest.position.title}`
+      : '';
 
     Alert.alert(
       name,
-      `${name} is interested in connecting.`,
+      `${name} is interested in connecting${positionText}.`,
       [
         {
           text: 'Reject',
@@ -547,18 +543,24 @@ export default function Index() {
     return (
       <OnboardingScreen
         session={session}
-        onComplete={() => setEditingProfile(false)}
+        onComplete={() => {
+          setEditingProfile(false);
+          fetchMyProfile();
+        }}
         onCancel={() => setEditingProfile(false)}
       />
     );
   }
 
   if (managingPositions) {
+    return <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />;
+  }
+
+  if (onboarded && myProfile === null) {
     return (
-      <PositionsScreen
-        session={session}
-        onBack={() => setManagingPositions(false)}
-      />
+      <View style={styles.authLoadingContainer}>
+        <Text style={styles.subtitle}>Loading...</Text>
+      </View>
     );
   }
 
@@ -567,15 +569,17 @@ export default function Index() {
       <SafeAreaView style={styles.container}>
         {activeTab === 'discover' && (
           <DiscoverScreen
-            cards={cards}
+            cards={discoverCards}
             topCard={topCard}
             cardStyle={cardStyle}
             passStyle={passStyle}
             interestedStyle={interestedStyle}
             gesture={gesture}
             buttonSwipe={buttonSwipe}
-            resetDeck={resetDeck}
+            onRefresh={fetchDiscoverCards}
             interestsRemaining={interestsRemaining}
+            isRecruiter={!!myProfile?.is_recruiter}
+            loading={discoverLoading}
           />
         )}
 
@@ -599,13 +603,87 @@ export default function Index() {
           )
         )}
         {activeTab === 'profile' && (
-          <ProfileScreen session={session} onEditProfile={() => setEditingProfile(true)} onManagePositions={() => setManagingPositions(true)} />
+          <ProfileScreen
+            session={session}
+            onEditProfile={() => setEditingProfile(true)}
+            onManagePositions={() => setManagingPositions(true)}
+            onRecruiterModeChanged={fetchMyProfile}
+          />
         )}
       </SafeAreaView>
       {!selectedMatch && (
         <TabBar activeTab={activeTab} onTabPress={setActiveTab} unseenReceivedCount={unseenReceivedCount} />
       )}
+
+      <PositionPickerModal
+        visible={!!pendingInterestTarget}
+        positions={pendingInterestTarget?.positions ?? []}
+        onSubmit={handlePositionSubmit}
+        onCancel={() => setPendingInterestTarget(null)}
+      />
     </GestureHandlerRootView>
+  );
+}
+
+function PositionPickerModal({
+  visible,
+  positions,
+  onSubmit,
+  onCancel,
+}: {
+  visible: boolean;
+  positions: { id: string; title: string }[];
+  onSubmit: (selectedIds: string[]) => void;
+  onCancel: () => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (visible) setSelected([]);
+  }, [visible]);
+
+  const toggle = (id: string) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <Text style={styles.subtitle}>Which position(s)?</Text>
+
+          <ScrollView style={{ maxHeight: 260, marginTop: 12 }}>
+            {positions.map((p) => {
+              const isChecked = selected.includes(p.id);
+              return (
+                <Pressable
+                  key={p.id}
+                  style={styles.checklistRow}
+                  onPress={() => toggle(p.id)}
+                >
+                  <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
+                    {isChecked && <Check size={14} color="#FFFFFF" strokeWidth={3} />}
+                  </View>
+                  <Text style={styles.checklistText}>{p.title}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <Pressable style={styles.authButton} onPress={() => onSubmit(selected)}>
+            <Text style={styles.authButtonText}>
+              {selected.length === 0 ? 'Send general interest' : 'Send interest'}
+            </Text>
+          </Pressable>
+
+          <Pressable style={{ marginTop: 10, alignItems: 'center' }} onPress={onCancel}>
+            <Text style={styles.subtitle}>Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -617,18 +695,22 @@ function DiscoverScreen({
   interestedStyle,
   gesture,
   buttonSwipe,
-  resetDeck,
+  onRefresh,
   interestsRemaining,
+  isRecruiter,
+  loading,
 }: {
-  cards: Card[];
-  topCard: Card | undefined;
+  cards: any[];
+  topCard: any | undefined;
   cardStyle: any;
   passStyle: any;
   interestedStyle: any;
   gesture: any;
   buttonSwipe: (direction: number) => void;
-  resetDeck: () => void;
+  onRefresh: () => void;
   interestsRemaining: number;
+  isRecruiter: boolean;
+  loading: boolean;
 }) {
   return (
     <>
@@ -637,7 +719,9 @@ function DiscoverScreen({
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.logo}>bulletin.</Text>
-            <Text style={styles.subtitle}>Find your next opportunity.</Text>
+            <Text style={styles.subtitle}>
+              {isRecruiter ? 'Find your next hire.' : 'Find your next opportunity.'}
+            </Text>
           </View>
 
           <View style={styles.interestCounter}>
@@ -667,7 +751,11 @@ function DiscoverScreen({
                       pointerEvents="none"
                       style={styles.card}
                     >
-                      <CardContent card={card} />
+                      {isRecruiter ? (
+                        <WorkerCardContent candidate={card} />
+                      ) : (
+                        <RecruiterCardContent recruiter={card} />
+                      )}
                     </View>
                   );
                 }
@@ -702,7 +790,11 @@ function DiscoverScreen({
                         </Text>
                       </Animated.View>
 
-                      <CardContent card={card} />
+                      {isRecruiter ? (
+                        <WorkerCardContent candidate={card} />
+                      ) : (
+                        <RecruiterCardContent recruiter={card} />
+                      )}
                     </Animated.View>
                   </GestureDetector>
                 );
@@ -710,18 +802,24 @@ function DiscoverScreen({
           </>
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>You’re all caught up.</Text>
-
-            <Text style={styles.emptySubtitle}>
-              No more recruiter profiles right now.
+            <Text style={styles.emptyTitle}>
+              {loading ? 'Loading...' : "You're all caught up."}
             </Text>
+
+            {!loading && (
+              <Text style={styles.emptySubtitle}>
+                {isRecruiter
+                  ? 'No more candidates right now.'
+                  : 'No more open positions right now.'}
+              </Text>
+            )}
 
             <Pressable
               style={styles.refreshButton}
-              onPress={resetDeck}
+              onPress={onRefresh}
             >
               <Text style={styles.refreshText}>
-                Refresh profiles
+                Refresh
               </Text>
             </Pressable>
           </View>
@@ -823,6 +921,7 @@ function InterestsScreen({
                   </Text>
                   <Text numberOfLines={1} style={styles.interestRowMeta}>
                     @{item.from_profile?.username ?? 'unknown'}
+                    {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                   </Text>
                 </View>
               </Pressable>
@@ -855,6 +954,7 @@ function InterestsScreen({
                     : item.status === 'accepted'
                     ? 'Matched'
                     : 'Not interested'}
+                  {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                 </Text>
               </View>
             </View>
@@ -1006,10 +1106,12 @@ function ProfileScreen({
   session,
   onEditProfile,
   onManagePositions,
+  onRecruiterModeChanged,
 }: {
   session: Session;
   onEditProfile: () => void;
   onManagePositions: () => void;
+  onRecruiterModeChanged: () => void;
 }) {
   const [profile, setProfile] = useState<{
     name: string | null;
@@ -1050,7 +1152,10 @@ function ProfileScreen({
     if (error) {
       Alert.alert('Error', error.message);
       setProfile((prev) => (prev ? { ...prev, is_recruiter: !value } : prev));
+      return;
     }
+
+    onRecruiterModeChanged();
   };
 
   const handleSignOut = async () => {
@@ -1105,7 +1210,7 @@ function ProfileScreen({
           </Pressable>
         )}
 
-        <Pressable style={styles.accountActionRow}>
+        <Pressable style={[styles.accountActionRow, { borderBottomWidth: 0 }]}>
           <Settings size={20} color="#71717A" strokeWidth={2} />
           <Text style={styles.accountActionText}>Settings</Text>
           <ChevronRight size={18} color="#A1A1AA" strokeWidth={2} />
@@ -1116,6 +1221,323 @@ function ProfileScreen({
         <Text style={styles.signOutText}>Sign Out</Text>
       </Pressable>
     </View>
+  );
+}
+
+function PositionsScreen({
+  session,
+  onBack,
+}: {
+  session: Session;
+  onBack: () => void;
+}) {
+  const [positions, setPositions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'list' | 'form'>('list');
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [title, setTitle] = useState('');
+  const [company, setCompany] = useState('');
+  const [payRange, setPayRange] = useState('');
+  const [location, setLocation] = useState('');
+  const [workStyle, setWorkStyle] = useState('');
+  const [experienceLevel, setExperienceLevel] = useState('');
+  const [description, setDescription] = useState('');
+  const [skills, setSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchPositions = async () => {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from('positions')
+      .select('*')
+      .eq('recruiter_id', session.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) Alert.alert('Error', error.message);
+    else setPositions(data ?? []);
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchPositions();
+  }, []);
+
+  const resetForm = () => {
+    setTitle('');
+    setCompany('');
+    setPayRange('');
+    setLocation('');
+    setWorkStyle('');
+    setExperienceLevel('');
+    setDescription('');
+    setSkills([]);
+    setSkillInput('');
+    setEditingId(null);
+  };
+
+  const openAddForm = () => {
+    resetForm();
+    setView('form');
+  };
+
+  const openEditForm = (position: any) => {
+    setTitle(position.title ?? '');
+    setCompany(position.company ?? '');
+    setPayRange(position.pay_range ?? '');
+    setLocation(position.location ?? '');
+    setWorkStyle(position.work_style ?? '');
+    setExperienceLevel(position.experience_level ?? '');
+    setDescription(position.description ?? '');
+    setSkills(position.skills ?? []);
+    setEditingId(position.id);
+    setView('form');
+  };
+
+  const addSkill = () => {
+    const trimmed = skillInput.trim();
+    if (!trimmed || skills.includes(trimmed)) {
+      setSkillInput('');
+      return;
+    }
+    setSkills((prev) => [...prev, trimmed]);
+    setSkillInput('');
+  };
+
+  const removeSkill = (skill: string) => {
+    setSkills((prev) => prev.filter((s) => s !== skill));
+  };
+
+  const handleSave = async () => {
+    if (!title.trim() || !company.trim()) {
+      Alert.alert('Missing info', 'Title and company are required.');
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      recruiter_id: session.user.id,
+      title: title.trim(),
+      company: company.trim(),
+      pay_range: payRange.trim() || null,
+      location: location.trim() || null,
+      work_style: workStyle.trim() || null,
+      experience_level: experienceLevel.trim() || null,
+      description: description.trim() || null,
+      skills,
+    };
+
+    const { error } = editingId
+      ? await supabase.from('positions').update(payload).eq('id', editingId)
+      : await supabase.from('positions').insert(payload);
+
+    setSaving(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setView('list');
+    fetchPositions();
+  };
+
+  const handleDelete = (id: string) => {
+    Alert.alert('Delete position', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('positions').delete().eq('id', id);
+          if (error) Alert.alert('Error', error.message);
+          else fetchPositions();
+        },
+      },
+    ]);
+  };
+
+  if (view === 'form') {
+    return (
+      <SafeAreaView style={styles.authContainer}>
+        <KeyboardAvoidingView
+          style={styles.authInner}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled">
+            <Pressable onPress={() => setView('list')} style={styles.chatBackButton}>
+              <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+            </Pressable>
+
+            <Text style={styles.logo}>bulletin.</Text>
+            <Text style={styles.subtitle}>
+              {editingId ? 'Edit position.' : 'Add a position.'}
+            </Text>
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Job title"
+              placeholderTextColor="#A1A1AA"
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Company"
+              placeholderTextColor="#A1A1AA"
+              value={company}
+              onChangeText={setCompany}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Pay range (e.g. $50k–$65k)"
+              placeholderTextColor="#A1A1AA"
+              value={payRange}
+              onChangeText={setPayRange}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Location"
+              placeholderTextColor="#A1A1AA"
+              value={location}
+              onChangeText={setLocation}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Work style (e.g. On-site, Hybrid)"
+              placeholderTextColor="#A1A1AA"
+              value={workStyle}
+              onChangeText={setWorkStyle}
+            />
+
+            <TextInput
+              style={styles.authInput}
+              placeholder="Experience level (e.g. 2+ years)"
+              placeholderTextColor="#A1A1AA"
+              value={experienceLevel}
+              onChangeText={setExperienceLevel}
+            />
+
+            <View style={styles.skillInputRow}>
+              <TextInput
+                style={[styles.authInput, styles.skillInput]}
+                placeholder="Add a skill or requirement"
+                placeholderTextColor="#A1A1AA"
+                value={skillInput}
+                onChangeText={setSkillInput}
+                onSubmitEditing={addSkill}
+                returnKeyType="done"
+              />
+              <Pressable style={styles.skillAddButton} onPress={addSkill}>
+                <Text style={styles.skillAddButtonText}>Add</Text>
+              </Pressable>
+            </View>
+
+            {skills.length > 0 && (
+              <View style={styles.tags}>
+                {skills.map((skill) => (
+                  <Pressable
+                    key={skill}
+                    style={styles.skillTag}
+                    onPress={() => removeSkill(skill)}
+                  >
+                    <Text style={styles.skillTagText}>{skill}</Text>
+                    <X size={12} color="#52525B" strokeWidth={2.4} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <TextInput
+              style={[styles.authInput, styles.authTextArea]}
+              placeholder="Description"
+              placeholderTextColor="#A1A1AA"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
+
+            <Pressable
+              style={[styles.authButton, saving && styles.authButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.authButtonText}>
+                {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add position'}
+              </Text>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.simpleScreen}>
+      <View style={styles.chatHeader}>
+        <Pressable onPress={onBack} style={styles.chatBackButton}>
+          <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+        </Pressable>
+        <View style={styles.chatHeaderInfo}>
+          <Text style={styles.chatHeaderName}>Your Positions</Text>
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptySubtitle}>Loading...</Text>
+        </View>
+      ) : positions.length === 0 ? (
+        <View style={styles.emptyState}>
+          <BriefcaseBusiness size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <Text style={styles.emptyTitle}>No positions yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Add an open position for candidates to discover.
+          </Text>
+          <Pressable style={styles.refreshButton} onPress={openAddForm}>
+            <Text style={styles.refreshText}>Add Position</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={positions}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.interestsList}
+          ListHeaderComponent={
+            <Pressable
+              style={[styles.refreshButton, { marginTop: 16, marginBottom: 12 }]}
+              onPress={openAddForm}
+            >
+              <Text style={styles.refreshText}>Add Position</Text>
+            </Pressable>
+          }
+          renderItem={({ item }) => (
+            <Pressable style={styles.interestRow} onPress={() => openEditForm(item)}>
+              <BriefcaseBusiness size={32} color="#A1A1AA" strokeWidth={1.5} />
+              <View style={styles.interestRowInfo}>
+                <Text numberOfLines={1} style={styles.interestRowName}>
+                  {item.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.interestRowMeta}>
+                  {item.company}
+                </Text>
+              </View>
+              <Pressable onPress={() => handleDelete(item.id)} style={{ padding: 6 }}>
+                <X size={18} color="#EF4444" strokeWidth={2.2} />
+              </Pressable>
+            </Pressable>
+          )}
+        />
+      )}
+    </SafeAreaView>
   );
 }
 
@@ -1468,413 +1890,97 @@ function AuthScreen() {
   );
 }
 
-function PositionsScreen({
-  session,
-  onBack,
-}: {
-  session: Session;
-  onBack: () => void;
-}) {
-  const [positions, setPositions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'list' | 'form'>('list');
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  const [title, setTitle] = useState('');
-  const [company, setCompany] = useState('');
-  const [payRange, setPayRange] = useState('');
-  const [location, setLocation] = useState('');
-  const [workStyle, setWorkStyle] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState('');
-  const [description, setDescription] = useState('');
-  const [skills, setSkills] = useState<string[]>([]);
-  const [skillInput, setSkillInput] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const fetchPositions = async () => {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from('positions')
-      .select('*')
-      .eq('recruiter_id', session.user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) Alert.alert('Error', error.message);
-    else setPositions(data ?? []);
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchPositions();
-  }, []);
-
-  const resetForm = () => {
-    setTitle('');
-    setCompany('');
-    setPayRange('');
-    setLocation('');
-    setWorkStyle('');
-    setExperienceLevel('');
-    setDescription('');
-    setSkills([]);
-    setSkillInput('');
-    setEditingId(null);
-  };
-
-  const openAddForm = () => {
-    resetForm();
-    setView('form');
-  };
-
-  const openEditForm = (position: any) => {
-    setTitle(position.title ?? '');
-    setCompany(position.company ?? '');
-    setPayRange(position.pay_range ?? '');
-    setLocation(position.location ?? '');
-    setWorkStyle(position.work_style ?? '');
-    setExperienceLevel(position.experience_level ?? '');
-    setDescription(position.description ?? '');
-    setSkills(position.skills ?? []);
-    setEditingId(position.id);
-    setView('form');
-  };
-
-  const addSkill = () => {
-    const trimmed = skillInput.trim();
-    if (!trimmed || skills.includes(trimmed)) {
-      setSkillInput('');
-      return;
-    }
-    setSkills((prev) => [...prev, trimmed]);
-    setSkillInput('');
-  };
-
-  const removeSkill = (skill: string) => {
-    setSkills((prev) => prev.filter((s) => s !== skill));
-  };
-
-  const handleSave = async () => {
-    if (!title.trim() || !company.trim()) {
-      Alert.alert('Missing info', 'Title and company are required.');
-      return;
-    }
-
-    setSaving(true);
-
-    const payload = {
-      recruiter_id: session.user.id,
-      title: title.trim(),
-      company: company.trim(),
-      pay_range: payRange.trim() || null,
-      location: location.trim() || null,
-      work_style: workStyle.trim() || null,
-      experience_level: experienceLevel.trim() || null,
-      description: description.trim() || null,
-      skills,
-    };
-
-    const { error } = editingId
-      ? await supabase.from('positions').update(payload).eq('id', editingId)
-      : await supabase.from('positions').insert(payload);
-
-    setSaving(false);
-
-    if (error) {
-      Alert.alert('Error', error.message);
-      return;
-    }
-
-    setView('list');
-    fetchPositions();
-  };
-
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete position', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await supabase.from('positions').delete().eq('id', id);
-          if (error) Alert.alert('Error', error.message);
-          else fetchPositions();
-        },
-      },
-    ]);
-  };
-
-  if (view === 'form') {
-    return (
-      <SafeAreaView style={styles.authContainer}>
-        <KeyboardAvoidingView
-          style={styles.authInner}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled">
-            <Pressable onPress={() => setView('list')} style={styles.chatBackButton}>
-              <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
-            </Pressable>
-
-            <Text style={styles.logo}>bulletin.</Text>
-            <Text style={styles.subtitle}>
-              {editingId ? 'Edit position.' : 'Add a position.'}
-            </Text>
-
-            <TextInput
-              style={styles.authInput}
-              placeholder="Job title"
-              placeholderTextColor="#A1A1AA"
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            <TextInput
-              style={styles.authInput}
-              placeholder="Company"
-              placeholderTextColor="#A1A1AA"
-              value={company}
-              onChangeText={setCompany}
-            />
-
-            <TextInput
-              style={styles.authInput}
-              placeholder="Pay range (e.g. $50k–$65k)"
-              placeholderTextColor="#A1A1AA"
-              value={payRange}
-              onChangeText={setPayRange}
-            />
-
-            <TextInput
-              style={styles.authInput}
-              placeholder="Location"
-              placeholderTextColor="#A1A1AA"
-              value={location}
-              onChangeText={setLocation}
-            />
-
-            <TextInput
-              style={styles.authInput}
-              placeholder="Work style (e.g. On-site, Hybrid)"
-              placeholderTextColor="#A1A1AA"
-              value={workStyle}
-              onChangeText={setWorkStyle}
-            />
-
-            <TextInput
-              style={styles.authInput}
-              placeholder="Experience level (e.g. 2+ years)"
-              placeholderTextColor="#A1A1AA"
-              value={experienceLevel}
-              onChangeText={setExperienceLevel}
-            />
-
-            <View style={styles.skillInputRow}>
-              <TextInput
-                style={[styles.authInput, styles.skillInput]}
-                placeholder="Add a skill or requirement"
-                placeholderTextColor="#A1A1AA"
-                value={skillInput}
-                onChangeText={setSkillInput}
-                onSubmitEditing={addSkill}
-                returnKeyType="done"
-              />
-              <Pressable style={styles.skillAddButton} onPress={addSkill}>
-                <Text style={styles.skillAddButtonText}>Add</Text>
-              </Pressable>
-            </View>
-
-            {skills.length > 0 && (
-              <View style={styles.tags}>
-                {skills.map((skill) => (
-                  <Pressable
-                    key={skill}
-                    style={styles.skillTag}
-                    onPress={() => removeSkill(skill)}
-                  >
-                    <Text style={styles.skillTagText}>{skill}</Text>
-                    <X size={12} color="#52525B" strokeWidth={2.4} />
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            <TextInput
-              style={[styles.authInput, styles.authTextArea]}
-              placeholder="Description"
-              placeholderTextColor="#A1A1AA"
-              value={description}
-              onChangeText={setDescription}
-              multiline
-            />
-
-            <Pressable
-              style={[styles.authButton, saving && styles.authButtonDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              <Text style={styles.authButtonText}>
-                {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add position'}
-              </Text>
-            </Pressable>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.simpleScreen}>
-      <View style={styles.chatHeader}>
-        <Pressable onPress={onBack} style={styles.chatBackButton}>
-          <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
-        </Pressable>
-        <View style={styles.chatHeaderInfo}>
-          <Text style={styles.chatHeaderName}>Your Positions</Text>
-        </View>
-      </View>
-
-      {loading ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptySubtitle}>Loading...</Text>
-        </View>
-      ) : positions.length === 0 ? (
-        <View style={styles.emptyState}>
-          <BriefcaseBusiness size={48} color="#A1A1AA" strokeWidth={1.5} />
-          <Text style={styles.emptyTitle}>No positions yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Add an open position for candidates to discover.
-          </Text>
-          <Pressable
-            style={[styles.refreshButton, { marginTop: 16, marginBottom: 12 }]}
-            onPress={openAddForm}
-          >
-            <Text style={styles.refreshText}>Add Position</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          data={positions}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.interestsList}
-          ListHeaderComponent={
-            <Pressable style={[styles.refreshButton, { marginTop: 0, marginBottom: 12 }]} onPress={openAddForm}>
-              <Text style={styles.refreshText}>Add Position</Text>
-            </Pressable>
-          }
-          renderItem={({ item }) => (
-            <Pressable style={styles.interestRow} onPress={() => openEditForm(item)}>
-              <BriefcaseBusiness size={32} color="#A1A1AA" strokeWidth={1.5} />
-              <View style={styles.interestRowInfo}>
-                <Text numberOfLines={1} style={styles.interestRowName}>
-                  {item.title}
-                </Text>
-                <Text numberOfLines={1} style={styles.interestRowMeta}>
-                  {item.company}
-                </Text>
-              </View>
-              <Pressable onPress={() => handleDelete(item.id)} style={{ padding: 6 }}>
-                <X size={18} color="#EF4444" strokeWidth={2.2} />
-              </Pressable>
-            </Pressable>
-          )}
-        />
-      )}
-    </SafeAreaView>
-  );
-}
-
-function CardContent({ card }: { card: Card }) {
+function WorkerCardContent({ candidate }: { candidate: any }) {
   return (
     <>
-      {/* Recruiter profile */}
       <View style={styles.profileSection}>
-        <UserRound
-          size={92}
-          color="#A1A1AA"
-          strokeWidth={1.5}
-        />
+        {candidate.avatar_url ? (
+          <Image source={{ uri: candidate.avatar_url }} style={styles.cardAvatarPreview} />
+        ) : (
+          <UserRound size={92} color="#A1A1AA" strokeWidth={1.5} />
+        )}
 
         <View style={styles.profileInfo}>
-          <Text
-            numberOfLines={1}
-            style={styles.name}
-          >
-            {card.name}
+          <Text numberOfLines={1} style={styles.name}>
+            {candidate.name}
           </Text>
 
           <View style={styles.recruiterMeta}>
-            <Text
-              numberOfLines={1}
-              style={styles.recruiterTitle}
-            >
-              {card.title}
+            <Text numberOfLines={1} style={styles.recruiterTitle}>
+              @{candidate.username}
             </Text>
-
-            <View style={styles.companyChip}>
-              <Text style={styles.companyText}>
-                {card.company}
-              </Text>
-            </View>
           </View>
         </View>
       </View>
 
-      {/* Opportunity */}
       <View style={styles.content}>
-        <Text style={styles.sectionLabel}>
-          LOOKING FOR
-        </Text>
+        <Text style={styles.sectionLabel}>CERTIFICATIONS</Text>
+        <Text style={styles.position}>{candidate.certifications || 'None listed'}</Text>
+
+        <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ABOUT</Text>
+        <Text style={styles.note}>{candidate.description || 'No description provided.'}</Text>
+      </View>
+    </>
+  );
+}
+
+function RecruiterCardContent({ recruiter }: { recruiter: any }) {
+  const positions = recruiter.positions ?? [];
+  const primary = positions[0];
+
+  return (
+    <>
+      <View style={styles.profileSection}>
+        {recruiter.avatar_url ? (
+          <Image source={{ uri: recruiter.avatar_url }} style={styles.cardAvatarPreview} />
+        ) : (
+          <UserRound size={92} color="#A1A1AA" strokeWidth={1.5} />
+        )}
+
+        <View style={styles.profileInfo}>
+          <Text numberOfLines={1} style={styles.name}>
+            {recruiter.name}
+          </Text>
+
+          <View style={styles.recruiterMeta}>
+            <Text numberOfLines={1} style={styles.recruiterTitle}>
+              {positions.length} open position{positions.length === 1 ? '' : 's'}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.sectionLabel}>LOOKING FOR</Text>
 
         <View style={styles.positionRow}>
-          <BriefcaseBusiness
-            size={20}
-            color="#18181B"
-            strokeWidth={2.2}
-          />
-
-          <Text
-            numberOfLines={1}
-            style={styles.position}
-          >
-            {card.position}
+          <BriefcaseBusiness size={20} color="#18181B" strokeWidth={2.2} />
+          <Text numberOfLines={1} style={styles.position}>
+            {primary?.title ?? 'Position'}
           </Text>
         </View>
 
-        <Text style={styles.pay}>
-          {card.pay}
-        </Text>
+        {primary?.pay_range ? <Text style={styles.pay}>{primary.pay_range}</Text> : null}
 
-        <View style={styles.locationRow}>
-          <MapPin
-            size={15}
-            color="#71717A"
-            strokeWidth={2}
-          />
-
-          <Text
-            numberOfLines={1}
-            style={styles.location}
-          >
-            {card.location} · {card.workStyle}
-          </Text>
-        </View>
+        {primary?.location ? (
+          <View style={styles.locationRow}>
+            <MapPin size={15} color="#71717A" strokeWidth={2} />
+            <Text numberOfLines={1} style={styles.location}>
+              {primary.location}
+              {primary.work_style ? ` · ${primary.work_style}` : ''}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.tags}>
-          <Tag text={card.experience} />
-
-          {card.skills.map((skill) => (
-            <Tag
-              key={skill}
-              text={skill}
-            />
+          {positions.slice(0, 4).map((p: any) => (
+            <Tag key={p.id} text={p.title} />
           ))}
         </View>
 
-        <Text style={styles.note}>
-          “{card.note}”
-        </Text>
+        {primary?.description ? (
+          <Text style={styles.note}>"{primary.description}"</Text>
+        ) : null}
       </View>
     </>
   );
@@ -2010,6 +2116,12 @@ const styles = StyleSheet.create({
     left: 22,
     right: 22,
     bottom: 18,
+  },
+
+  cardAvatarPreview: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
   },
 
   name: {
@@ -2712,5 +2824,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#52525B',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+  },
+
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+  },
+
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#D4D4D8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  checkboxChecked: {
+    backgroundColor: '#18181B',
+    borderColor: '#18181B',
+  },
+
+  checklistText: {
+    fontSize: 15,
+    color: '#18181B',
+    flex: 1,
   },
 });
