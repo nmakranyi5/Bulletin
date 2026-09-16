@@ -191,24 +191,14 @@ const DUMMY_CARDS = [
   },
 ];
 
-const DUMMY_RECEIVED_INTERESTS = [
-  {
-    id: 101,
-    name: 'Priya Anand',
-    title: 'Recruiter',
-    company: 'Stripe',
-    position: 'Backend Engineer',
-  },
-  {
-    id: 102,
-    name: 'Marcus Webb',
-    title: 'Talent Partner',
-    company: 'Airbnb',
-    position: 'Full Stack Engineer',
-  },
-];
-
-type ReceivedInterest = (typeof DUMMY_RECEIVED_INTERESTS)[number];
+type InterestRow = {
+  id: string;
+  from_user: string;
+  to_user: string;
+  status: string;
+  from_profile?: { id: string; name: string; username: string };
+  to_profile?: { id: string; name: string; username: string };
+};
 
 type Card = (typeof DUMMY_CARDS)[number];
 
@@ -218,6 +208,14 @@ type ChatMessage = {
   id: string;
   text: string;
   fromMe: boolean;
+};
+
+// Placeholder shape for Messages/Chat until that screen is wired to real `matches`/`messages` tables.
+type MatchStub = {
+  id: number;
+  name: string;
+  position: string;
+  company: string;
 };
 
 const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
@@ -231,11 +229,10 @@ export default function Index() {
   const [cards, setCards] = useState(DUMMY_CARDS);
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [interestsRemaining, setInterestsRemaining] = useState(MAX_INTERESTS);
-  const [interestedCards, setInterestedCards] = useState<Card[]>([]);
-  const [receivedInterests, setReceivedInterests] = useState<ReceivedInterest[]>(
-  DUMMY_RECEIVED_INTERESTS);
-  const [matches, setMatches] = useState<ReceivedInterest[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<ReceivedInterest | null>(null);
+  const [sentInterests, setSentInterests] = useState<InterestRow[]>([]);
+  const [receivedInterests, setReceivedInterests] = useState<InterestRow[]>([]);
+  const [matches, setMatches] = useState<MatchStub[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<MatchStub | null>(null);
   const [messagesByMatch, setMessagesByMatch] = useState<Record<number, ChatMessage[]>>({});
 
   const translateX = useSharedValue(0);
@@ -284,7 +281,6 @@ export default function Index() {
     };
   }, []);
 
-
   useEffect(() => {
     if (!session) return;
 
@@ -306,13 +302,54 @@ export default function Index() {
     ensureProfile();
   }, [session]);
 
+  const fetchInterests = async () => {
+    if (!session) return;
+
+    const { data: sent, error: sentError } = await supabase
+      .from('interests')
+      .select('*, to_profile:profiles!to_user(id, name, username)')
+      .eq('from_user', session.user.id);
+
+    if (sentError) Alert.alert('Error', sentError.message);
+    else setSentInterests(sent ?? []);
+
+    const { data: received, error: receivedError } = await supabase
+      .from('interests')
+      .select('*, from_profile:profiles!from_user(id, name, username)')
+      .eq('to_user', session.user.id)
+      .eq('status', 'pending');
+
+    if (receivedError) Alert.alert('Error', receivedError.message);
+    else setReceivedInterests(received ?? []);
+  };
+
+  useEffect(() => {
+    if (session && onboarded) fetchInterests();
+  }, [session, onboarded]);
+
+  const sendInterest = async (toUserId: string) => {
+    if (!session) return;
+
+    const { error } = await supabase.from('interests').insert({
+      from_user: session.user.id,
+      to_user: toUserId,
+    });
+
+    if (error && error.code !== '23505') {
+      // 23505 = unique violation (already sent) — safe to ignore silently
+      Alert.alert('Error', error.message);
+    } else {
+      fetchInterests();
+    }
+  };
+
   /*
    * JS-side state update.
    * This is only called through runOnJS from gesture animations.
    */
   const removeTopCard = (interested: number) => {
     if (interested > 0 && topCard) {
-      setInterestedCards((prev) => [...prev, topCard]);
+      sendInterest(String(topCard.id));
     }
 
     setCards((prev) => prev.slice(1));
@@ -320,11 +357,6 @@ export default function Index() {
     if (interested > 0) {
       setInterestsRemaining((prev) => (prev > 0 ? prev - 1 : prev));
     }
-  };
-
-  const removeInterest = (card: Card) => {
-    setInterestedCards((prev) => prev.filter((c) => c.id !== card.id));
-    setInterestsRemaining((prev) => Math.min(prev + 1, MAX_INTERESTS));
   };
 
   /*
@@ -438,39 +470,40 @@ export default function Index() {
     setCards(DUMMY_CARDS);
   };
 
-  const handleInterestPress = (card: Card) => {
-    Alert.alert(
-      card.name,
-      'Keep this interest, or remove it and get your point back?',
-      [
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeInterest(card),
-        },
-        { text: 'Keep', style: 'default' },
-      ]
-    );
+  const respondToInterest = async (interestId: string, status: 'accepted' | 'rejected') => {
+    const { error } = await supabase
+      .from('interests')
+      .update({ status })
+      .eq('id', interestId);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setReceivedInterests((prev) => prev.filter((r) => r.id !== interestId));
+
+    if (status === 'accepted') {
+      // Match creation will be wired up when we build Messages.
+    }
   };
 
-  const handleReceivedPress = (interest: ReceivedInterest) => {
+  const handleReceivedPress = (interest: InterestRow) => {
+    const name = interest.from_profile?.name ?? 'Someone';
+
     Alert.alert(
-      interest.name,
-      `${interest.name} is interested in you for ${interest.position} at ${interest.company}.`,
+      name,
+      `${name} is interested in connecting.`,
       [
         {
           text: 'Reject',
           style: 'destructive',
-          onPress: () =>
-            setReceivedInterests((prev) => prev.filter((r) => r.id !== interest.id)),
+          onPress: () => respondToInterest(interest.id, 'rejected'),
         },
         {
           text: 'Accept',
           style: 'default',
-          onPress: () => {
-            setReceivedInterests((prev) => prev.filter((r) => r.id !== interest.id));
-            setMatches((prev) => [...prev, interest]);
-          },
+          onPress: () => respondToInterest(interest.id, 'accepted'),
         },
       ]
     );
@@ -537,8 +570,7 @@ export default function Index() {
 
         {activeTab === 'interests' && (
           <InterestsScreen
-            interestedCards={interestedCards}
-            onInterestPress={handleInterestPress}
+            sentInterests={sentInterests}
             receivedInterests={receivedInterests}
             onReceivedPress={handleReceivedPress}
           />
@@ -716,15 +748,13 @@ function DiscoverScreen({
 }
 
 function InterestsScreen({
-  interestedCards,
+  sentInterests,
   receivedInterests,
-  onInterestPress,
   onReceivedPress,
 }: {
-  interestedCards: Card[];
-  receivedInterests: ReceivedInterest[];
-  onInterestPress: (card: Card) => void;
-  onReceivedPress: (interest: ReceivedInterest) => void;
+  sentInterests: InterestRow[];
+  receivedInterests: InterestRow[];
+  onReceivedPress: (interest: InterestRow) => void;
 }) {
   const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
 
@@ -737,36 +767,24 @@ function InterestsScreen({
 
       <View style={styles.subTabBar}>
         <Pressable
-          style={[
-            styles.subTabItem,
-            subTab === 'received' && styles.subTabItemActive,
-          ]}
+          style={[styles.subTabItem, subTab === 'received' && styles.subTabItemActive]}
           onPress={() => setSubTab('received')}
         >
           <Text
-            style={[
-              styles.subTabText,
-              subTab === 'received' && styles.subTabTextActive,
-            ]}
+            style={[styles.subTabText, subTab === 'received' && styles.subTabTextActive]}
           >
             Received ({receivedInterests.length})
           </Text>
         </Pressable>
 
         <Pressable
-          style={[
-            styles.subTabItem,
-            subTab === 'sent' && styles.subTabItemActive,
-          ]}
+          style={[styles.subTabItem, subTab === 'sent' && styles.subTabItemActive]}
           onPress={() => setSubTab('sent')}
         >
           <Text
-            style={[
-              styles.subTabText,
-              subTab === 'sent' && styles.subTabTextActive,
-            ]}
+            style={[styles.subTabText, subTab === 'sent' && styles.subTabTextActive]}
           >
-            Sent ({interestedCards.length})
+            Sent ({sentInterests.length})
           </Text>
         </Pressable>
       </View>
@@ -777,34 +795,30 @@ function InterestsScreen({
             <Handshake size={48} color="#A1A1AA" strokeWidth={1.5} />
             <Text style={styles.emptyTitle}>No interests yet</Text>
             <Text style={styles.emptySubtitle}>
-              Recruiters who show interest in you will show up here.
+              People who show interest in you will show up here.
             </Text>
           </View>
         ) : (
           <FlatList
             data={receivedInterests}
-            keyExtractor={(item) => String(item.id)}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.interestsList}
             renderItem={({ item }) => (
-              <Pressable
-                style={styles.interestRow}
-                onPress={() => onReceivedPress(item)}
-              >
+              <Pressable style={styles.interestRow} onPress={() => onReceivedPress(item)}>
                 <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
-
                 <View style={styles.interestRowInfo}>
                   <Text numberOfLines={1} style={styles.interestRowName}>
-                    {item.name}
+                    {item.from_profile?.name ?? 'Unknown'}
                   </Text>
                   <Text numberOfLines={1} style={styles.interestRowMeta}>
-                    {item.position} · {item.company}
+                    @{item.from_profile?.username ?? 'unknown'}
                   </Text>
                 </View>
               </Pressable>
             )}
           />
         )
-      ) : interestedCards.length === 0 ? (
+      ) : sentInterests.length === 0 ? (
         <View style={styles.emptyState}>
           <Handshake size={48} color="#A1A1AA" strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No interests yet</Text>
@@ -814,25 +828,25 @@ function InterestsScreen({
         </View>
       ) : (
         <FlatList
-          data={interestedCards}
-          keyExtractor={(item) => String(item.id)}
+          data={sentInterests}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.interestsList}
           renderItem={({ item }) => (
-            <Pressable
-              style={styles.interestRow}
-              onPress={() => onInterestPress(item)}
-            >
+            <View style={styles.interestRow}>
               <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
-
               <View style={styles.interestRowInfo}>
                 <Text numberOfLines={1} style={styles.interestRowName}>
-                  {item.name}
+                  {item.to_profile?.name ?? 'Unknown'}
                 </Text>
                 <Text numberOfLines={1} style={styles.interestRowMeta}>
-                  {item.position} · {item.company}
+                  {item.status === 'pending'
+                    ? 'Pending'
+                    : item.status === 'accepted'
+                    ? 'Matched'
+                    : 'Not interested'}
                 </Text>
               </View>
-            </Pressable>
+            </View>
           )}
         />
       )}
@@ -840,7 +854,13 @@ function InterestsScreen({
   );
 }
 
-function MessagesScreen({ matches, onMatchPress }: { matches: ReceivedInterest[]; onMatchPress: (match: ReceivedInterest) => void }) {
+function MessagesScreen({
+  matches,
+  onMatchPress,
+}: {
+  matches: MatchStub[];
+  onMatchPress: (match: MatchStub) => void;
+}) {
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
@@ -864,7 +884,7 @@ function MessagesScreen({ matches, onMatchPress }: { matches: ReceivedInterest[]
           renderItem={({ item }) => (
             <Pressable style={styles.interestRow} onPress={() => onMatchPress(item)}>
               <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
-              
+
               <View style={styles.interestRowInfo}>
                 <Text numberOfLines={1} style={styles.interestRowName}>
                   {item.name}
@@ -887,7 +907,7 @@ function ChatScreen({
   onSend,
   onBack,
 }: {
-  match: ReceivedInterest;
+  match: MatchStub;
   messages: ChatMessage[];
   onSend: (text: string) => void;
   onBack: () => void;
