@@ -1,5 +1,7 @@
 import { Session } from '@supabase/supabase-js';
+import { decode } from 'base64-arraybuffer';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ArrowLeft,
@@ -1134,13 +1136,15 @@ function OnboardingScreen({
     fileName: string,
     contentType: string
   ) => {
-    const arrayBuffer = await fetch(uri).then((res) => res.arrayBuffer());
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
 
     const path = `${session.user.id}/${fileName}`;
 
     const { error } = await supabase.storage.from(bucket).upload(
       path,
-      arrayBuffer,
+      decode(base64),
       {
         contentType,
         upsert: true,
