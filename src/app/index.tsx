@@ -1332,6 +1332,7 @@ function PositionsScreen({
       experience_level: experienceLevel.trim() || null,
       description: description.trim() || null,
       skills,
+      ...(editingId ? {} : { active: true }),
     };
 
     const { error } = editingId
