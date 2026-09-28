@@ -2176,7 +2176,9 @@ function ForgotPasswordScreen({
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: authRedirectUrl(),
+    });
     setLoading(false);
 
     if (error) {
