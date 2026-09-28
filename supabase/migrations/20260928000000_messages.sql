@@ -49,3 +49,38 @@ create policy "recipient responds to interest" on public.interests
 
 -- Realtime delivery of new messages.
 alter publication supabase_realtime add table public.messages;
+
+-- Interest lifecycle: pending -> accepted | rejected; accepted -> closed.
+-- Allow the 'closed' status (drops any old CHECK on status first).
+do $$
+declare c record;
+begin
+  for c in
+    select conname from pg_constraint
+    where conrelid = 'public.interests'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%status%'
+  loop
+    execute format('alter table public.interests drop constraint %I', c.conname);
+  end loop;
+end $$;
+
+alter table public.interests
+  add constraint interests_status_check
+  check (status in ('pending', 'accepted', 'rejected', 'closed'));
+
+grant select, insert, update, delete on public.interests to authenticated;
+
+-- Sender can withdraw an interest that hasn't been answered (frees the slot).
+drop policy if exists "sender withdraws pending interest" on public.interests;
+create policy "sender withdraws pending interest" on public.interests
+  for delete to authenticated
+  using (from_user = auth.uid() and status = 'pending');
+
+-- Sender can close a chat (accepted -> closed). Recipient already can via the
+-- "recipient responds to interest" policy.
+drop policy if exists "sender closes match" on public.interests;
+create policy "sender closes match" on public.interests
+  for update to authenticated
+  using (from_user = auth.uid() and status = 'accepted')
+  with check (from_user = auth.uid() and status = 'closed');

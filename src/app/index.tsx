@@ -97,7 +97,6 @@ const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
-  const [interestsRemaining, setInterestsRemaining] = useState(MAX_INTERESTS);
   const [sentInterests, setSentInterests] = useState<InterestRow[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<InterestRow[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -115,8 +114,13 @@ export default function Index() {
   const cardOpacity = useSharedValue(1);
 
   const topCard = discoverCards[0];
-  const interestsRemainingSV = useSharedValue(interestsRemaining);
   const unseenReceivedCount = receivedInterests.length;
+  // Pending and accepted sent interests hold a slot; withdrawing or closing frees it.
+  const activeSentCount = sentInterests.filter(
+    (i) => i.status === 'pending' || i.status === 'accepted'
+  ).length;
+  const interestsRemaining = Math.max(0, MAX_INTERESTS - activeSentCount);
+  const interestsRemainingSV = useSharedValue(interestsRemaining);
 
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -365,10 +369,18 @@ export default function Index() {
   const handlePositionSubmit = (selectedIds: string[]) => {
     if (!pendingInterestTarget) return;
 
+    const ids = selectedIds.slice(0, interestsRemaining);
+    if (ids.length < selectedIds.length) {
+      Alert.alert(
+        'Interest limit',
+        `You only had room for ${ids.length} more, so the rest weren't sent.`
+      );
+    }
+
     if (selectedIds.length === 0) {
       sendInterest(pendingInterestTarget.card.id, null);
     } else {
-      selectedIds.forEach((id) => sendInterest(pendingInterestTarget.card.id, id));
+      ids.forEach((id) => sendInterest(pendingInterestTarget.card.id, id));
     }
 
     setPendingInterestTarget(null);
@@ -393,8 +405,6 @@ export default function Index() {
       } else {
         setPendingInterestTarget({ card: swipedCard, positions: relevantPositions });
       }
-
-      setInterestsRemaining((prev) => (prev > 0 ? prev - 1 : prev));
     }
   };
 
@@ -521,6 +531,74 @@ export default function Index() {
     }
   };
 
+  const withdrawInterest = (interest: InterestRow) => {
+    Alert.alert(
+      'Remove interest?',
+      `This takes back your interest in ${interest.to_profile?.name ?? 'this person'} and gives you the slot back.`,
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const { data, error } = await supabase
+              .from('interests')
+              .delete()
+              .eq('id', interest.id)
+              .eq('status', 'pending')
+              .select('id');
+
+            if (error) {
+              Alert.alert('Error', error.message);
+              return;
+            }
+            if (!data || data.length === 0) {
+              Alert.alert('Could not remove', 'This interest was already answered.');
+            }
+
+            fetchInterests();
+            fetchDiscoverCards();
+          },
+        },
+      ]
+    );
+  };
+
+  const closeMatch = (match: Match) => {
+    Alert.alert(
+      'Close chat?',
+      `This ends your conversation with ${match.name} for both of you.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Close chat',
+          style: 'destructive',
+          onPress: async () => {
+            const { data, error } = await supabase
+              .from('interests')
+              .update({ status: 'closed' })
+              .eq('id', match.id)
+              .eq('status', 'accepted')
+              .select('id');
+
+            if (error) {
+              Alert.alert('Error', error.message);
+              return;
+            }
+            if (!data || data.length === 0) {
+              Alert.alert('Could not close', 'Something went wrong closing this chat.');
+              return;
+            }
+
+            setSelectedMatch(null);
+            fetchMatches();
+            fetchInterests();
+          },
+        },
+      ]
+    );
+  };
+
   const handleReceivedPress = (interest: InterestRow) => {
     const name = interest.from_profile?.name ?? 'Someone';
     const positionText = interest.position?.title
@@ -610,6 +688,8 @@ export default function Index() {
             sentInterests={sentInterests}
             receivedInterests={receivedInterests}
             onReceivedPress={handleReceivedPress}
+            onWithdraw={withdrawInterest}
+            interestsRemaining={interestsRemaining}
           />
         )}
         {activeTab === 'messages' && (
@@ -617,6 +697,7 @@ export default function Index() {
             <ChatScreen
               match={selectedMatch}
               userId={session.user.id}
+              onClose={() => closeMatch(selectedMatch)}
               onBack={() => setSelectedMatch(null)}
             />
           ) : (
@@ -885,10 +966,14 @@ function InterestsScreen({
   sentInterests,
   receivedInterests,
   onReceivedPress,
+  onWithdraw,
+  interestsRemaining,
 }: {
   sentInterests: InterestRow[];
   receivedInterests: InterestRow[];
   onReceivedPress: (interest: InterestRow) => void;
+  onWithdraw: (interest: InterestRow) => void;
+  interestsRemaining: number;
 }) {
   const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
 
@@ -896,7 +981,9 @@ function InterestsScreen({
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
         <Text style={styles.screenTitle}>bulletin.</Text>
-        <Text style={styles.subtitle}>Explore your interests.</Text>
+        <Text style={styles.subtitle}>
+          Explore your interests. {interestsRemaining} of {MAX_INTERESTS} left.
+        </Text>
       </View>
 
       <View style={styles.subTabBar}>
@@ -978,10 +1065,21 @@ function InterestsScreen({
                     ? 'Pending'
                     : item.status === 'accepted'
                     ? 'Matched'
+                    : item.status === 'closed'
+                    ? 'Chat closed'
                     : 'Not interested'}
                   {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                 </Text>
               </View>
+              {item.status === 'pending' && (
+                <Pressable
+                  hitSlop={10}
+                  style={styles.interestRowAction}
+                  onPress={() => onWithdraw(item)}
+                >
+                  <X size={18} color="#71717A" strokeWidth={2.2} />
+                </Pressable>
+              )}
             </View>
           )}
         />
@@ -1046,10 +1144,12 @@ function MessagesScreen({
 function ChatScreen({
   match,
   userId,
+  onClose,
   onBack,
 }: {
   match: Match;
   userId: string;
+  onClose: () => void;
   onBack: () => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1141,6 +1241,10 @@ function ChatScreen({
             {match.company ? `${match.position} · ${match.company}` : match.position}
           </Text>
         </View>
+
+        <Pressable onPress={onClose} hitSlop={10} style={styles.chatBackButton}>
+          <X size={22} color="#71717A" strokeWidth={2.2} />
+        </Pressable>
       </View>
 
       <FlatList
@@ -2645,6 +2749,10 @@ const styles = StyleSheet.create({
 
   chatBackButton: {
     padding: 4,
+  },
+
+  interestRowAction: {
+    padding: 6,
   },
 
   chatHeaderInfo: {
