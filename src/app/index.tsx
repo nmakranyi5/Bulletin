@@ -18,7 +18,7 @@ import {
   UserRound,
   X
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -79,9 +79,10 @@ type ChatMessage = {
   fromMe: boolean;
 };
 
-// Placeholder shape for Messages/Chat until that screen is wired to real `matches`/`messages` tables.
-type MatchStub = {
-  id: number;
+// A match is an accepted interest; `id` is the interest id.
+type Match = {
+  id: string;
+  otherUserId: string;
   name: string;
   position: string;
   company: string;
@@ -99,9 +100,8 @@ export default function Index() {
   const [interestsRemaining, setInterestsRemaining] = useState(MAX_INTERESTS);
   const [sentInterests, setSentInterests] = useState<InterestRow[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<InterestRow[]>([]);
-  const [matches, setMatches] = useState<MatchStub[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<MatchStub | null>(null);
-  const [messagesByMatch, setMessagesByMatch] = useState<Record<number, ChatMessage[]>>({});
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   const [discoverCards, setDiscoverCards] = useState<any[]>([]);
   const [discoverLoading, setDiscoverLoading] = useState(false);
@@ -307,8 +307,42 @@ export default function Index() {
     else setReceivedInterests(received ?? []);
   };
 
+  const fetchMatches = async () => {
+    if (!session) return;
+
+    const me = session.user.id;
+    const { data, error } = await supabase
+      .from('interests')
+      .select(
+        'id, from_user, to_user, from_profile:profiles!from_user(id, name, username), to_profile:profiles!to_user(id, name, username), position:positions(id, title, company)'
+      )
+      .eq('status', 'accepted')
+      .or(`from_user.eq.${me},to_user.eq.${me}`);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setMatches(
+      (data ?? []).map((row: any) => {
+        const other = row.from_user === me ? row.to_profile : row.from_profile;
+        return {
+          id: row.id,
+          otherUserId: other?.id ?? '',
+          name: other?.name ?? other?.username ?? 'Unknown',
+          position: row.position?.title ?? 'General',
+          company: row.position?.company ?? '',
+        };
+      })
+    );
+  };
+
   useEffect(() => {
-    if (session && onboarded) fetchInterests();
+    if (session && onboarded) {
+      fetchInterests();
+      fetchMatches();
+    }
   }, [session, onboarded]);
 
   const sendInterest = async (toUserId: string, positionId: string | null) => {
@@ -482,7 +516,8 @@ export default function Index() {
     setReceivedInterests((prev) => prev.filter((r) => r.id !== interestId));
 
     if (status === 'accepted') {
-      // Match creation will be wired up when we build Messages.
+      fetchMatches();
+      fetchInterests();
     }
   };
 
@@ -508,22 +543,6 @@ export default function Index() {
         },
       ]
     );
-  };
-
-  const sendMessage = (matchId: number, text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-
-    const newMessage: ChatMessage = {
-      id: `${Date.now()}`,
-      text: trimmed,
-      fromMe: true,
-    };
-
-    setMessagesByMatch((prev) => ({
-      ...prev,
-      [matchId]: [...(prev[matchId] ?? []), newMessage],
-    }));
   };
 
   if (authLoading || (session && onboarded === null)) {
@@ -597,12 +616,15 @@ export default function Index() {
           selectedMatch ? (
             <ChatScreen
               match={selectedMatch}
-              messages={messagesByMatch[selectedMatch.id] ?? []}
-              onSend={(text) => sendMessage(selectedMatch.id, text)}
+              userId={session.user.id}
               onBack={() => setSelectedMatch(null)}
             />
           ) : (
-            <MessagesScreen matches={matches} onMatchPress={setSelectedMatch} />
+            <MessagesScreen
+              matches={matches}
+              onMatchPress={setSelectedMatch}
+              onRefresh={fetchMatches}
+            />
           )
         )}
         {activeTab === 'profile' && (
@@ -971,10 +993,16 @@ function InterestsScreen({
 function MessagesScreen({
   matches,
   onMatchPress,
+  onRefresh,
 }: {
-  matches: MatchStub[];
-  onMatchPress: (match: MatchStub) => void;
+  matches: Match[];
+  onMatchPress: (match: Match) => void;
+  onRefresh: () => void;
 }) {
+  useEffect(() => {
+    onRefresh();
+  }, []);
+
   return (
     <View style={styles.simpleScreen}>
       <View style={styles.screenHeader}>
@@ -993,7 +1021,7 @@ function MessagesScreen({
       ) : (
         <FlatList
           data={matches}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.interestsList}
           renderItem={({ item }) => (
             <Pressable style={styles.interestRow} onPress={() => onMatchPress(item)}>
@@ -1004,7 +1032,7 @@ function MessagesScreen({
                   {item.name}
                 </Text>
                 <Text numberOfLines={1} style={styles.interestRowMeta}>
-                  {item.position} · {item.company}
+                  {item.company ? `${item.position} · ${item.company}` : item.position}
                 </Text>
               </View>
             </Pressable>
@@ -1017,21 +1045,81 @@ function MessagesScreen({
 
 function ChatScreen({
   match,
-  messages,
-  onSend,
+  userId,
   onBack,
 }: {
-  match: MatchStub;
-  messages: ChatMessage[];
-  onSend: (text: string) => void;
+  match: Match;
+  userId: string;
   onBack: () => void;
 }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const listRef = useRef<FlatList<ChatMessage>>(null);
 
-  const handleSend = () => {
-    if (!draft.trim()) return;
-    onSend(draft);
+  useEffect(() => {
+    let active = true;
+    const toChat = (row: any): ChatMessage => ({
+      id: row.id,
+      text: row.body,
+      fromMe: row.sender_id === userId,
+    });
+    const append = (msg: ChatMessage) =>
+      setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+
+    supabase
+      .from('messages')
+      .select('id, sender_id, body')
+      .eq('interest_id', match.id)
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) Alert.alert('Error', error.message);
+        else setMessages((data ?? []).map(toChat));
+      });
+
+    const channel = supabase
+      .channel(`messages:${match.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `interest_id=eq.${match.id}`,
+        },
+        (payload) => append(toChat(payload.new))
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [match.id, userId]);
+
+  const handleSend = async () => {
+    const body = draft.trim();
+    if (!body) return;
+
     setDraft('');
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({ interest_id: match.id, sender_id: userId, body })
+      .select('id, sender_id, body')
+      .single();
+
+    if (error) {
+      setDraft(body);
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setMessages((prev) =>
+      prev.some((m) => m.id === data.id)
+        ? prev
+        : [...prev, { id: data.id, text: data.body, fromMe: true }]
+    );
   };
 
   return (
@@ -1050,12 +1138,14 @@ function ChatScreen({
             {match.name}
           </Text>
           <Text numberOfLines={1} style={styles.chatHeaderMeta}>
-            {match.position} · {match.company}
+            {match.company ? `${match.position} · ${match.company}` : match.position}
           </Text>
         </View>
       </View>
 
       <FlatList
+        ref={listRef}
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         data={messages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.chatMessages}
