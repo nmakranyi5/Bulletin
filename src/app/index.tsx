@@ -50,6 +50,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
+import { authRedirectUrl, handleAuthUrl } from '../../lib/auth-links';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -124,6 +126,7 @@ export default function Index() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [managingPositions, setManagingPositions] = useState(false);
@@ -168,6 +171,23 @@ export default function Index() {
     return () => {
       listener.subscription.unsubscribe();
     };
+  }, []);
+
+  // Email links (confirm signup / reset password) open the app with tokens in the URL.
+  useEffect(() => {
+    const onUrl = async (url: string | null) => {
+      const result = await handleAuthUrl(url, (type) => {
+        if (type === 'recovery') setRecovering(true);
+      });
+      if (result.error) {
+        setRecovering(false);
+        Alert.alert('Link problem', result.error);
+      }
+    };
+
+    Linking.getInitialURL().then(onUrl);
+    const sub = Linking.addEventListener('url', ({ url }) => onUrl(url));
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
@@ -633,6 +653,10 @@ export default function Index() {
 
   if (!session) {
     return <AuthScreen />;
+  }
+
+  if (recovering) {
+    return <ResetPasswordScreen onDone={() => setRecovering(false)} />;
   }
 
   if (!onboarded) {
@@ -1996,6 +2020,26 @@ function AuthScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Enter your email', 'Type your email above, then tap Forgot password.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: authRedirectUrl(),
+    });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    Alert.alert('Check your email', 'We sent you a link to reset your password.');
+  };
+
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Missing info', 'Please enter both email and password.');
@@ -2009,7 +2053,7 @@ function AuthScreen() {
         ? await supabase.auth.signUp({
             email: email.trim(),
             password,
-            options: { data: { role } },
+            options: { data: { role }, emailRedirectTo: authRedirectUrl() },
           })
         : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
@@ -2103,6 +2147,82 @@ function AuthScreen() {
           <Text style={styles.authButtonText}>
             {loading ? 'Please wait...' : mode === 'signIn' ? 'Log In' : 'Sign Up'}
           </Text>
+        </Pressable>
+
+        {mode === 'signIn' && (
+          <Pressable
+            style={{ marginTop: 14, alignItems: 'center' }}
+            onPress={handleForgotPassword}
+            disabled={loading}
+          >
+            <Text style={styles.subtitle}>Forgot password?</Text>
+          </Pressable>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    if (password.length < 6) {
+      Alert.alert('Password too short', 'Use at least 6 characters.');
+      return;
+    }
+    if (password !== confirm) {
+      Alert.alert('Passwords do not match', 'Please re-enter them.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    Alert.alert('Password updated', 'You are all set.');
+    onDone();
+  };
+
+  return (
+    <SafeAreaView style={styles.authContainer}>
+      <KeyboardAvoidingView
+        style={styles.authInner}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Text style={styles.logo}>bulletin.</Text>
+        <Text style={styles.subtitle}>Choose a new password.</Text>
+
+        <TextInput
+          style={styles.authInput}
+          placeholder="New password"
+          placeholderTextColor="#A1A1AA"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <TextInput
+          style={styles.authInput}
+          placeholder="Confirm password"
+          placeholderTextColor="#A1A1AA"
+          value={confirm}
+          onChangeText={setConfirm}
+          secureTextEntry
+        />
+
+        <Pressable
+          style={[styles.authButton, loading && styles.authButtonDisabled]}
+          onPress={handleSave}
+          disabled={loading}
+        >
+          <Text style={styles.authButtonText}>{loading ? 'Please wait...' : 'Save password'}</Text>
         </Pressable>
       </KeyboardAvoidingView>
     </SafeAreaView>
