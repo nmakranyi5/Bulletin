@@ -652,7 +652,7 @@ export default function Index() {
   }
 
   if (!session) {
-    return <AuthScreen />;
+    return <AuthScreen setRecovering={setRecovering} />;
   }
 
   if (recovering) {
@@ -2013,32 +2013,13 @@ function OnboardingScreen({
   );
 }
 
-function AuthScreen() {
+function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) => void }) {
+  const [showForgot, setShowForgot] = useState(false);
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [role, setRole] = useState<'seeker' | 'recruiter'>('seeker');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      Alert.alert('Enter your email', 'Type your email above, then tap Forgot password.');
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: authRedirectUrl(),
-    });
-    setLoading(false);
-
-    if (error) {
-      Alert.alert('Error', error.message);
-      return;
-    }
-
-    Alert.alert('Check your email', 'We sent you a link to reset your password.');
-  };
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -2068,6 +2049,16 @@ function AuthScreen() {
       Alert.alert('Check your email', 'Confirm your email to finish signing up.');
     }
   };
+
+  if (showForgot) {
+    return (
+      <ForgotPasswordScreen
+        initialEmail={email}
+        setRecovering={setRecovering}
+        onBack={() => setShowForgot(false)}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.authContainer}>
@@ -2152,12 +2143,131 @@ function AuthScreen() {
         {mode === 'signIn' && (
           <Pressable
             style={{ marginTop: 14, alignItems: 'center' }}
-            onPress={handleForgotPassword}
+            onPress={() => setShowForgot(true)}
             disabled={loading}
           >
             <Text style={styles.subtitle}>Forgot password?</Text>
           </Pressable>
         )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+// Password reset by emailed one-time code, so it works without deep links.
+function ForgotPasswordScreen({
+  initialEmail,
+  setRecovering,
+  onBack,
+}: {
+  initialEmail: string;
+  setRecovering: (value: boolean) => void;
+  onBack: () => void;
+}) {
+  const [step, setStep] = useState<'request' | 'verify'>('request');
+  const [email, setEmail] = useState(initialEmail);
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const sendCode = async () => {
+    if (!email.trim()) {
+      Alert.alert('Enter your email', 'We need it to send you a code.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setStep('verify');
+  };
+
+  const verifyCode = async () => {
+    if (!code.trim()) {
+      Alert.alert('Enter the code', 'Type the code from the email.');
+      return;
+    }
+
+    setLoading(true);
+    // Set before verifying so the app shows the new-password screen, not the home screen.
+    setRecovering(true);
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: 'recovery',
+    });
+    setLoading(false);
+
+    if (error) {
+      setRecovering(false);
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.authContainer}>
+      <KeyboardAvoidingView
+        style={styles.authInner}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Text style={styles.logo}>bulletin.</Text>
+        <Text style={styles.subtitle}>
+          {step === 'request'
+            ? 'Reset your password.'
+            : `Enter the code we sent to ${email.trim()}.`}
+        </Text>
+
+        {step === 'request' ? (
+          <TextInput
+            style={styles.authInput}
+            placeholder="Email"
+            placeholderTextColor="#A1A1AA"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+        ) : (
+          <TextInput
+            style={styles.authInput}
+            placeholder="Code"
+            placeholderTextColor="#A1A1AA"
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="none"
+            keyboardType="number-pad"
+            maxLength={10}
+          />
+        )}
+
+        <Pressable
+          style={[styles.authButton, loading && styles.authButtonDisabled]}
+          onPress={step === 'request' ? sendCode : verifyCode}
+          disabled={loading}
+        >
+          <Text style={styles.authButtonText}>
+            {loading ? 'Please wait...' : step === 'request' ? 'Send code' : 'Verify code'}
+          </Text>
+        </Pressable>
+
+        {step === 'verify' && (
+          <Pressable
+            style={{ marginTop: 14, alignItems: 'center' }}
+            onPress={sendCode}
+            disabled={loading}
+          >
+            <Text style={styles.subtitle}>Resend code</Text>
+          </Pressable>
+        )}
+
+        <Pressable style={{ marginTop: 14, alignItems: 'center' }} onPress={onBack}>
+          <Text style={styles.subtitle}>Back to log in</Text>
+        </Pressable>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
