@@ -2034,7 +2034,7 @@ function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) => void
         ? await supabase.auth.signUp({
             email: email.trim(),
             password,
-            options: { data: { role }, emailRedirectTo: authRedirectUrl() },
+            options: { data: { role } },
           })
         : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
