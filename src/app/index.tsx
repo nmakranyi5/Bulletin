@@ -177,7 +177,10 @@ export default function Index() {
         .maybeSingle();
 
       if (!existing) {
-        await supabase.from('profiles').insert({ id: session.user.id });
+        await supabase.from('profiles').insert({
+          id: session.user.id,
+          is_recruiter: session.user.user_metadata?.role === 'recruiter',
+        });
         setOnboarded(false);
       } else {
         setOnboarded(existing.onboarded ?? false);
@@ -1793,6 +1796,7 @@ function OnboardingScreen({
 
 function AuthScreen() {
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+  const [role, setRole] = useState<'seeker' | 'recruiter'>('seeker');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1807,7 +1811,11 @@ function AuthScreen() {
 
     const { error } =
       mode === 'signUp'
-        ? await supabase.auth.signUp({ email: email.trim(), password })
+        ? await supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: { data: { role } },
+          })
         : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
     setLoading(false);
@@ -1856,6 +1864,22 @@ function AuthScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {mode === 'signUp' && (
+          <View style={[styles.subTabBar, styles.authModeToggle]}>
+            {(['seeker', 'recruiter'] as const).map((r) => (
+              <Pressable
+                key={r}
+                style={[styles.subTabItem, role === r && styles.subTabItemActive]}
+                onPress={() => setRole(r)}
+              >
+                <Text style={[styles.subTabText, role === r && styles.subTabTextActive]}>
+                  {r === 'seeker' ? "I'm a Seeker" : "I'm a Recruiter"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <TextInput
           style={styles.authInput}
