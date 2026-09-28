@@ -13,6 +13,8 @@ create index if not exists messages_interest_created_idx
 
 alter table public.messages enable row level security;
 
+grant select, insert on public.messages to authenticated;
+
 drop policy if exists "match members read messages" on public.messages;
 create policy "match members read messages" on public.messages
   for select to authenticated
