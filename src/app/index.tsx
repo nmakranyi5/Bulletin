@@ -3447,7 +3447,9 @@ const styles = StyleSheet.create({
 
   chatBubbleTheirs: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F4F4F5',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
     borderBottomLeftRadius: 4,
   },
 
