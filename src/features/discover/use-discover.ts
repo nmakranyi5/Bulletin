@@ -66,7 +66,7 @@ export function useDiscover(
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, positions:positions!recruiter_id(id, title, company, pay_range, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, min_experience_years)'
+          'id, name, username, avatar_url, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
         )
         .eq('is_recruiter', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);

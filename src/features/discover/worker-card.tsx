@@ -34,7 +34,7 @@ export function WorkerCardContent({ candidate }: { candidate: any }) {
         <Text style={shared.sectionLabel}>EPA 608</Text>
         <Text style={shared.position}>{formatWorkerEpa(candidate.epa_608_types)}</Text>
 
-        {(candidate.trade_role || candidate.trade_start_year) && (
+        {!!(candidate.trade_role || candidate.trade_start_year) && (
           <View style={shared.tags}>
             {candidate.trade_role ? <Tag text={candidate.trade_role} /> : null}
             {candidate.trade_start_year ? (

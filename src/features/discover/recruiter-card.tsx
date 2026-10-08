@@ -2,7 +2,7 @@ import { BriefcaseBusiness, MapPin, UserRound } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
-import { epaMismatchNote, experienceMismatchNote } from '../../../lib/hvac';
+import { epaMismatchNote, experienceMismatchNote, formatPay, getSchedules } from '../../../lib/hvac';
 import { Tag } from '../../components/tag';
 import { useSharedStyles } from '../../styles/shared';
 
@@ -12,6 +12,7 @@ export function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: a
   const local = useLocalStyles();
   const positions = recruiter.positions ?? [];
   const primary = positions[0];
+  const schedules = primary ? getSchedules(primary) : [];
   const mismatches = [
     epaMismatchNote(primary?.epa_608_required, me?.epa_608_types),
     experienceMismatchNote(primary?.min_experience_years, me?.trade_start_year),
@@ -49,26 +50,36 @@ export function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: a
           </Text>
         </View>
 
-        {primary?.pay_range ? <Text style={local.pay}>{primary.pay_range}</Text> : null}
+        {formatPay(primary ?? {}) ? <Text style={local.pay}>{formatPay(primary)}</Text> : null}
 
         {primary?.location ? (
           <View style={local.locationRow}>
             <MapPin size={15} color={c.textSecondary} strokeWidth={2} />
             <Text numberOfLines={1} style={local.location}>
               {primary.location}
-              {primary.schedule_type ? ` · ${primary.schedule_type}` : ''}
             </Text>
           </View>
         ) : null}
 
-        {(primary?.epa_608_required || primary?.min_experience_years) && (
+        {!!(
+          schedules.length ||
+          primary?.epa_608_required ||
+          primary?.min_experience_years ||
+          primary?.pay_extras?.length
+        ) && (
           <View style={shared.tags}>
+            {schedules.map((s) => (
+              <Tag key={s} text={s} />
+            ))}
             {primary.epa_608_required ? (
               <Tag text={`EPA 608 Type ${primary.epa_608_required}+`} />
             ) : null}
             {primary.min_experience_years ? (
               <Tag text={`${primary.min_experience_years}+ yrs`} />
             ) : null}
+            {(primary.pay_extras ?? []).map((extra: string) => (
+              <Tag key={extra} text={extra} />
+            ))}
           </View>
         )}
 
