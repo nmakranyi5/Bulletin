@@ -76,6 +76,15 @@ export function experienceMismatchNote(
   return `Wants ${minYears}+ yrs experience`;
 }
 
+// Postings can list several schedules; falls back to the legacy single schedule_type.
+export function getSchedules(position: {
+  schedule_types?: string[] | null;
+  schedule_type?: string | null;
+}): string[] {
+  if (position.schedule_types?.length) return position.schedule_types;
+  return position.schedule_type ? [position.schedule_type] : [];
+}
+
 export const PAY_TYPES = ['Hourly', 'Salary'] as const;
 export type PayType = (typeof PAY_TYPES)[number];
 

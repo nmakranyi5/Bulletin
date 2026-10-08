@@ -20,6 +20,7 @@ import {
   PAY_EXTRAS,
   PAY_TYPES,
   parseMinYears,
+  getSchedules,
   parsePay,
   SCHEDULE_TYPES,
 } from '../../../lib/hvac';
@@ -50,7 +51,7 @@ export function PositionsScreen({
   const [payExtras, setPayExtras] = useState<string[]>([]);
   const [legacyPay, setLegacyPay] = useState('');
   const [location, setLocation] = useState('');
-  const [scheduleType, setScheduleType] = useState('');
+  const [scheduleTypes, setScheduleTypes] = useState<string[]>([]);
   const [epaRequired, setEpaRequired] = useState('');
   const [minYears, setMinYears] = useState('');
   const [description, setDescription] = useState('');
@@ -86,7 +87,7 @@ export function PositionsScreen({
     setPayExtras([]);
     setLegacyPay('');
     setLocation('');
-    setScheduleType('');
+    setScheduleTypes([]);
     setEpaRequired('');
     setMinYears('');
     setDescription('');
@@ -109,7 +110,7 @@ export function PositionsScreen({
     setPayExtras(position.pay_extras ?? []);
     setLegacyPay(position.pay_range ?? '');
     setLocation(position.location ?? '');
-    setScheduleType(position.schedule_type ?? '');
+    setScheduleTypes(getSchedules(position));
     setEpaRequired(position.epa_608_required ?? '');
     setMinYears(position.min_experience_years != null ? String(position.min_experience_years) : '');
     setDescription(position.description ?? '');
@@ -174,7 +175,8 @@ export function PositionsScreen({
       pay_extras: payExtras,
       pay_range: hasPay ? null : legacyPay.trim() || null,
       location: location.trim() || null,
-      schedule_type: scheduleType || null,
+      schedule_types: scheduleTypes,
+      schedule_type: null, // superseded by schedule_types
       epa_608_required: epaRequired || null,
       min_experience_years: parsedMinYears,
       description: description.trim() || null,
@@ -294,10 +296,14 @@ export function PositionsScreen({
             />
 
             <ChipSelect
-              label="SCHEDULE TYPE"
+              label="SCHEDULE (SELECT ALL THAT APPLY)"
               options={SCHEDULE_TYPES}
-              selected={scheduleType ? [scheduleType] : []}
-              onToggle={(o) => setScheduleType((prev) => (prev === o ? '' : o))}
+              selected={scheduleTypes}
+              onToggle={(o) =>
+                setScheduleTypes((prev) =>
+                  prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
+                )
+              }
             />
 
             <ChipSelect
