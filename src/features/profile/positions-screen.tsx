@@ -255,22 +255,28 @@ export function PositionsScreen({
             />
 
             <View style={local.payRow}>
-              <TextInput
-                style={[shared.authInput, local.payInput]}
-                placeholder={payType === 'Salary' ? 'Min / yr (e.g. 55000)' : 'Min / hr (e.g. 28)'}
-                placeholderTextColor={c.muted}
-                value={payMin}
-                onChangeText={setPayMin}
-                keyboardType="decimal-pad"
-              />
-              <TextInput
-                style={[shared.authInput, local.payInput]}
-                placeholder={payType === 'Salary' ? 'Max / yr (e.g. 70000)' : 'Max / hr (e.g. 38)'}
-                placeholderTextColor={c.muted}
-                value={payMax}
-                onChangeText={setPayMax}
-                keyboardType="decimal-pad"
-              />
+              <View style={[shared.authInput, local.payField]}>
+                <Text style={local.payDollar}>$</Text>
+                <TextInput
+                  style={local.payInput}
+                  placeholder={payType === 'Salary' ? 'Min / yr (e.g. 55000)' : 'Min / hr (e.g. 28)'}
+                  placeholderTextColor={c.muted}
+                  value={payMin}
+                  onChangeText={setPayMin}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={[shared.authInput, local.payField]}>
+                <Text style={local.payDollar}>$</Text>
+                <TextInput
+                  style={local.payInput}
+                  placeholder={payType === 'Salary' ? 'Max / yr (e.g. 70000)' : 'Max / hr (e.g. 38)'}
+                  placeholderTextColor={c.muted}
+                  value={payMax}
+                  onChangeText={setPayMax}
+                  keyboardType="decimal-pad"
+                />
+              </View>
             </View>
             {!!legacyPay && !payMin && !payMax && (
               <Text style={shared.chipHint}>Previously entered as: {legacyPay}</Text>
@@ -455,8 +461,25 @@ function useLocalStyles() {
           gap: 10,
         },
 
+        payField: {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingVertical: 0,
+        },
+
+        payDollar: {
+          fontSize: 15,
+          fontWeight: '600',
+          color: c.textSecondary,
+        },
+
         payInput: {
           flex: 1,
+          paddingVertical: 14,
+          fontSize: 15,
+          color: c.text,
         },
 
         skillInputRow: {
