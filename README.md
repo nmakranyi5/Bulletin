@@ -54,3 +54,16 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Project structure
+
+```
+src/app/            Expo Router entry; index.tsx is a thin shell that wires features together
+src/features/       One folder per feature (auth, discover, interests, messages, profile)
+                    screens + a use-*.ts hook that owns that feature's data
+src/components/     Small shared UI pieces (Tag, ChipSelect, TabBar)
+src/styles/shared.ts  Styles used by more than one file; single-use styles live in their file
+src/constants/app.ts  Layout/swipe constants and the interest limit
+lib/                Supabase client, theme, and pure helpers (hvac, chat, auth links)
+supabase/migrations/  SQL to run against your Supabase project
+```
