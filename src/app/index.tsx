@@ -52,6 +52,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authRedirectUrl, handleAuthUrl } from '../../lib/auth-links';
+import {
+  EPA_TYPES,
+  SCHEDULE_TYPES,
+  TRADE_ROLES,
+  epaMismatchNote,
+  experienceMismatchNote,
+  formatTradeStart,
+  formatWorkerEpa,
+  isUniversal,
+  parseMinYears,
+  parseYear,
+} from '../../lib/hvac';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -68,9 +80,21 @@ type InterestRow = {
   to_user: string;
   status: string;
   position_id: string | null;
-  from_profile?: { id: string; name: string; username: string };
+  from_profile?: {
+    id: string;
+    name: string;
+    username: string;
+    epa_608_types?: string[] | null;
+    trade_start_year?: number | null;
+  };
   to_profile?: { id: string; name: string; username: string };
-  position?: { id: string; title: string; company: string } | null;
+  position?: {
+    id: string;
+    title: string;
+    company: string;
+    epa_608_required?: string | null;
+    min_experience_years?: number | null;
+  } | null;
 };
 
 type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
@@ -137,6 +161,8 @@ export default function Index() {
     username: string | null;
     avatar_url: string | null;
     is_recruiter: boolean;
+    epa_608_types: string[] | null;
+    trade_start_year: number | null;
   } | null>(null);
 
   /*
@@ -219,7 +245,7 @@ export default function Index() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, name, username, avatar_url, is_recruiter')
+      .select('id, name, username, avatar_url, is_recruiter, epa_608_types, trade_start_year')
       .eq('id', session.user.id)
       .single();
 
@@ -268,7 +294,9 @@ export default function Index() {
     if (myProfile.is_recruiter) {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, username, avatar_url, description, certifications')
+        .select(
+          'id, name, username, avatar_url, description, certifications, epa_608_types, trade_start_year, trade_role'
+        )
         .eq('is_recruiter', false)
         .not('id', 'in', `(${excludeIds.join(',')})`);
 
@@ -278,7 +306,7 @@ export default function Index() {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, positions:positions!recruiter_id(id, title, company, pay_range, location, work_style, experience_level, skills, description, active)'
+          'id, name, username, avatar_url, positions:positions!recruiter_id(id, title, company, pay_range, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, min_experience_years)'
         )
         .eq('is_recruiter', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);
@@ -322,7 +350,7 @@ export default function Index() {
     const { data: received, error: receivedError } = await supabase
       .from('interests')
       .select(
-        '*, from_profile:profiles!from_user(id, name, username), position:positions(id, title, company)'
+        '*, from_profile:profiles!from_user(id, name, username, epa_608_types, trade_start_year), position:positions(id, title, company, epa_608_required, min_experience_years)'
       )
       .eq('to_user', session.user.id)
       .eq('status', 'pending');
@@ -703,6 +731,7 @@ export default function Index() {
             onRefresh={fetchDiscoverCards}
             interestsRemaining={interestsRemaining}
             isRecruiter={!!myProfile?.is_recruiter}
+            me={myProfile}
             loading={discoverLoading}
           />
         )}
@@ -828,6 +857,7 @@ function DiscoverScreen({
   onRefresh,
   interestsRemaining,
   isRecruiter,
+  me,
   loading,
 }: {
   cards: any[];
@@ -840,6 +870,7 @@ function DiscoverScreen({
   onRefresh: () => void;
   interestsRemaining: number;
   isRecruiter: boolean;
+  me: any;
   loading: boolean;
 }) {
   return (
@@ -884,7 +915,7 @@ function DiscoverScreen({
                       {isRecruiter ? (
                         <WorkerCardContent candidate={card} />
                       ) : (
-                        <RecruiterCardContent recruiter={card} />
+                        <RecruiterCardContent recruiter={card} me={me} />
                       )}
                     </View>
                   );
@@ -923,7 +954,7 @@ function DiscoverScreen({
                       {isRecruiter ? (
                         <WorkerCardContent candidate={card} />
                       ) : (
-                        <RecruiterCardContent recruiter={card} />
+                        <RecruiterCardContent recruiter={card} me={me} />
                       )}
                     </Animated.View>
                   </GestureDetector>
@@ -1059,6 +1090,23 @@ function InterestsScreen({
                     @{item.from_profile?.username ?? 'unknown'}
                     {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                   </Text>
+                  {(() => {
+                    const notes = [
+                      epaMismatchNote(
+                        item.position?.epa_608_required,
+                        item.from_profile?.epa_608_types
+                      ),
+                      experienceMismatchNote(
+                        item.position?.min_experience_years,
+                        item.from_profile?.trade_start_year
+                      ),
+                    ].filter(Boolean);
+                    return notes.length > 0 ? (
+                      <Text numberOfLines={1} style={styles.mismatchText}>
+                        Heads up: {notes.join(' · ')}
+                      </Text>
+                    ) : null;
+                  })()}
                 </View>
               </Pressable>
             )}
@@ -1461,8 +1509,9 @@ function PositionsScreen({
   const [company, setCompany] = useState('');
   const [payRange, setPayRange] = useState('');
   const [location, setLocation] = useState('');
-  const [workStyle, setWorkStyle] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState('');
+  const [scheduleType, setScheduleType] = useState('');
+  const [epaRequired, setEpaRequired] = useState('');
+  const [minYears, setMinYears] = useState('');
   const [description, setDescription] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState('');
@@ -1492,8 +1541,9 @@ function PositionsScreen({
     setCompany('');
     setPayRange('');
     setLocation('');
-    setWorkStyle('');
-    setExperienceLevel('');
+    setScheduleType('');
+    setEpaRequired('');
+    setMinYears('');
     setDescription('');
     setSkills([]);
     setSkillInput('');
@@ -1510,8 +1560,9 @@ function PositionsScreen({
     setCompany(position.company ?? '');
     setPayRange(position.pay_range ?? '');
     setLocation(position.location ?? '');
-    setWorkStyle(position.work_style ?? '');
-    setExperienceLevel(position.experience_level ?? '');
+    setScheduleType(position.schedule_type ?? '');
+    setEpaRequired(position.epa_608_required ?? '');
+    setMinYears(position.min_experience_years != null ? String(position.min_experience_years) : '');
     setDescription(position.description ?? '');
     setSkills(position.skills ?? []);
     setEditingId(position.id);
@@ -1538,6 +1589,12 @@ function PositionsScreen({
       return;
     }
 
+    const parsedMinYears = parseMinYears(minYears);
+    if (parsedMinYears === 'invalid') {
+      Alert.alert('Invalid experience', 'Minimum experience must be a whole number of years.');
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
@@ -1546,8 +1603,9 @@ function PositionsScreen({
       company: company.trim(),
       pay_range: payRange.trim() || null,
       location: location.trim() || null,
-      work_style: workStyle.trim() || null,
-      experience_level: experienceLevel.trim() || null,
+      schedule_type: scheduleType || null,
+      epa_608_required: epaRequired || null,
+      min_experience_years: parsedMinYears,
       description: description.trim() || null,
       skills,
       ...(editingId ? {} : { active: true }),
@@ -1632,20 +1690,34 @@ function PositionsScreen({
               onChangeText={setLocation}
             />
 
-            <TextInput
-              style={styles.authInput}
-              placeholder="Work style (e.g. On-site, Hybrid)"
-              placeholderTextColor="#A1A1AA"
-              value={workStyle}
-              onChangeText={setWorkStyle}
+            <ChipSelect
+              label="SCHEDULE TYPE"
+              options={SCHEDULE_TYPES}
+              selected={scheduleType ? [scheduleType] : []}
+              onToggle={(o) => setScheduleType((prev) => (prev === o ? '' : o))}
             />
+
+            <ChipSelect
+              label="EPA 608 REQUIRED (MINIMUM TYPE)"
+              options={EPA_TYPES.map((t) => `Type ${t}`)}
+              selected={epaRequired ? [`Type ${epaRequired}`] : []}
+              onToggle={(o) => {
+                const t = o.replace('Type ', '');
+                setEpaRequired((prev) => (prev === t ? '' : t));
+              }}
+            />
+            <Text style={styles.chipHint}>
+              Universal-certified techs also qualify. Leave unselected if not required.
+            </Text>
 
             <TextInput
               style={styles.authInput}
-              placeholder="Experience level (e.g. 2+ years)"
+              placeholder="Minimum years of experience (e.g. 2)"
               placeholderTextColor="#A1A1AA"
-              value={experienceLevel}
-              onChangeText={setExperienceLevel}
+              value={minYears}
+              onChangeText={setMinYears}
+              keyboardType="number-pad"
+              maxLength={2}
             />
 
             <View style={styles.skillInputRow}>
@@ -1774,7 +1846,10 @@ function OnboardingScreen({
 }) {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
-  const [certifications, setCertifications] = useState('');
+  const [epaCertified, setEpaCertified] = useState(false);
+  const [epaTypes, setEpaTypes] = useState<string[]>([]);
+  const [startYear, setStartYear] = useState('');
+  const [tradeRole, setTradeRole] = useState('');
   const [description, setDescription] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
@@ -1785,14 +1860,19 @@ function OnboardingScreen({
     const loadExisting = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('name, username, certifications, description, avatar_url, resume_url')
+        .select(
+          'name, username, epa_608_types, trade_start_year, trade_role, description, avatar_url, resume_url'
+        )
         .eq('id', session.user.id)
         .single();
 
       if (data) {
         setName(data.name ?? '');
         setUsername(data.username ?? '');
-        setCertifications(data.certifications ?? '');
+        setEpaTypes(data.epa_608_types ?? []);
+        setEpaCertified((data.epa_608_types ?? []).length > 0);
+        setStartYear(data.trade_start_year ? String(data.trade_start_year) : '');
+        setTradeRole(data.trade_role ?? '');
         setDescription(data.description ?? '');
         if (data.avatar_url) setAvatarUri(data.avatar_url);
         if (data.resume_url) {
@@ -1874,6 +1954,16 @@ function OnboardingScreen({
       return;
     }
 
+    const parsedYear = parseYear(startYear);
+    if (parsedYear === 'invalid') {
+      Alert.alert('Invalid year', 'Enter the four-digit year you started in the trade, e.g. 2020.');
+      return;
+    }
+    if (epaCertified && epaTypes.length === 0) {
+      Alert.alert('EPA 608', 'Select at least one certification type, or choose No.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -1898,7 +1988,9 @@ function OnboardingScreen({
         .update({
           name: name.trim(),
           username: username.trim(),
-          certifications: certifications.trim(),
+          epa_608_types: epaCertified ? epaTypes : [],
+          trade_start_year: parsedYear,
+          trade_role: tradeRole || null,
           description: description.trim(),
           ...(avatarUrl && { avatar_url: avatarUrl }),
           ...(resumeUrl && { resume_url: resumeUrl }),
@@ -1973,12 +2065,50 @@ function OnboardingScreen({
                 autoCapitalize="none"
               />
 
+              <ChipSelect
+                label="EPA 608 CERTIFIED?"
+                options={['Yes', 'No']}
+                selected={[epaCertified ? 'Yes' : 'No']}
+                onToggle={(o) => {
+                  setEpaCertified(o === 'Yes');
+                  if (o === 'No') setEpaTypes([]);
+                }}
+              />
+
+              {epaCertified && (
+                <>
+                  <ChipSelect
+                    label="CERTIFICATION TYPES"
+                    options={EPA_TYPES.map((t) => `Type ${t}`)}
+                    selected={epaTypes.map((t) => `Type ${t}`)}
+                    onToggle={(o) => {
+                      const t = o.replace('Type ', '');
+                      setEpaTypes((prev) =>
+                        prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+                      );
+                    }}
+                  />
+                  {isUniversal(epaTypes) && (
+                    <Text style={styles.chipHint}>Shown on your profile as Universal.</Text>
+                  )}
+                </>
+              )}
+
               <TextInput
                 style={styles.authInput}
-                placeholder="Certifications (e.g. EPA 608 Universal)"
+                placeholder="Year started in the trade (e.g. 2020)"
                 placeholderTextColor="#A1A1AA"
-                value={certifications}
-                onChangeText={setCertifications}
+                value={startYear}
+                onChangeText={setStartYear}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+
+              <ChipSelect
+                label="CURRENT / MOST RECENT ROLE"
+                options={TRADE_ROLES}
+                selected={tradeRole ? [tradeRole] : []}
+                onToggle={(o) => setTradeRole((prev) => (prev === o ? '' : o))}
               />
 
               <TextInput
@@ -2365,8 +2495,17 @@ function WorkerCardContent({ candidate }: { candidate: any }) {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.sectionLabel}>CERTIFICATIONS</Text>
-        <Text style={styles.position}>{candidate.certifications || 'None listed'}</Text>
+        <Text style={styles.sectionLabel}>EPA 608</Text>
+        <Text style={styles.position}>{formatWorkerEpa(candidate.epa_608_types)}</Text>
+
+        {(candidate.trade_role || candidate.trade_start_year) && (
+          <View style={styles.tags}>
+            {candidate.trade_role ? <Tag text={candidate.trade_role} /> : null}
+            {candidate.trade_start_year ? (
+              <Tag text={formatTradeStart(candidate.trade_start_year)!} />
+            ) : null}
+          </View>
+        )}
 
         <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ABOUT</Text>
         <Text style={styles.note}>{candidate.description || 'No description provided.'}</Text>
@@ -2375,9 +2514,13 @@ function WorkerCardContent({ candidate }: { candidate: any }) {
   );
 }
 
-function RecruiterCardContent({ recruiter }: { recruiter: any }) {
+function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: any }) {
   const positions = recruiter.positions ?? [];
   const primary = positions[0];
+  const mismatches = [
+    epaMismatchNote(primary?.epa_608_required, me?.epa_608_types),
+    experienceMismatchNote(primary?.min_experience_years, me?.trade_start_year),
+  ].filter(Boolean) as string[];
 
   return (
     <>
@@ -2418,10 +2561,25 @@ function RecruiterCardContent({ recruiter }: { recruiter: any }) {
             <MapPin size={15} color="#71717A" strokeWidth={2} />
             <Text numberOfLines={1} style={styles.location}>
               {primary.location}
-              {primary.work_style ? ` · ${primary.work_style}` : ''}
+              {primary.schedule_type ? ` · ${primary.schedule_type}` : ''}
             </Text>
           </View>
         ) : null}
+
+        {(primary?.epa_608_required || primary?.min_experience_years) && (
+          <View style={styles.tags}>
+            {primary.epa_608_required ? (
+              <Tag text={`EPA 608 Type ${primary.epa_608_required}+`} />
+            ) : null}
+            {primary.min_experience_years ? (
+              <Tag text={`${primary.min_experience_years}+ yrs`} />
+            ) : null}
+          </View>
+        )}
+
+        {mismatches.length > 0 && (
+          <Text style={styles.mismatchText}>Heads up: {mismatches.join(' · ')}</Text>
+        )}
 
         <View style={styles.tags}>
           {positions.slice(0, 4).map((p: any) => (
@@ -2443,6 +2601,38 @@ function Tag({ text }: { text: string }) {
       <Text style={styles.tagText}>
         {text}
       </Text>
+    </View>
+  );
+}
+
+function ChipSelect({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: readonly string[];
+  selected: readonly string[];
+  onToggle: (option: string) => void;
+}) {
+  return (
+    <View>
+      <Text style={styles.sectionLabel}>{label}</Text>
+      <View style={[styles.tags, { marginTop: 8 }]}>
+        {options.map((option) => {
+          const active = selected.includes(option);
+          return (
+            <Pressable
+              key={option}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => onToggle(option)}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{option}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -3273,6 +3463,43 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: '#F4F4F5',
+  },
+
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F5',
+    borderWidth: 1,
+    borderColor: '#E7E7EA',
+  },
+
+  chipActive: {
+    backgroundColor: '#18181B',
+    borderColor: '#18181B',
+  },
+
+  chipHint: {
+    fontSize: 12,
+    color: '#71717A',
+    marginTop: -4,
+  },
+
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#52525B',
+  },
+
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+
+  mismatchText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B45309',
   },
 
   skillTagText: {
