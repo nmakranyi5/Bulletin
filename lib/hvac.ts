@@ -75,3 +75,49 @@ export function experienceMismatchNote(
   if (have !== null && have >= minYears) return null;
   return `Wants ${minYears}+ yrs experience`;
 }
+
+export const PAY_TYPES = ['Hourly', 'Salary'] as const;
+export type PayType = (typeof PAY_TYPES)[number];
+
+// Things techs ask about that often matter as much as the base rate.
+export const PAY_EXTRAS = [
+  'Overtime',
+  'On-call pay',
+  'Commission / bonus',
+  'Take-home van',
+  'Tools provided',
+] as const;
+
+export function parsePay(input: string): number | null | 'invalid' {
+  const trimmed = input.trim().replace(/[$,]/g, '');
+  if (!trimmed) return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) return 'invalid';
+  const n = Number(trimmed);
+  return n > 0 && n < 10_000_000 ? n : 'invalid';
+}
+
+function money(n: number, type: string): string {
+  if (type === 'Salary' && n >= 1000) {
+    const k = Math.round((n / 1000) * 10) / 10;
+    return `$${k}k`;
+  }
+  return `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
+}
+
+// "$28–$38/hr" or "$55k–$70k/yr"; falls back to the legacy free-text pay_range.
+export function formatPay(position: {
+  pay_type?: string | null;
+  pay_min?: number | null;
+  pay_max?: number | null;
+  pay_range?: string | null;
+}): string | null {
+  const { pay_type: type, pay_min: min, pay_max: max } = position;
+  if (type && (min != null || max != null)) {
+    const unit = type === 'Hourly' ? '/hr' : '/yr';
+    const lo = min ?? max!;
+    const hi = max ?? min!;
+    const range = lo === hi ? money(lo, type) : `${money(lo, type)}–${money(hi, type)}`;
+    return `${range}${unit}`;
+  }
+  return position.pay_range || null;
+}

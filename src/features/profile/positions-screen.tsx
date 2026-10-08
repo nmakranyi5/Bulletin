@@ -15,7 +15,14 @@ import {
   View,
 } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
-import { EPA_TYPES, parseMinYears, SCHEDULE_TYPES } from '../../../lib/hvac';
+import {
+  EPA_TYPES,
+  PAY_EXTRAS,
+  PAY_TYPES,
+  parseMinYears,
+  parsePay,
+  SCHEDULE_TYPES,
+} from '../../../lib/hvac';
 import { supabase } from '../../../lib/supabase';
 import { ChipSelect } from '../../components/chip-select';
 import { useSharedStyles } from '../../styles/shared';
@@ -37,7 +44,11 @@ export function PositionsScreen({
 
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
-  const [payRange, setPayRange] = useState('');
+  const [payType, setPayType] = useState('');
+  const [payMin, setPayMin] = useState('');
+  const [payMax, setPayMax] = useState('');
+  const [payExtras, setPayExtras] = useState<string[]>([]);
+  const [legacyPay, setLegacyPay] = useState('');
   const [location, setLocation] = useState('');
   const [scheduleType, setScheduleType] = useState('');
   const [epaRequired, setEpaRequired] = useState('');
@@ -69,7 +80,11 @@ export function PositionsScreen({
   const resetForm = () => {
     setTitle('');
     setCompany('');
-    setPayRange('');
+    setPayType('');
+    setPayMin('');
+    setPayMax('');
+    setPayExtras([]);
+    setLegacyPay('');
     setLocation('');
     setScheduleType('');
     setEpaRequired('');
@@ -88,7 +103,11 @@ export function PositionsScreen({
   const openEditForm = (position: any) => {
     setTitle(position.title ?? '');
     setCompany(position.company ?? '');
-    setPayRange(position.pay_range ?? '');
+    setPayType(position.pay_type ?? '');
+    setPayMin(position.pay_min != null ? String(position.pay_min) : '');
+    setPayMax(position.pay_max != null ? String(position.pay_max) : '');
+    setPayExtras(position.pay_extras ?? []);
+    setLegacyPay(position.pay_range ?? '');
     setLocation(position.location ?? '');
     setScheduleType(position.schedule_type ?? '');
     setEpaRequired(position.epa_608_required ?? '');
@@ -125,13 +144,35 @@ export function PositionsScreen({
       return;
     }
 
+    const parsedMin = parsePay(payMin);
+    const parsedMax = parsePay(payMax);
+    if (parsedMin === 'invalid' || parsedMax === 'invalid') {
+      Alert.alert('Invalid pay', 'Enter pay as a number, e.g. 28 or 55000.');
+      return;
+    }
+    const hasPay = parsedMin !== null || parsedMax !== null;
+    if (hasPay && !payType) {
+      Alert.alert('Pay type', 'Choose whether this pay is hourly or salary.');
+      return;
+    }
+    if (parsedMin !== null && parsedMax !== null && parsedMin > parsedMax) {
+      Alert.alert('Invalid pay', 'Minimum pay can\'t be higher than maximum pay.');
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
       recruiter_id: session.user.id,
       title: title.trim(),
       company: company.trim(),
-      pay_range: payRange.trim() || null,
+      // Structured pay replaces the old free-text range; keep the old text only
+      // while no structured pay has been entered.
+      pay_type: hasPay ? payType : null,
+      pay_min: parsedMin,
+      pay_max: parsedMax,
+      pay_extras: payExtras,
+      pay_range: hasPay ? null : legacyPay.trim() || null,
       location: location.trim() || null,
       schedule_type: scheduleType || null,
       epa_608_required: epaRequired || null,
@@ -204,12 +245,44 @@ export function PositionsScreen({
               onChangeText={setCompany}
             />
 
-            <TextInput
-              style={shared.authInput}
-              placeholder="Pay range (e.g. $50k–$65k)"
-              placeholderTextColor={c.muted}
-              value={payRange}
-              onChangeText={setPayRange}
+            <ChipSelect
+              label="PAY TYPE"
+              options={PAY_TYPES}
+              selected={payType ? [payType] : []}
+              onToggle={(o) => setPayType((prev) => (prev === o ? '' : o))}
+            />
+
+            <View style={local.payRow}>
+              <TextInput
+                style={[shared.authInput, local.payInput]}
+                placeholder={payType === 'Salary' ? 'Min / yr (e.g. 55000)' : 'Min / hr (e.g. 28)'}
+                placeholderTextColor={c.muted}
+                value={payMin}
+                onChangeText={setPayMin}
+                keyboardType="decimal-pad"
+              />
+              <TextInput
+                style={[shared.authInput, local.payInput]}
+                placeholder={payType === 'Salary' ? 'Max / yr (e.g. 70000)' : 'Max / hr (e.g. 38)'}
+                placeholderTextColor={c.muted}
+                value={payMax}
+                onChangeText={setPayMax}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            {!!legacyPay && !payMin && !payMax && (
+              <Text style={shared.chipHint}>Previously entered as: {legacyPay}</Text>
+            )}
+
+            <ChipSelect
+              label="PAY EXTRAS (OPTIONAL)"
+              options={PAY_EXTRAS}
+              selected={payExtras}
+              onToggle={(o) =>
+                setPayExtras((prev) =>
+                  prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
+                )
+              }
             />
 
             <TextInput
@@ -371,6 +444,15 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        payRow: {
+          flexDirection: 'row',
+          gap: 10,
+        },
+
+        payInput: {
+          flex: 1,
+        },
+
         skillInputRow: {
           flexDirection: 'row',
           gap: 8,
