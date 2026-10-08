@@ -159,10 +159,10 @@ export default function Index() {
 
   const topCard = discoverCards[0];
   const unseenReceivedCount = receivedInterests.length;
-  // Pending and accepted sent interests hold a slot; withdrawing or closing frees it.
-  const activeSentCount = sentInterests.filter(
-    (i) => i.status === 'pending' || i.status === 'accepted'
-  ).length;
+  // Only pending sent interests hold a slot. Once one becomes a match it moves to
+  // Messages and the slot is returned.
+  const visibleSentInterests = sentInterests.filter((i) => i.status !== 'accepted');
+  const activeSentCount = sentInterests.filter((i) => i.status === 'pending').length;
   const interestsRemaining = Math.max(0, MAX_INTERESTS - activeSentCount);
   const interestsRemainingSV = useSharedValue(interestsRemaining);
 
@@ -774,7 +774,7 @@ export default function Index() {
 
         {activeTab === 'interests' && (
           <InterestsScreen
-            sentInterests={sentInterests}
+            sentInterests={visibleSentInterests}
             receivedInterests={receivedInterests}
             onReceivedPress={handleReceivedPress}
             onWithdraw={withdrawInterest}
