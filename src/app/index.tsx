@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   BriefcaseBusiness,
   Check,
+  CheckCheck,
   ChevronRight,
   Handshake,
   MapPin,
@@ -64,6 +65,15 @@ import {
   parseMinYears,
   parseYear,
 } from '../../lib/hvac';
+import {
+  ConversationMeta,
+  MessageStatus,
+  formatDayLabel,
+  formatListTime,
+  formatTime,
+  isSameDay,
+  summarizeConversations,
+} from '../../lib/chat';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -103,7 +113,14 @@ type ChatMessage = {
   id: string;
   text: string;
   fromMe: boolean;
+  createdAt: string;
+  readAt: string | null;
+  status: MessageStatus;
 };
+
+type ChatItem =
+  | { type: 'day'; key: string; label: string }
+  | { type: 'msg'; key: string; msg: ChatMessage; groupStart: boolean; showStatus: boolean };
 
 // A match is an accepted interest; `id` is the interest id.
 type Match = {
@@ -126,6 +143,7 @@ export default function Index() {
   const [sentInterests, setSentInterests] = useState<InterestRow[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<InterestRow[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [convoMeta, setConvoMeta] = useState<Record<string, ConversationMeta>>({});
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   const [discoverCards, setDiscoverCards] = useState<any[]>([]);
@@ -359,6 +377,22 @@ export default function Index() {
     else setReceivedInterests(received ?? []);
   };
 
+  const fetchConversationMeta = async (matchIds: string[]) => {
+    if (!session || matchIds.length === 0) {
+      setConvoMeta({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select('interest_id, sender_id, body, created_at, read_at')
+      .in('interest_id', matchIds)
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (!error) setConvoMeta(summarizeConversations(data ?? [], session.user.id));
+  };
+
   const fetchMatches = async () => {
     if (!session) return;
 
@@ -375,6 +409,8 @@ export default function Index() {
       Alert.alert('Error', error.message);
       return;
     }
+
+    fetchConversationMeta((data ?? []).map((row: any) => row.id));
 
     setMatches(
       (data ?? []).map((row: any) => {
@@ -751,11 +787,15 @@ export default function Index() {
               match={selectedMatch}
               userId={session.user.id}
               onClose={() => closeMatch(selectedMatch)}
-              onBack={() => setSelectedMatch(null)}
+              onBack={() => {
+                setSelectedMatch(null);
+                fetchMatches();
+              }}
             />
           ) : (
             <MessagesScreen
               matches={matches}
+              meta={convoMeta}
               onMatchPress={setSelectedMatch}
               onRefresh={fetchMatches}
             />
@@ -1162,16 +1202,37 @@ function InterestsScreen({
 
 function MessagesScreen({
   matches,
+  meta,
   onMatchPress,
   onRefresh,
 }: {
   matches: Match[];
+  meta: Record<string, ConversationMeta>;
   onMatchPress: (match: Match) => void;
   onRefresh: () => void;
 }) {
   useEffect(() => {
     onRefresh();
+
+    // Keep previews and unread counts live while the list is open.
+    const channel = supabase
+      .channel('messages-list')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () =>
+        onRefresh()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  // Conversations with messages first (newest on top), then new matches.
+  const sorted = [...matches].sort((a, b) => {
+    const at = meta[a.id]?.lastAt ?? '';
+    const bt = meta[b.id]?.lastAt ?? '';
+    return at < bt ? 1 : at > bt ? -1 : 0;
+  });
 
   return (
     <View style={styles.simpleScreen}>
@@ -1190,23 +1251,62 @@ function MessagesScreen({
         </View>
       ) : (
         <FlatList
-          data={matches}
+          data={sorted}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.interestsList}
-          renderItem={({ item }) => (
-            <Pressable style={styles.interestRow} onPress={() => onMatchPress(item)}>
-              <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+          renderItem={({ item }) => {
+            const m = meta[item.id];
+            const unread = m?.unread ?? 0;
+            return (
+              <Pressable style={styles.interestRow} onPress={() => onMatchPress(item)}>
+                <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
 
-              <View style={styles.interestRowInfo}>
-                <Text numberOfLines={1} style={styles.interestRowName}>
-                  {item.name}
-                </Text>
-                <Text numberOfLines={1} style={styles.interestRowMeta}>
-                  {item.company ? `${item.position} · ${item.company}` : item.position}
-                </Text>
-              </View>
-            </Pressable>
-          )}
+                <View style={styles.interestRowInfo}>
+                  <View style={styles.convoTopRow}>
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.interestRowName, styles.convoName]}
+                    >
+                      {item.name}
+                    </Text>
+                    {m && (
+                      <Text style={[styles.convoTime, unread > 0 && styles.convoTimeUnread]}>
+                        {formatListTime(m.lastAt)}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.convoBottomRow}>
+                    {m?.lastFromMe &&
+                      (m.lastRead ? (
+                        <CheckCheck size={14} color="#2563EB" strokeWidth={2.4} />
+                      ) : (
+                        <Check size={14} color="#A1A1AA" strokeWidth={2.4} />
+                      ))}
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.interestRowMeta,
+                        styles.convoPreview,
+                        unread > 0 && styles.convoPreviewUnread,
+                      ]}
+                    >
+                      {m
+                        ? `${m.lastFromMe ? 'You: ' : ''}${m.lastText}`
+                        : item.company
+                        ? `${item.position} · ${item.company}`
+                        : item.position}
+                    </Text>
+                    {unread > 0 && (
+                      <View style={styles.unreadPill}>
+                        <Text style={styles.unreadPillText}>{unread > 99 ? '99+' : unread}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </Pressable>
+            );
+          }}
         />
       )}
     </View>
@@ -1226,7 +1326,11 @@ function ChatScreen({
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
-  const listRef = useRef<FlatList<ChatMessage>>(null);
+  const listRef = useRef<FlatList<ChatItem>>(null);
+
+  const markRead = () => {
+    supabase.rpc('mark_messages_read', { p_interest_id: match.id }).then(() => {});
+  };
 
   useEffect(() => {
     let active = true;
@@ -1234,19 +1338,33 @@ function ChatScreen({
       id: row.id,
       text: row.body,
       fromMe: row.sender_id === userId,
+      createdAt: row.created_at,
+      readAt: row.read_at ?? null,
+      status: row.read_at ? 'read' : 'sent',
     });
-    const append = (msg: ChatMessage) =>
-      setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+    const upsert = (msg: ChatMessage) =>
+      setMessages((prev) =>
+        prev.some((m) => m.id === msg.id)
+          ? prev.map((m) => (m.id === msg.id ? msg : m))
+          : [...prev, msg]
+      );
 
     supabase
       .from('messages')
-      .select('id, sender_id, body')
+      .select('id, sender_id, body, created_at, read_at')
       .eq('interest_id', match.id)
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
         if (!active) return;
-        if (error) Alert.alert('Error', error.message);
-        else setMessages((data ?? []).map(toChat));
+        if (error) {
+          Alert.alert('Error', error.message);
+          return;
+        }
+        setMessages((prev) => [
+          ...(data ?? []).map(toChat),
+          ...prev.filter((m) => m.status === 'sending' || m.status === 'failed'),
+        ]);
+        markRead();
       });
 
     const channel = supabase
@@ -1259,7 +1377,22 @@ function ChatScreen({
           table: 'messages',
           filter: `interest_id=eq.${match.id}`,
         },
-        (payload) => append(toChat(payload.new))
+        (payload) => {
+          const msg = toChat(payload.new);
+          upsert(msg);
+          // The chat is open, so anything from them is read immediately.
+          if (!msg.fromMe) markRead();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `interest_id=eq.${match.id}`,
+        },
+        (payload) => upsert(toChat(payload.new))
       )
       .subscribe();
 
@@ -1269,30 +1402,93 @@ function ChatScreen({
     };
   }, [match.id, userId]);
 
-  const handleSend = async () => {
-    const body = draft.trim();
-    if (!body) return;
-
-    setDraft('');
-
+  const sendBody = async (body: string, tempId: string) => {
     const { data, error } = await supabase
       .from('messages')
       .insert({ interest_id: match.id, sender_id: userId, body })
-      .select('id, sender_id, body')
+      .select('id, sender_id, body, created_at, read_at')
       .single();
 
     if (error) {
-      setDraft(body);
-      Alert.alert('Error', error.message);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m))
+      );
       return;
     }
 
-    setMessages((prev) =>
-      prev.some((m) => m.id === data.id)
-        ? prev
-        : [...prev, { id: data.id, text: data.body, fromMe: true }]
-    );
+    setMessages((prev) => {
+      const real: ChatMessage = {
+        id: data.id,
+        text: data.body,
+        fromMe: true,
+        createdAt: data.created_at,
+        readAt: data.read_at ?? null,
+        status: data.read_at ? 'read' : 'sent',
+      };
+      // Realtime may have already delivered the real row.
+      return prev.some((m) => m.id === data.id)
+        ? prev.filter((m) => m.id !== tempId)
+        : prev.map((m) => (m.id === tempId ? real : m));
+    });
   };
+
+  const handleSend = () => {
+    const body = draft.trim();
+    if (!body) return;
+
+    const tempId = `tmp-${Date.now()}`;
+    setDraft('');
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        text: body,
+        fromMe: true,
+        createdAt: new Date().toISOString(),
+        readAt: null,
+        status: 'sending',
+      },
+    ]);
+    sendBody(body, tempId);
+  };
+
+  const retry = (msg: ChatMessage) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msg.id ? { ...m, status: 'sending' as const } : m))
+    );
+    sendBody(msg.text, msg.id);
+  };
+
+  // Flatten into day separators + grouped bubbles; the status line sits under my latest message.
+  const lastMineId = [...messages].reverse().find((m) => m.fromMe)?.id;
+  const items: ChatItem[] = [];
+  messages.forEach((msg, idx) => {
+    const prev = messages[idx - 1];
+    if (!prev || !isSameDay(prev.createdAt, msg.createdAt)) {
+      items.push({ type: 'day', key: `day-${msg.id}`, label: formatDayLabel(msg.createdAt) });
+    }
+    const groupStart =
+      !prev ||
+      prev.fromMe !== msg.fromMe ||
+      !isSameDay(prev.createdAt, msg.createdAt) ||
+      new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() > 5 * 60 * 1000;
+    items.push({
+      type: 'msg',
+      key: msg.id,
+      msg,
+      groupStart,
+      showStatus: msg.id === lastMineId,
+    });
+  });
+
+  const statusLabel = (m: ChatMessage) =>
+    m.status === 'sending'
+      ? 'Sending...'
+      : m.status === 'failed'
+      ? 'Not sent. Tap to retry'
+      : m.status === 'read' && m.readAt
+      ? `Read ${formatTime(m.readAt)}`
+      : 'Sent';
 
   return (
     <KeyboardAvoidingView
@@ -1304,6 +1500,10 @@ function ChatScreen({
         <Pressable onPress={onBack} style={styles.chatBackButton}>
           <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
         </Pressable>
+
+        <View style={styles.chatHeaderAvatar}>
+          <UserRound size={22} color="#71717A" strokeWidth={1.8} />
+        </View>
 
         <View style={styles.chatHeaderInfo}>
           <Text numberOfLines={1} style={styles.chatHeaderName}>
@@ -1322,26 +1522,58 @@ function ChatScreen({
       <FlatList
         ref={listRef}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        data={messages}
-        keyExtractor={(item) => item.id}
+        data={items}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={styles.chatMessages}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.chatBubble,
-              item.fromMe ? styles.chatBubbleMine : styles.chatBubbleTheirs,
-            ]}
-          >
-            <Text
-              style={[
-                styles.chatBubbleText,
-                item.fromMe && styles.chatBubbleTextMine,
-              ]}
-            >
-              {item.text}
-            </Text>
-          </View>
-        )}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => {
+          if (item.type === 'day') {
+            return (
+              <View style={styles.chatDayWrap}>
+                <Text style={styles.chatDayText}>{item.label}</Text>
+              </View>
+            );
+          }
+
+          const { msg, groupStart, showStatus } = item;
+          return (
+            <View style={[styles.chatRow, groupStart && styles.chatRowGroupStart]}>
+              <Pressable
+                disabled={msg.status !== 'failed'}
+                onPress={() => retry(msg)}
+                style={[
+                  styles.chatBubble,
+                  msg.fromMe ? styles.chatBubbleMine : styles.chatBubbleTheirs,
+                  msg.status === 'sending' && { opacity: 0.6 },
+                  msg.status === 'failed' && styles.chatBubbleFailed,
+                ]}
+              >
+                <Text style={[styles.chatBubbleText, msg.fromMe && styles.chatBubbleTextMine]}>
+                  {msg.text}
+                </Text>
+                <View style={styles.chatMetaRow}>
+                  <Text style={[styles.chatTime, msg.fromMe && styles.chatTimeMine]}>
+                    {formatTime(msg.createdAt)}
+                  </Text>
+                  {msg.fromMe &&
+                    (msg.status === 'read' ? (
+                      <CheckCheck size={14} color="#60A5FA" strokeWidth={2.4} />
+                    ) : msg.status === 'sent' ? (
+                      <Check size={14} color="#A1A1AA" strokeWidth={2.4} />
+                    ) : null)}
+                </View>
+              </Pressable>
+
+              {msg.fromMe && (showStatus || msg.status === 'failed') && (
+                <Text
+                  style={[styles.chatStatus, msg.status === 'failed' && styles.chatStatusFailed]}
+                >
+                  {statusLabel(msg)}
+                </Text>
+              )}
+            </View>
+          );
+        }}
         ListEmptyComponent={
           <Text style={styles.chatEmptyText}>
             Say hello to {match.name.split(' ')[0]}.
@@ -3196,7 +3428,7 @@ const styles = StyleSheet.create({
   chatMessages: {
     paddingHorizontal: 16,
     paddingVertical: 14,
-    gap: 8,
+    gap: 2,
     flexGrow: 1,
   },
 
@@ -3217,6 +3449,124 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: '#F4F4F5',
     borderBottomLeftRadius: 4,
+  },
+
+  chatRow: {
+    gap: 3,
+  },
+
+  chatRowGroupStart: {
+    marginTop: 8,
+  },
+
+  chatHeaderAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F4F4F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  chatDayWrap: {
+    alignSelf: 'center',
+    marginVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#F4F4F5',
+  },
+
+  chatDayText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#71717A',
+  },
+
+  chatMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 4,
+    marginTop: 3,
+  },
+
+  chatTime: {
+    fontSize: 10,
+    color: '#A1A1AA',
+  },
+
+  chatTimeMine: {
+    color: '#A1A1AA',
+  },
+
+  chatBubbleFailed: {
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+
+  chatStatus: {
+    alignSelf: 'flex-end',
+    fontSize: 11,
+    color: '#71717A',
+  },
+
+  chatStatusFailed: {
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+
+  convoTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  convoName: {
+    flex: 1,
+  },
+
+  convoTime: {
+    fontSize: 12,
+    color: '#A1A1AA',
+  },
+
+  convoTimeUnread: {
+    color: '#2563EB',
+    fontWeight: '700',
+  },
+
+  convoBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+
+  convoPreview: {
+    flex: 1,
+    marginTop: 0,
+  },
+
+  convoPreviewUnread: {
+    color: '#18181B',
+    fontWeight: '700',
+  },
+
+  unreadPill: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  unreadPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   chatBubbleText: {
