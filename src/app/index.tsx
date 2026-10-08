@@ -20,7 +20,7 @@ import {
   UserRound,
   X
 } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -33,7 +33,6 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -74,6 +73,7 @@ import {
   isSameDay,
   summarizeConversations,
 } from '../../lib/chat';
+import { Colors, useTheme } from '../../lib/app-theme';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -139,6 +139,7 @@ const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
 ];
 
 export default function Index() {
+  const styles = useStyles();
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [sentInterests, setSentInterests] = useState<InterestRow[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<InterestRow[]>([]);
@@ -806,7 +807,6 @@ export default function Index() {
             session={session}
             onEditProfile={() => setEditingProfile(true)}
             onManagePositions={() => setManagingPositions(true)}
-            onRecruiterModeChanged={fetchMyProfile}
           />
         )}
       </SafeAreaView>
@@ -835,6 +835,8 @@ function PositionPickerModal({
   onSubmit: (selectedIds: string[]) => void;
   onCancel: () => void;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
@@ -863,7 +865,7 @@ function PositionPickerModal({
                   onPress={() => toggle(p.id)}
                 >
                   <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-                    {isChecked && <Check size={14} color="#FFFFFF" strokeWidth={3} />}
+                    {isChecked && <Check size={14} color={c.onAccent} strokeWidth={3} />}
                   </View>
                   <Text style={styles.checklistText}>{p.title}</Text>
                 </Pressable>
@@ -913,6 +915,8 @@ function DiscoverScreen({
   me: any;
   loading: boolean;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   return (
     <>
       {/* Header */}
@@ -926,7 +930,7 @@ function DiscoverScreen({
           </View>
 
           <View style={styles.interestCounter}>
-            <Handshake size={14} color="#18181B" strokeWidth={2.4} />
+            <Handshake size={14} color={c.text} strokeWidth={2.4} />
             <Text style={styles.interestCounterText}>{interestsRemaining}</Text>
           </View>
         </View>
@@ -1036,7 +1040,7 @@ function DiscoverScreen({
           >
             <X
               size={28}
-              color="#EF4444"
+              color={c.danger}
               strokeWidth={2.6}
             />
           </Pressable>
@@ -1047,7 +1051,7 @@ function DiscoverScreen({
           >
             <Check
               size={30}
-              color="#FFFFFF"
+              color={c.white}
               strokeWidth={2.7}
             />
           </Pressable>
@@ -1070,6 +1074,8 @@ function InterestsScreen({
   onWithdraw: (interest: InterestRow) => void;
   interestsRemaining: number;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
 
   return (
@@ -1108,7 +1114,7 @@ function InterestsScreen({
       {subTab === 'received' ? (
         receivedInterests.length === 0 ? (
           <View style={styles.emptyState}>
-            <Handshake size={48} color="#A1A1AA" strokeWidth={1.5} />
+            <Handshake size={48} color={c.muted} strokeWidth={1.5} />
             <Text style={styles.emptyTitle}>No interests yet</Text>
             <Text style={styles.emptySubtitle}>
               People who show interest in you will show up here.
@@ -1121,7 +1127,7 @@ function InterestsScreen({
             contentContainerStyle={styles.interestsList}
             renderItem={({ item }) => (
               <Pressable style={styles.interestRow} onPress={() => onReceivedPress(item)}>
-                <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+                <UserRound size={40} color={c.muted} strokeWidth={1.5} />
                 <View style={styles.interestRowInfo}>
                   <Text numberOfLines={1} style={styles.interestRowName}>
                     {item.from_profile?.name ?? 'Unknown'}
@@ -1154,7 +1160,7 @@ function InterestsScreen({
         )
       ) : sentInterests.length === 0 ? (
         <View style={styles.emptyState}>
-          <Handshake size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <Handshake size={48} color={c.muted} strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No interests yet</Text>
           <Text style={styles.emptySubtitle}>
             Swipe right on Discover to start expressing interest.
@@ -1167,7 +1173,7 @@ function InterestsScreen({
           contentContainerStyle={styles.interestsList}
           renderItem={({ item }) => (
             <View style={styles.interestRow}>
-              <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+              <UserRound size={40} color={c.muted} strokeWidth={1.5} />
               <View style={styles.interestRowInfo}>
                 <Text numberOfLines={1} style={styles.interestRowName}>
                   {item.to_profile?.name ?? 'Unknown'}
@@ -1189,7 +1195,7 @@ function InterestsScreen({
                   style={styles.interestRowAction}
                   onPress={() => onWithdraw(item)}
                 >
-                  <X size={18} color="#71717A" strokeWidth={2.2} />
+                  <X size={18} color={c.textSecondary} strokeWidth={2.2} />
                 </Pressable>
               )}
             </View>
@@ -1211,6 +1217,8 @@ function MessagesScreen({
   onMatchPress: (match: Match) => void;
   onRefresh: () => void;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   useEffect(() => {
     onRefresh();
 
@@ -1243,7 +1251,7 @@ function MessagesScreen({
 
       {matches.length === 0 ? (
         <View style={styles.emptyState}>
-          <MessageCircle size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <MessageCircle size={48} color={c.muted} strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No messages yet.</Text>
           <Text style={styles.emptySubtitle}>
             Once you match with someone, your conversation shows up here.
@@ -1259,7 +1267,7 @@ function MessagesScreen({
             const unread = m?.unread ?? 0;
             return (
               <Pressable style={styles.interestRow} onPress={() => onMatchPress(item)}>
-                <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+                <UserRound size={40} color={c.muted} strokeWidth={1.5} />
 
                 <View style={styles.interestRowInfo}>
                   <View style={styles.convoTopRow}>
@@ -1279,9 +1287,9 @@ function MessagesScreen({
                   <View style={styles.convoBottomRow}>
                     {m?.lastFromMe &&
                       (m.lastRead ? (
-                        <CheckCheck size={14} color="#2563EB" strokeWidth={2.4} />
+                        <CheckCheck size={14} color={c.blue} strokeWidth={2.4} />
                       ) : (
-                        <Check size={14} color="#A1A1AA" strokeWidth={2.4} />
+                        <Check size={14} color={c.muted} strokeWidth={2.4} />
                       ))}
                     <Text
                       numberOfLines={1}
@@ -1324,6 +1332,8 @@ function ChatScreen({
   onClose: () => void;
   onBack: () => void;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlatList<ChatItem>>(null);
@@ -1498,11 +1508,11 @@ function ChatScreen({
     >
       <View style={styles.chatHeader}>
         <Pressable onPress={onBack} style={styles.chatBackButton}>
-          <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+          <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
 
         <View style={styles.chatHeaderAvatar}>
-          <UserRound size={22} color="#71717A" strokeWidth={1.8} />
+          <UserRound size={22} color={c.textSecondary} strokeWidth={1.8} />
         </View>
 
         <View style={styles.chatHeaderInfo}>
@@ -1515,7 +1525,7 @@ function ChatScreen({
         </View>
 
         <Pressable onPress={onClose} hitSlop={10} style={styles.chatBackButton}>
-          <X size={22} color="#71717A" strokeWidth={2.2} />
+          <X size={22} color={c.textSecondary} strokeWidth={2.2} />
         </Pressable>
       </View>
 
@@ -1557,9 +1567,9 @@ function ChatScreen({
                   </Text>
                   {msg.fromMe &&
                     (msg.status === 'read' ? (
-                      <CheckCheck size={14} color="#60A5FA" strokeWidth={2.4} />
+                      <CheckCheck size={14} color={c.blueLight} strokeWidth={2.4} />
                     ) : msg.status === 'sent' ? (
-                      <Check size={14} color="#A1A1AA" strokeWidth={2.4} />
+                      <Check size={14} color={c.muted} strokeWidth={2.4} />
                     ) : null)}
                 </View>
               </Pressable>
@@ -1587,7 +1597,7 @@ function ChatScreen({
           value={draft}
           onChangeText={setDraft}
           placeholder="Message..."
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor={c.muted}
           multiline
         />
 
@@ -1596,7 +1606,7 @@ function ChatScreen({
           onPress={handleSend}
           disabled={!draft.trim()}
         >
-          <Send size={18} color="#FFFFFF" strokeWidth={2.4} />
+          <Send size={18} color={c.onAccent} strokeWidth={2.4} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -1607,13 +1617,13 @@ function ProfileScreen({
   session,
   onEditProfile,
   onManagePositions,
-  onRecruiterModeChanged,
 }: {
   session: Session;
   onEditProfile: () => void;
   onManagePositions: () => void;
-  onRecruiterModeChanged: () => void;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [profile, setProfile] = useState<{
     name: string | null;
     username: string | null;
@@ -1621,6 +1631,8 @@ function ProfileScreen({
     is_recruiter: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const { mode, setMode } = useTheme();
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -1642,23 +1654,6 @@ function ProfileScreen({
     loadProfile();
   }, []);
 
-  const toggleRecruiterMode = async (value: boolean) => {
-    setProfile((prev) => (prev ? { ...prev, is_recruiter: value } : prev));
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_recruiter: value })
-      .eq('id', session.user.id);
-
-    if (error) {
-      Alert.alert('Error', error.message);
-      setProfile((prev) => (prev ? { ...prev, is_recruiter: !value } : prev));
-      return;
-    }
-
-    onRecruiterModeChanged();
-  };
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -1672,13 +1667,13 @@ function ProfileScreen({
 
       <View style={styles.profileCard}>
         <Pressable style={styles.profileEditButton} onPress={onEditProfile}>
-          <Pencil size={16} color="#FFFFFF" strokeWidth={2.4} />
+          <Pencil size={16} color={c.onAccent} strokeWidth={2.4} />
         </Pressable>
 
         {profile?.avatar_url ? (
           <Image source={{ uri: profile.avatar_url }} style={styles.avatarPreview} />
         ) : (
-          <UserRound size={72} color="#A1A1AA" strokeWidth={1.5} />
+          <UserRound size={72} color={c.muted} strokeWidth={1.5} />
         )}
 
         {loading ? (
@@ -1694,28 +1689,46 @@ function ProfileScreen({
       </View>
 
       <View style={styles.accountActions}>
-        <View style={styles.accountActionRow}>
-          <Handshake size={20} color="#71717A" strokeWidth={2} />
-          <Text style={styles.accountActionText}>Recruiter Mode</Text>
-          <Switch
-            value={profile?.is_recruiter ?? false}
-            onValueChange={toggleRecruiterMode}
-          />
-        </View>
-
         {profile?.is_recruiter && (
           <Pressable style={styles.accountActionRow} onPress={onManagePositions}>
-            <BriefcaseBusiness size={20} color="#71717A" strokeWidth={2} />
+            <BriefcaseBusiness size={20} color={c.textSecondary} strokeWidth={2} />
             <Text style={styles.accountActionText}>Manage Positions</Text>
-            <ChevronRight size={18} color="#A1A1AA" strokeWidth={2} />
+            <ChevronRight size={18} color={c.muted} strokeWidth={2} />
           </Pressable>
         )}
 
-        <Pressable style={[styles.accountActionRow, { borderBottomWidth: 0 }]}>
-          <Settings size={20} color="#71717A" strokeWidth={2} />
+        <Pressable
+          style={[styles.accountActionRow, !showSettings && { borderBottomWidth: 0 }]}
+          onPress={() => setShowSettings((v) => !v)}
+        >
+          <Settings size={20} color={c.textSecondary} strokeWidth={2} />
           <Text style={styles.accountActionText}>Settings</Text>
-          <ChevronRight size={18} color="#A1A1AA" strokeWidth={2} />
+          <ChevronRight
+            size={18}
+            color={c.muted}
+            strokeWidth={2}
+            style={showSettings ? { transform: [{ rotate: '90deg' }] } : undefined}
+          />
         </Pressable>
+
+        {showSettings && (
+          <View style={styles.settingsPanel}>
+            <Text style={styles.sectionLabel}>APPEARANCE</Text>
+            <View style={[styles.subTabBar, styles.settingsToggle]}>
+              {(['light', 'dark'] as const).map((m) => (
+                <Pressable
+                  key={m}
+                  style={[styles.subTabItem, mode === m && styles.subTabItemActive]}
+                  onPress={() => setMode(m)}
+                >
+                  <Text style={[styles.subTabText, mode === m && styles.subTabTextActive]}>
+                    {m === 'light' ? 'Light' : 'Dark'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       <Pressable style={styles.signOutButton} onPress={handleSignOut}>
@@ -1732,6 +1745,8 @@ function PositionsScreen({
   session: Session;
   onBack: () => void;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'form'>('list');
@@ -1882,7 +1897,7 @@ function PositionsScreen({
         >
           <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled">
             <Pressable onPress={() => setView('list')} style={styles.chatBackButton}>
-              <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+              <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
             </Pressable>
 
             <Text style={styles.logo}>bulletin.</Text>
@@ -1893,7 +1908,7 @@ function PositionsScreen({
             <TextInput
               style={styles.authInput}
               placeholder="Job title"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor={c.muted}
               value={title}
               onChangeText={setTitle}
             />
@@ -1901,7 +1916,7 @@ function PositionsScreen({
             <TextInput
               style={styles.authInput}
               placeholder="Company"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor={c.muted}
               value={company}
               onChangeText={setCompany}
             />
@@ -1909,7 +1924,7 @@ function PositionsScreen({
             <TextInput
               style={styles.authInput}
               placeholder="Pay range (e.g. $50k–$65k)"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor={c.muted}
               value={payRange}
               onChangeText={setPayRange}
             />
@@ -1917,7 +1932,7 @@ function PositionsScreen({
             <TextInput
               style={styles.authInput}
               placeholder="Location"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor={c.muted}
               value={location}
               onChangeText={setLocation}
             />
@@ -1945,7 +1960,7 @@ function PositionsScreen({
             <TextInput
               style={styles.authInput}
               placeholder="Minimum years of experience (e.g. 2)"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor={c.muted}
               value={minYears}
               onChangeText={setMinYears}
               keyboardType="number-pad"
@@ -1956,7 +1971,7 @@ function PositionsScreen({
               <TextInput
                 style={[styles.authInput, styles.skillInput]}
                 placeholder="Add a skill or requirement"
-                placeholderTextColor="#A1A1AA"
+                placeholderTextColor={c.muted}
                 value={skillInput}
                 onChangeText={setSkillInput}
                 onSubmitEditing={addSkill}
@@ -1976,7 +1991,7 @@ function PositionsScreen({
                     onPress={() => removeSkill(skill)}
                   >
                     <Text style={styles.skillTagText}>{skill}</Text>
-                    <X size={12} color="#52525B" strokeWidth={2.4} />
+                    <X size={12} color={c.textStrong} strokeWidth={2.4} />
                   </Pressable>
                 ))}
               </View>
@@ -1985,7 +2000,7 @@ function PositionsScreen({
             <TextInput
               style={[styles.authInput, styles.authTextArea]}
               placeholder="Description"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor={c.muted}
               value={description}
               onChangeText={setDescription}
               multiline
@@ -2010,7 +2025,7 @@ function PositionsScreen({
     <SafeAreaView style={styles.simpleScreen}>
       <View style={styles.chatHeader}>
         <Pressable onPress={onBack} style={styles.chatBackButton}>
-          <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+          <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
         <View style={styles.chatHeaderInfo}>
           <Text style={styles.chatHeaderName}>Your Positions</Text>
@@ -2023,7 +2038,7 @@ function PositionsScreen({
         </View>
       ) : positions.length === 0 ? (
         <View style={styles.emptyState}>
-          <BriefcaseBusiness size={48} color="#A1A1AA" strokeWidth={1.5} />
+          <BriefcaseBusiness size={48} color={c.muted} strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No positions yet</Text>
           <Text style={styles.emptySubtitle}>
             Add an open position for candidates to discover.
@@ -2047,7 +2062,7 @@ function PositionsScreen({
           }
           renderItem={({ item }) => (
             <Pressable style={styles.interestRow} onPress={() => openEditForm(item)}>
-              <BriefcaseBusiness size={32} color="#A1A1AA" strokeWidth={1.5} />
+              <BriefcaseBusiness size={32} color={c.muted} strokeWidth={1.5} />
               <View style={styles.interestRowInfo}>
                 <Text numberOfLines={1} style={styles.interestRowName}>
                   {item.title}
@@ -2057,7 +2072,7 @@ function PositionsScreen({
                 </Text>
               </View>
               <Pressable onPress={() => handleDelete(item.id)} style={{ padding: 6 }}>
-                <X size={18} color="#EF4444" strokeWidth={2.2} />
+                <X size={18} color={c.danger} strokeWidth={2.2} />
               </Pressable>
             </Pressable>
           )}
@@ -2076,6 +2091,8 @@ function OnboardingScreen({
   onComplete: () => void;
   onCancel?: () => void;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [epaCertified, setEpaCertified] = useState(false);
@@ -2256,7 +2273,7 @@ function OnboardingScreen({
         >
           {onCancel && (
             <Pressable onPress={onCancel} style={styles.chatBackButton}>
-              <ArrowLeft size={22} color="#18181B" strokeWidth={2.2} />
+              <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
             </Pressable>
           )}
 
@@ -2273,7 +2290,7 @@ function OnboardingScreen({
                 {avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
                 ) : (
-                  <UserRound size={40} color="#A1A1AA" strokeWidth={1.5} />
+                  <UserRound size={40} color={c.muted} strokeWidth={1.5} />
                 )}
                 <Text style={styles.avatarPickerText}>
                   {avatarUri ? 'Change photo' : 'Add profile photo'}
@@ -2283,7 +2300,7 @@ function OnboardingScreen({
               <TextInput
                 style={styles.authInput}
                 placeholder="Name"
-                placeholderTextColor="#A1A1AA"
+                placeholderTextColor={c.muted}
                 value={name}
                 onChangeText={setName}
               />
@@ -2291,7 +2308,7 @@ function OnboardingScreen({
               <TextInput
                 style={styles.authInput}
                 placeholder="Username"
-                placeholderTextColor="#A1A1AA"
+                placeholderTextColor={c.muted}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
@@ -2329,7 +2346,7 @@ function OnboardingScreen({
               <TextInput
                 style={styles.authInput}
                 placeholder="Year started in the trade (e.g. 2020)"
-                placeholderTextColor="#A1A1AA"
+                placeholderTextColor={c.muted}
                 value={startYear}
                 onChangeText={setStartYear}
                 keyboardType="number-pad"
@@ -2346,7 +2363,7 @@ function OnboardingScreen({
               <TextInput
                 style={[styles.authInput, styles.authTextArea]}
                 placeholder="A bit about yourself"
-                placeholderTextColor="#A1A1AA"
+                placeholderTextColor={c.muted}
                 value={description}
                 onChangeText={setDescription}
                 multiline
@@ -2376,6 +2393,8 @@ function OnboardingScreen({
 }
 
 function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) => void }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [showForgot, setShowForgot] = useState(false);
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [role, setRole] = useState<'seeker' | 'recruiter'>('seeker');
@@ -2476,7 +2495,7 @@ function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) => void
         <TextInput
           style={styles.authInput}
           placeholder="Email"
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor={c.muted}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -2486,7 +2505,7 @@ function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) => void
         <TextInput
           style={styles.authInput}
           placeholder="Password"
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor={c.muted}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -2526,6 +2545,8 @@ function ForgotPasswordScreen({
   setRecovering: (value: boolean) => void;
   onBack: () => void;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [step, setStep] = useState<'request' | 'verify'>('request');
   const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState('');
@@ -2590,7 +2611,7 @@ function ForgotPasswordScreen({
           <TextInput
             style={styles.authInput}
             placeholder="Email"
-            placeholderTextColor="#A1A1AA"
+            placeholderTextColor={c.muted}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -2600,7 +2621,7 @@ function ForgotPasswordScreen({
           <TextInput
             style={styles.authInput}
             placeholder="Code"
-            placeholderTextColor="#A1A1AA"
+            placeholderTextColor={c.muted}
             value={code}
             onChangeText={setCode}
             autoCapitalize="none"
@@ -2638,6 +2659,8 @@ function ForgotPasswordScreen({
 }
 
 function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -2677,7 +2700,7 @@ function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
         <TextInput
           style={styles.authInput}
           placeholder="New password"
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor={c.muted}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -2685,7 +2708,7 @@ function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
         <TextInput
           style={styles.authInput}
           placeholder="Confirm password"
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor={c.muted}
           value={confirm}
           onChangeText={setConfirm}
           secureTextEntry
@@ -2704,13 +2727,15 @@ function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
 }
 
 function WorkerCardContent({ candidate }: { candidate: any }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   return (
     <>
       <View style={styles.profileSection}>
         {candidate.avatar_url ? (
           <Image source={{ uri: candidate.avatar_url }} style={styles.cardAvatarPreview} />
         ) : (
-          <UserRound size={92} color="#A1A1AA" strokeWidth={1.5} />
+          <UserRound size={92} color={c.muted} strokeWidth={1.5} />
         )}
 
         <View style={styles.profileInfo}>
@@ -2747,6 +2772,8 @@ function WorkerCardContent({ candidate }: { candidate: any }) {
 }
 
 function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: any }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const positions = recruiter.positions ?? [];
   const primary = positions[0];
   const mismatches = [
@@ -2760,7 +2787,7 @@ function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: any }) {
         {recruiter.avatar_url ? (
           <Image source={{ uri: recruiter.avatar_url }} style={styles.cardAvatarPreview} />
         ) : (
-          <UserRound size={92} color="#A1A1AA" strokeWidth={1.5} />
+          <UserRound size={92} color={c.muted} strokeWidth={1.5} />
         )}
 
         <View style={styles.profileInfo}>
@@ -2780,7 +2807,7 @@ function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: any }) {
         <Text style={styles.sectionLabel}>LOOKING FOR</Text>
 
         <View style={styles.positionRow}>
-          <BriefcaseBusiness size={20} color="#18181B" strokeWidth={2.2} />
+          <BriefcaseBusiness size={20} color={c.text} strokeWidth={2.2} />
           <Text numberOfLines={1} style={styles.position}>
             {primary?.title ?? 'Position'}
           </Text>
@@ -2790,7 +2817,7 @@ function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: any }) {
 
         {primary?.location ? (
           <View style={styles.locationRow}>
-            <MapPin size={15} color="#71717A" strokeWidth={2} />
+            <MapPin size={15} color={c.textSecondary} strokeWidth={2} />
             <Text numberOfLines={1} style={styles.location}>
               {primary.location}
               {primary.schedule_type ? ` · ${primary.schedule_type}` : ''}
@@ -2828,6 +2855,7 @@ function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: any }) {
 }
 
 function Tag({ text }: { text: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.tag}>
       <Text style={styles.tagText}>
@@ -2848,6 +2876,7 @@ function ChipSelect({
   selected: readonly string[];
   onToggle: (option: string) => void;
 }) {
+  const styles = useStyles();
   return (
     <View>
       <Text style={styles.sectionLabel}>{label}</Text>
@@ -2878,6 +2907,8 @@ function TabBar({
   onTabPress: (tab: TabKey) => void;
   unseenReceivedCount: number;
 }) {
+  const styles = useStyles();
+  const c = useTheme().colors;
   const insets = useSafeAreaInsets();
 
   return (
@@ -2894,7 +2925,7 @@ function TabBar({
           <View>
             <Icon
               size={24}
-              color={isActive ? '#18181B' : '#A1A1AA'}
+              color={isActive ? c.text : c.muted}
               strokeWidth={isActive ? 2.4 : 2}
             />
             {key === 'interests' && unseenReceivedCount > 0 && (
@@ -2920,984 +2951,1004 @@ function TabBar({
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#F5F5F7',
-  },
-
-  container: {
-    flex: 1,
-  },
-
-  header: {
-    paddingHorizontal: 22,
-    paddingTop: 8,
-    paddingBottom: 14,
-  },
-
-  logo: {
-    fontSize: 29,
-    fontWeight: '900',
-    letterSpacing: -1.3,
-    color: '#18181B',
-  },
-
-  subtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    color: '#71717A',
-  },
-
-  deck: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  card: {
-    position: 'absolute',
-    width: CARD_WIDTH,
-    height: '96%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    overflow: 'hidden',
-
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: c.bg,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
 
-    elevation: 5,
-  },
-
-  profileSection: {
-    height: '45%',
-    backgroundColor: '#E4E4E7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  profileInfo: {
-    position: 'absolute',
-    left: 22,
-    right: 22,
-    bottom: 18,
-  },
-
-  cardAvatarPreview: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-  },
-
-  name: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    color: '#18181B',
-    marginBottom: 6,
-  },
-
-  recruiterMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-
-  recruiterTitle: {
-    flexShrink: 1,
-    fontSize: 14,
-    color: '#52525B',
-  },
-
-  companyChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-  },
-
-  companyText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#18181B',
-  },
-
-  content: {
-    flex: 1,
-    padding: 22,
-  },
-
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: '#A1A1AA',
-  },
-
-  positionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 9,
-  },
-
-  position: {
-    flex: 1,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    color: '#18181B',
-  },
-
-  pay: {
-    marginTop: 9,
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#27272A',
-  },
-
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 8,
-  },
-
-  location: {
-    flex: 1,
-    fontSize: 14,
-    color: '#71717A',
-  },
-
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-    marginTop: 18,
-  },
-
-  tag: {
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#F4F4F5',
-  },
-
-  tagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#52525B',
-  },
-
-  note: {
-    marginTop: 20,
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#52525B',
-  },
-
-  swipeBadge: {
-    position: 'absolute',
-    top: 28,
-    zIndex: 20,
-
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-
-    borderRadius: 10,
-    borderWidth: 2,
-  },
-
-  passBadge: {
-    right: 22,
-    borderColor: '#EF4444',
-    transform: [{ rotate: '8deg' }],
-  },
-
-  interestedBadge: {
-    left: 22,
-    borderColor: '#22C55E',
-    transform: [{ rotate: '-8deg' }],
-  },
-
-  passText: {
-    color: '#EF4444',
-    fontWeight: '900',
-    fontSize: 15,
-  },
-
-  interestedText: {
-    color: '#22C55E',
-    fontWeight: '900',
-    fontSize: 15,
-  },
-
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-
-    gap: 24,
-    paddingTop: 12,
-    paddingBottom: 18,
-  },
-
-  actionButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
+    container: {
+      flex: 1,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-
-    elevation: 3,
-  },
-
-  passButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-
-    backgroundColor: '#FFFFFF',
-
-    borderWidth: 1,
-    borderColor: '#E4E4E7',
-  },
-
-  interestedButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-
-    backgroundColor: '#18181B',
-  },
-
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    gap: 4,
-  },
-
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#18181B',
-  },
-
-  emptySubtitle: {
-    marginTop: 8,
-    fontSize: 15,
-    color: '#71717A',
-    textAlign: 'center',
-  },
-
-  refreshButton: {
-    marginTop: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-
-    borderRadius: 14,
-    backgroundColor: '#18181B',
-  },
-
-  refreshText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-
-  tabBar: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#E7E7EA',
-    backgroundColor: '#FFFFFF',
-    paddingTop: 10,
-  },
-
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-  },
-
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#A1A1AA',
-  },
-
-  tabLabelActive: {
-    color: '#18181B',
-  },
-
-  simpleScreen: {
-    flex: 1,
-  },
-
-  screenHeader: {
-    paddingHorizontal: 22,
-    paddingTop: 8,
-    paddingBottom: 14,
-  },
-
-  screenTitle: {
-    fontSize: 29,
-    fontWeight: '900',
-    letterSpacing: -1.3,
-    color: '#18181B',
-  },
-
-  profileName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#18181B',
-    marginTop: 8,
-  },
-
-  profileSubtext: {
-    fontSize: 14,
-    color: '#71717A',
-  },
-
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-
-  interestCounter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#F4F4F5',
-    marginTop: 2,
-  },
-
-  interestCounterText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#18181B',
-  },
-
-  interestsList: {
-    paddingHorizontal: 22,
-    paddingTop: 8,
-    gap: 12,
-  },
-
-  interestRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-  },
-
-  interestRowInfo: {
-    flex: 1,
-  },
-
-  interestRowName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#18181B',
-  },
-
-  interestRowMeta: {
-    marginTop: 2,
-    fontSize: 13,
-    color: '#71717A',
-  },
-
-  subTabBar: {
-    flexDirection: 'row',
-    marginHorizontal: 22,
-    marginBottom: 12,
-    padding: 4,
-    borderRadius: 14,
-    backgroundColor: '#F4F4F5',
-  },
-
-  subTabItem: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  subTabItemActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-
-  subTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#71717A',
-  },
-
-  subTabTextActive: {
-    color: '#18181B',
-  },
-
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -8,
-    minWidth: 16,
-    height: 16,
-    paddingHorizontal: 3,
-    borderRadius: 8,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-
-  chatContainer: {
-    flex: 1,
-  },
-
-  chatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E7E7EA',
-  },
-
-  chatBackButton: {
-    padding: 4,
-  },
-
-  interestRowAction: {
-    padding: 6,
-  },
-
-  chatHeaderInfo: {
-    flex: 1,
-  },
-
-  chatHeaderName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#18181B',
-  },
-
-  chatHeaderMeta: {
-    marginTop: 1,
-    fontSize: 12,
-    color: '#71717A',
-  },
-
-  chatMessages: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 2,
-    flexGrow: 1,
-  },
-
-  chatBubble: {
-    maxWidth: '78%',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-  },
-
-  chatBubbleMine: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#18181B',
-    borderBottomRightRadius: 4,
-  },
-
-  chatBubbleTheirs: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E4E4E7',
-    borderBottomLeftRadius: 4,
-  },
-
-  chatRow: {
-    gap: 3,
-  },
-
-  chatRowGroupStart: {
-    marginTop: 8,
-  },
-
-  chatHeaderAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F4F4F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  chatDayWrap: {
-    alignSelf: 'center',
-    marginVertical: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#F4F4F5',
-  },
-
-  chatDayText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#71717A',
-  },
-
-  chatMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 4,
-    marginTop: 3,
-  },
-
-  chatTime: {
-    fontSize: 10,
-    color: '#A1A1AA',
-  },
-
-  chatTimeMine: {
-    color: '#A1A1AA',
-  },
-
-  chatBubbleFailed: {
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-
-  chatStatus: {
-    alignSelf: 'flex-end',
-    fontSize: 11,
-    color: '#71717A',
-  },
-
-  chatStatusFailed: {
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-
-  convoTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  convoName: {
-    flex: 1,
-  },
-
-  convoTime: {
-    fontSize: 12,
-    color: '#A1A1AA',
-  },
-
-  convoTimeUnread: {
-    color: '#2563EB',
-    fontWeight: '700',
-  },
-
-  convoBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-
-  convoPreview: {
-    flex: 1,
-    marginTop: 0,
-  },
-
-  convoPreviewUnread: {
-    color: '#18181B',
-    fontWeight: '700',
-  },
-
-  unreadPill: {
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 6,
-    borderRadius: 10,
-    backgroundColor: '#2563EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  unreadPillText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-
-  chatBubbleText: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: '#18181B',
-  },
-
-  chatBubbleTextMine: {
-    color: '#FFFFFF',
-  },
-
-  chatEmptyText: {
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 14,
-    color: '#A1A1AA',
-  },
-
-  chatInputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E7E7EA',
-    backgroundColor: '#FFFFFF',
-  },
-
-  chatInput: {
-    flex: 1,
-    maxHeight: 100,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#F4F4F5',
-    fontSize: 15,
-    color: '#18181B',
-  },
-
-  chatSendButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#18181B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  chatSendButtonDisabled: {
-    backgroundColor: '#D4D4D8',
-  },
-
-  authContainer: {
-    flex: 1,
-    backgroundColor: '#F5F5F7',
-  },
-
-  authInner: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    gap: 12,
-  },
-
-  authInput: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-    fontSize: 15,
-    color: '#18181B',
-    marginTop: 8,
-  },
-
-  authButton: {
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#18181B',
-    alignItems: 'center',
-  },
-
-  authButtonDisabled: {
-    backgroundColor: '#A1A1AA',
-  },
-
-  authButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-
-  authLoadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F5F5F7',
-  },
-
-  authModeToggle: {
-    marginHorizontal: 0,
-    marginTop: 20,
-    marginBottom: 4,
-  },
-
-  signOutButton: {
-    marginTop: 20,
-    marginHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    alignItems: 'center',
-  },
-
-  signOutText: {
-    color: '#EF4444',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-
-  avatarPicker: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-
-  avatarPreview: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-
-  avatarPickerText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#71717A',
-  },
-
-  authTextArea: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-
-  resumePicker: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-  },
-
-  resumePickerText: {
-    fontSize: 15,
-    color: '#71717A',
-  },
-
-  profileCard: {
-    marginTop: 24,
-    marginHorizontal: 22,
-    padding: 28,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-    alignItems: 'center',
-    gap: 6,
-    position: 'relative',
-  },
-
-  profileEditButton: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#18181B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  accountActions: {
-    marginTop: 16,
-    marginHorizontal: 22,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-    overflow: 'hidden',
-  },
-
-  accountActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F1',
-  },
-
-  accountActionText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#18181B',
-  },
-
-  skillInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-
-  skillInput: {
-    flex: 1,
-    marginTop: 0,
-  },
-
-  skillAddButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#18181B',
-  },
-
-  skillAddButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-
-  skillTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#F4F4F5',
-  },
-
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    backgroundColor: '#F4F4F5',
-    borderWidth: 1,
-    borderColor: '#E7E7EA',
-  },
-
-  chipActive: {
-    backgroundColor: '#18181B',
-    borderColor: '#18181B',
-  },
-
-  chipHint: {
-    fontSize: 12,
-    color: '#71717A',
-    marginTop: -4,
-  },
-
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#52525B',
-  },
-
-  chipTextActive: {
-    color: '#FFFFFF',
-  },
-
-  mismatchText: {
-    marginTop: 8,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#B45309',
-  },
-
-  skillTagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#52525B',
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 22,
-  },
-
-  checklistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-  },
-
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#D4D4D8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  checkboxChecked: {
-    backgroundColor: '#18181B',
-    borderColor: '#18181B',
-  },
-
-  checklistText: {
-    fontSize: 15,
-    color: '#18181B',
-    flex: 1,
-  },
-});
+
+    header: {
+      paddingHorizontal: 22,
+      paddingTop: 8,
+      paddingBottom: 14,
+    },
+
+    logo: {
+      fontSize: 29,
+      fontWeight: '900',
+      letterSpacing: -1.3,
+      color: c.text,
+    },
+
+    subtitle: {
+      marginTop: 2,
+      fontSize: 13,
+      color: c.textSecondary,
+    },
+
+    deck: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    card: {
+      position: 'absolute',
+      width: CARD_WIDTH,
+      height: '96%',
+      backgroundColor: c.surface,
+      borderRadius: 28,
+      overflow: 'hidden',
+
+      borderWidth: 1,
+      borderColor: c.border,
+
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 10,
+      },
+      shadowOpacity: 0.08,
+      shadowRadius: 20,
+
+      elevation: 5,
+    },
+
+    profileSection: {
+      height: '45%',
+      backgroundColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    profileInfo: {
+      position: 'absolute',
+      left: 22,
+      right: 22,
+      bottom: 18,
+    },
+
+    cardAvatarPreview: {
+      width: 92,
+      height: 92,
+      borderRadius: 46,
+    },
+
+    name: {
+      fontSize: 28,
+      lineHeight: 34,
+      fontWeight: '800',
+      letterSpacing: -0.8,
+      color: c.text,
+      marginBottom: 6,
+    },
+
+    recruiterMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 4,
+    },
+
+    recruiterTitle: {
+      flexShrink: 1,
+      fontSize: 14,
+      color: c.textStrong,
+    },
+
+    companyChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+      backgroundColor: c.surface,
+    },
+
+    companyText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.text,
+    },
+
+    content: {
+      flex: 1,
+      padding: 22,
+    },
+
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 1.2,
+      color: c.muted,
+    },
+
+    positionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 9,
+    },
+
+    position: {
+      flex: 1,
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+      color: c.text,
+    },
+
+    pay: {
+      marginTop: 9,
+      fontSize: 19,
+      fontWeight: '700',
+      color: c.text,
+    },
+
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 8,
+    },
+
+    location: {
+      flex: 1,
+      fontSize: 14,
+      color: c.textSecondary,
+    },
+
+    tags: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 7,
+      marginTop: 18,
+    },
+
+    tag: {
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 20,
+      backgroundColor: c.surfaceAlt,
+    },
+
+    tagText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.textStrong,
+    },
+
+    note: {
+      marginTop: 20,
+      fontSize: 15,
+      lineHeight: 22,
+      color: c.textStrong,
+    },
+
+    swipeBadge: {
+      position: 'absolute',
+      top: 28,
+      zIndex: 20,
+
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+
+      borderRadius: 10,
+      borderWidth: 2,
+    },
+
+    passBadge: {
+      right: 22,
+      borderColor: c.danger,
+      transform: [{ rotate: '8deg' }],
+    },
+
+    interestedBadge: {
+      left: 22,
+      borderColor: c.green,
+      transform: [{ rotate: '-8deg' }],
+    },
+
+    passText: {
+      color: c.danger,
+      fontWeight: '900',
+      fontSize: 15,
+    },
+
+    interestedText: {
+      color: c.green,
+      fontWeight: '900',
+      fontSize: 15,
+    },
+
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+
+      gap: 24,
+      paddingTop: 12,
+      paddingBottom: 18,
+    },
+
+    actionButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 5,
+      },
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
+
+      elevation: 3,
+    },
+
+    passButton: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+
+      backgroundColor: c.surface,
+
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+
+    interestedButton: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+
+      backgroundColor: c.accent,
+    },
+
+    emptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 40,
+      gap: 4,
+    },
+
+    emptyTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: c.text,
+    },
+
+    emptySubtitle: {
+      marginTop: 8,
+      fontSize: 15,
+      color: c.textSecondary,
+      textAlign: 'center',
+    },
+
+    refreshButton: {
+      marginTop: 24,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+
+      borderRadius: 14,
+      backgroundColor: c.accent,
+    },
+
+    refreshText: {
+      color: c.onAccent,
+      fontWeight: '700',
+    },
+
+    tabBar: {
+      flexDirection: 'row',
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      backgroundColor: c.surface,
+      paddingTop: 10,
+    },
+
+    tabItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 3,
+    },
+
+    tabLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.muted,
+    },
+
+    tabLabelActive: {
+      color: c.text,
+    },
+
+    simpleScreen: {
+      flex: 1,
+    },
+
+    screenHeader: {
+      paddingHorizontal: 22,
+      paddingTop: 8,
+      paddingBottom: 14,
+    },
+
+    screenTitle: {
+      fontSize: 29,
+      fontWeight: '900',
+      letterSpacing: -1.3,
+      color: c.text,
+    },
+
+    profileName: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: c.text,
+      marginTop: 8,
+    },
+
+    profileSubtext: {
+      fontSize: 14,
+      color: c.textSecondary,
+    },
+
+    headerTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+
+    interestCounter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 20,
+      backgroundColor: c.surfaceAlt,
+      marginTop: 2,
+    },
+
+    interestCounterText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: c.text,
+    },
+
+    interestsList: {
+      paddingHorizontal: 22,
+      paddingTop: 8,
+      gap: 12,
+    },
+
+    interestRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 16,
+      borderRadius: 18,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+
+    interestRowInfo: {
+      flex: 1,
+    },
+
+    interestRowName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.text,
+    },
+
+    interestRowMeta: {
+      marginTop: 2,
+      fontSize: 13,
+      color: c.textSecondary,
+    },
+
+    subTabBar: {
+      flexDirection: 'row',
+      marginHorizontal: 22,
+      marginBottom: 12,
+      padding: 4,
+      borderRadius: 14,
+      backgroundColor: c.surfaceAlt,
+    },
+
+    subTabItem: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+
+    subTabItemActive: {
+      backgroundColor: c.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 3,
+      elevation: 1,
+    },
+
+    subTabText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textSecondary,
+    },
+
+    subTabTextActive: {
+      color: c.text,
+    },
+
+    badge: {
+      position: 'absolute',
+      top: -4,
+      right: -8,
+      minWidth: 16,
+      height: 16,
+      paddingHorizontal: 3,
+      borderRadius: 8,
+      backgroundColor: c.danger,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    badgeText: {
+      color: c.white,
+      fontSize: 10,
+      fontWeight: '800',
+    },
+
+    chatContainer: {
+      flex: 1,
+    },
+
+    chatHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+
+    chatBackButton: {
+      padding: 4,
+    },
+
+    interestRowAction: {
+      padding: 6,
+    },
+
+    chatHeaderInfo: {
+      flex: 1,
+    },
+
+    chatHeaderName: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: c.text,
+    },
+
+    chatHeaderMeta: {
+      marginTop: 1,
+      fontSize: 12,
+      color: c.textSecondary,
+    },
+
+    chatMessages: {
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      gap: 2,
+      flexGrow: 1,
+    },
+
+    chatBubble: {
+      maxWidth: '78%',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 18,
+    },
+
+    chatBubbleMine: {
+      alignSelf: 'flex-end',
+      backgroundColor: c.accent,
+      borderBottomRightRadius: 4,
+    },
+
+    chatBubbleTheirs: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderBottomLeftRadius: 4,
+    },
+
+    chatRow: {
+      gap: 3,
+    },
+
+    chatRowGroupStart: {
+      marginTop: 8,
+    },
+
+    chatHeaderAvatar: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: c.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    chatDayWrap: {
+      alignSelf: 'center',
+      marginVertical: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+      backgroundColor: c.surfaceAlt,
+    },
+
+    chatDayText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.textSecondary,
+    },
+
+    chatMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-end',
+      gap: 4,
+      marginTop: 3,
+    },
+
+    chatTime: {
+      fontSize: 10,
+      color: c.muted,
+    },
+
+    chatTimeMine: {
+      color: c.muted,
+    },
+
+    chatBubbleFailed: {
+      borderWidth: 1,
+      borderColor: c.danger,
+    },
+
+    chatStatus: {
+      alignSelf: 'flex-end',
+      fontSize: 11,
+      color: c.textSecondary,
+    },
+
+    chatStatusFailed: {
+      color: c.danger,
+      fontWeight: '600',
+    },
+
+    convoTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+
+    convoName: {
+      flex: 1,
+    },
+
+    convoTime: {
+      fontSize: 12,
+      color: c.muted,
+    },
+
+    convoTimeUnread: {
+      color: c.blue,
+      fontWeight: '700',
+    },
+
+    convoBottomRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 2,
+    },
+
+    convoPreview: {
+      flex: 1,
+      marginTop: 0,
+    },
+
+    convoPreviewUnread: {
+      color: c.text,
+      fontWeight: '700',
+    },
+
+    unreadPill: {
+      minWidth: 20,
+      height: 20,
+      paddingHorizontal: 6,
+      borderRadius: 10,
+      backgroundColor: c.blue,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    unreadPillText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: c.white,
+    },
+
+    settingsPanel: {
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+
+    settingsToggle: {
+      marginHorizontal: 0,
+      marginTop: 8,
+    },
+
+    chatBubbleText: {
+      fontSize: 15,
+      lineHeight: 20,
+      color: c.text,
+    },
+
+    chatBubbleTextMine: {
+      color: c.onAccent,
+    },
+
+    chatEmptyText: {
+      textAlign: 'center',
+      marginTop: 40,
+      fontSize: 14,
+      color: c.muted,
+    },
+
+    chatInputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      backgroundColor: c.surface,
+    },
+
+    chatInput: {
+      flex: 1,
+      maxHeight: 100,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 20,
+      backgroundColor: c.surfaceAlt,
+      fontSize: 15,
+      color: c.text,
+    },
+
+    chatSendButton: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: c.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    chatSendButtonDisabled: {
+      backgroundColor: c.disabled,
+    },
+
+    authContainer: {
+      flex: 1,
+      backgroundColor: c.bg,
+    },
+
+    authInner: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+      gap: 12,
+    },
+
+    authInput: {
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      fontSize: 15,
+      color: c.text,
+      marginTop: 8,
+    },
+
+    authButton: {
+      marginTop: 12,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: c.accent,
+      alignItems: 'center',
+    },
+
+    authButtonDisabled: {
+      backgroundColor: c.muted,
+    },
+
+    authButtonText: {
+      color: c.onAccent,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+
+    authLoadingContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.bg,
+    },
+
+    authModeToggle: {
+      marginHorizontal: 0,
+      marginTop: 20,
+      marginBottom: 4,
+    },
+
+    signOutButton: {
+      marginTop: 20,
+      marginHorizontal: 22,
+      paddingVertical: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.danger,
+      alignItems: 'center',
+    },
+
+    signOutText: {
+      color: c.danger,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+
+    avatarPicker: {
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 12,
+    },
+
+    avatarPreview: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+    },
+
+    avatarPickerText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textSecondary,
+    },
+
+    authTextArea: {
+      minHeight: 90,
+      textAlignVertical: 'top',
+    },
+
+    resumePicker: {
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+
+    resumePickerText: {
+      fontSize: 15,
+      color: c.textSecondary,
+    },
+
+    profileCard: {
+      marginTop: 24,
+      marginHorizontal: 22,
+      padding: 28,
+      borderRadius: 24,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      gap: 6,
+      position: 'relative',
+    },
+
+    profileEditButton: {
+      position: 'absolute',
+      top: 14,
+      right: 14,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: c.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    accountActions: {
+      marginTop: 16,
+      marginHorizontal: 22,
+      borderRadius: 18,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      overflow: 'hidden',
+    },
+
+    accountActionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+
+    accountActionText: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: c.text,
+    },
+
+    skillInputRow: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
+    },
+
+    skillInput: {
+      flex: 1,
+      marginTop: 0,
+    },
+
+    skillAddButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: c.accent,
+    },
+
+    skillAddButtonText: {
+      color: c.onAccent,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+
+    skillTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 20,
+      backgroundColor: c.surfaceAlt,
+    },
+
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 20,
+      backgroundColor: c.surfaceAlt,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+
+    chipActive: {
+      backgroundColor: c.accent,
+      borderColor: c.accent,
+    },
+
+    chipHint: {
+      fontSize: 12,
+      color: c.textSecondary,
+      marginTop: -4,
+    },
+
+    chipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textStrong,
+    },
+
+    chipTextActive: {
+      color: c.onAccent,
+    },
+
+    mismatchText: {
+      marginTop: 8,
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.amber,
+    },
+
+    skillTagText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.textStrong,
+    },
+
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+    },
+
+    modalCard: {
+      backgroundColor: c.surface,
+      borderRadius: 20,
+      padding: 22,
+    },
+
+    checklistRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+    },
+
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: c.borderStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    checkboxChecked: {
+      backgroundColor: c.accent,
+      borderColor: c.accent,
+    },
+
+    checklistText: {
+      fontSize: 15,
+      color: c.text,
+      flex: 1,
+    },
+  });
+}
+
+function useStyles() {
+  const { colors } = useTheme();
+  return useMemo(() => makeStyles(colors), [colors]);
+}
