@@ -24,7 +24,7 @@ export function useMatches(
 
     const { data, error } = await supabase
       .from('messages')
-      .select('interest_id, sender_id, body, created_at, read_at')
+      .select('interest_id, sender_id, body, created_at, read_at, deleted_at')
       .in('interest_id', matchIds)
       .order('created_at', { ascending: false })
       .limit(500);

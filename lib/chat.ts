@@ -51,20 +51,27 @@ export function isSameDay(a: string, b: string): boolean {
 
 // rows must be ordered newest first.
 export function summarizeConversations(
-  rows: { interest_id: string; sender_id: string; body: string; created_at: string; read_at: string | null }[],
+  rows: {
+    interest_id: string;
+    sender_id: string;
+    body: string;
+    created_at: string;
+    read_at: string | null;
+    deleted_at?: string | null;
+  }[],
   userId: string
 ): Record<string, ConversationMeta> {
   const out: Record<string, ConversationMeta> = {};
   for (const r of rows) {
     const fromMe = r.sender_id === userId;
     const meta = (out[r.interest_id] ??= {
-      lastText: r.body,
+      lastText: r.deleted_at ? 'Message deleted' : r.body,
       lastAt: r.created_at,
       lastFromMe: fromMe,
       lastRead: !!r.read_at,
       unread: 0,
     });
-    if (!fromMe && !r.read_at) meta.unread += 1;
+    if (!fromMe && !r.read_at && !r.deleted_at) meta.unread += 1;
   }
   return out;
 }

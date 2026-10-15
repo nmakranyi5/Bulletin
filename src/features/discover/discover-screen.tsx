@@ -186,7 +186,7 @@ export function DiscoverScreen({
           >
             <Check
               size={30}
-              color={c.white}
+              color={c.onAccent}
               strokeWidth={2.7}
             />
           </Pressable>

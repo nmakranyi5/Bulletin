@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, CheckCheck, Send, UserRound, X } from 'lucide-react-native';
+import { ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, UserRound, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -24,6 +24,8 @@ export type ChatMessage = {
   fromMe: boolean;
   createdAt: string;
   readAt: string | null;
+  editedAt: string | null;
+  deletedAt: string | null;
   status: MessageStatus;
 };
 
@@ -42,11 +44,12 @@ export function ChatScreen({
   onClose: () => void;
   onBack: () => void;
 }) {
-  const c = useTheme().colors;
+  const { colors: c, mode } = useTheme();
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const listRef = useRef<FlatList<ChatItem>>(null);
 
   const markRead = () => {
@@ -61,6 +64,8 @@ export function ChatScreen({
       fromMe: row.sender_id === userId,
       createdAt: row.created_at,
       readAt: row.read_at ?? null,
+      editedAt: row.edited_at ?? null,
+      deletedAt: row.deleted_at ?? null,
       status: row.read_at ? 'read' : 'sent',
     });
     const upsert = (msg: ChatMessage) =>
@@ -72,7 +77,7 @@ export function ChatScreen({
 
     supabase
       .from('messages')
-      .select('id, sender_id, body, created_at, read_at')
+      .select('id, sender_id, body, created_at, read_at, edited_at, deleted_at')
       .eq('interest_id', match.id)
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
@@ -127,7 +132,7 @@ export function ChatScreen({
     const { data, error } = await supabase
       .from('messages')
       .insert({ interest_id: match.id, sender_id: userId, body })
-      .select('id, sender_id, body, created_at, read_at')
+      .select('id, sender_id, body, created_at, read_at, edited_at, deleted_at')
       .single();
 
     if (error) {
@@ -144,6 +149,8 @@ export function ChatScreen({
         fromMe: true,
         createdAt: data.created_at,
         readAt: data.read_at ?? null,
+        editedAt: data.edited_at ?? null,
+        deletedAt: data.deleted_at ?? null,
         status: data.read_at ? 'read' : 'sent',
       };
       // Realtime may have already delivered the real row.
@@ -153,7 +160,76 @@ export function ChatScreen({
     });
   };
 
+  const patchMessage = (id: string, patch: Partial<ChatMessage>) =>
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft('');
+  };
+
+  const saveEdit = async () => {
+    const body = draft.trim();
+    const target = messages.find((m) => m.id === editingId);
+    if (!target || !body) return;
+
+    cancelEdit();
+    if (body === target.text) return;
+
+    // Optimistic; roll back if the server refuses.
+    patchMessage(target.id, { text: body, editedAt: new Date().toISOString() });
+    const { error } = await supabase.rpc('edit_message', {
+      p_message_id: target.id,
+      p_body: body,
+    });
+    if (error) {
+      patchMessage(target.id, { text: target.text, editedAt: target.editedAt });
+      Alert.alert('Could not edit', error.message);
+    }
+  };
+
+  const deleteMessage = (msg: ChatMessage) => {
+    Alert.alert('Delete message?', 'This removes the message for both of you.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (editingId === msg.id) cancelEdit();
+          patchMessage(msg.id, { deletedAt: new Date().toISOString() });
+          const { error } = await supabase.rpc('delete_message', { p_message_id: msg.id });
+          if (error) {
+            patchMessage(msg.id, { deletedAt: null });
+            Alert.alert('Could not delete', error.message);
+          }
+        },
+      },
+    ]);
+  };
+
+  // Long-press on one of your own sent messages.
+  const openMessageMenu = (msg: ChatMessage) => {
+    if (!msg.fromMe || msg.deletedAt || (msg.status !== 'sent' && msg.status !== 'read')) return;
+
+    Alert.alert('Message', undefined, [
+      {
+        text: 'Edit',
+        onPress: () => {
+          setEditingId(msg.id);
+          setDraft(msg.text);
+        },
+      },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteMessage(msg) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const handleSend = () => {
+    if (editingId) {
+      saveEdit();
+      return;
+    }
+
     const body = draft.trim();
     if (!body) return;
 
@@ -167,6 +243,8 @@ export function ChatScreen({
         fromMe: true,
         createdAt: new Date().toISOString(),
         readAt: null,
+        editedAt: null,
+        deletedAt: null,
         status: 'sending',
       },
     ]);
@@ -260,32 +338,56 @@ export function ChatScreen({
           return (
             <View style={[local.chatRow, groupStart && local.chatRowGroupStart]}>
               <Pressable
-                disabled={msg.status !== 'failed'}
-                onPress={() => retry(msg)}
+                disabled={msg.status !== 'failed' && !(msg.fromMe && !msg.deletedAt)}
+                onPress={() => msg.status === 'failed' && retry(msg)}
+                onLongPress={() => openMessageMenu(msg)}
                 style={[
                   local.chatBubble,
-                  msg.fromMe ? local.chatBubbleMine : local.chatBubbleTheirs,
+                  msg.deletedAt
+                    ? [
+                        local.chatBubbleDeleted,
+                        { alignSelf: msg.fromMe ? 'flex-end' : 'flex-start' },
+                      ]
+                    : msg.fromMe
+                    ? local.chatBubbleMine
+                    : local.chatBubbleTheirs,
                   msg.status === 'sending' && { opacity: 0.6 },
                   msg.status === 'failed' && local.chatBubbleFailed,
+                  msg.id === editingId && local.chatBubbleEditing,
                 ]}
               >
-                <Text style={[local.chatBubbleText, msg.fromMe && local.chatBubbleTextMine]}>
-                  {msg.text}
-                </Text>
+                {msg.deletedAt ? (
+                  <View style={local.deletedRow}>
+                    <Ban size={14} color={c.muted} strokeWidth={2.2} />
+                    <Text style={local.deletedText}>
+                      {msg.fromMe ? 'You deleted this message' : 'This message was deleted'}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[local.chatBubbleText, msg.fromMe && local.chatBubbleTextMine]}>
+                    {msg.text}
+                  </Text>
+                )}
                 <View style={local.chatMetaRow}>
-                  <Text style={[local.chatTime, msg.fromMe && local.chatTimeMine]}>
+                  <Text style={[local.chatTime, msg.fromMe && !msg.deletedAt && local.chatTimeMine]}>
+                    {msg.editedAt && !msg.deletedAt ? 'Edited · ' : ''}
                     {formatTime(msg.createdAt)}
                   </Text>
                   {msg.fromMe &&
+                    !msg.deletedAt &&
                     (msg.status === 'read' ? (
-                      <CheckCheck size={14} color={c.blueLight} strokeWidth={2.4} />
+                      <CheckCheck
+                        size={14}
+                        color={mode === 'dark' ? c.blue : c.blueLight}
+                        strokeWidth={2.4}
+                      />
                     ) : msg.status === 'sent' ? (
                       <Check size={14} color={c.muted} strokeWidth={2.4} />
                     ) : null)}
                 </View>
               </Pressable>
 
-              {msg.fromMe && (showStatus || msg.status === 'failed') && (
+              {msg.fromMe && !msg.deletedAt && (showStatus || msg.status === 'failed') && (
                 <Text
                   style={[local.chatStatus, msg.status === 'failed' && local.chatStatusFailed]}
                 >
@@ -302,6 +404,16 @@ export function ChatScreen({
         }
       />
 
+      {editingId && (
+        <View style={local.editBar}>
+          <Pencil size={14} color={c.textSecondary} strokeWidth={2.4} />
+          <Text style={local.editBarText}>Editing message</Text>
+          <Pressable onPress={cancelEdit} hitSlop={10}>
+            <X size={18} color={c.textSecondary} strokeWidth={2.4} />
+          </Pressable>
+        </View>
+      )}
+
       <View style={local.chatInputRow}>
         <TextInput
           style={local.chatInput}
@@ -317,7 +429,11 @@ export function ChatScreen({
           onPress={handleSend}
           disabled={!draft.trim()}
         >
-          <Send size={18} color={c.onAccent} strokeWidth={2.4} />
+          {editingId ? (
+            <Check size={18} color={c.onAccent} strokeWidth={2.8} />
+          ) : (
+            <Send size={18} color={c.onAccent} strokeWidth={2.4} />
+          )}
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -415,6 +531,46 @@ function useLocalStyles() {
 
         chatTimeMine: {
           color: c.muted,
+        },
+
+        chatBubbleDeleted: {
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderColor: c.border,
+          borderStyle: 'dashed',
+        },
+
+        chatBubbleEditing: {
+          borderWidth: 2,
+          borderColor: c.blue,
+        },
+
+        deletedRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+        },
+
+        deletedText: {
+          fontSize: 14,
+          fontStyle: 'italic',
+          color: c.muted,
+        },
+
+        editBar: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          backgroundColor: c.surfaceAlt,
+        },
+
+        editBarText: {
+          flex: 1,
+          fontSize: 13,
+          fontWeight: '600',
+          color: c.textSecondary,
         },
 
         chatBubbleFailed: {
