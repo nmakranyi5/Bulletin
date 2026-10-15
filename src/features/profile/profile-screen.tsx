@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Pencil,
   Settings,
+  Trash2,
   UserRound,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
@@ -13,6 +14,7 @@ import { formatWorkerEpa } from '../../../lib/hvac';
 import { supabase } from '../../../lib/supabase';
 import { width } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
+import { DeleteAccountModal } from './delete-account-modal';
 
 export function ProfileScreen({
   session,
@@ -38,6 +40,7 @@ export function ProfileScreen({
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const { mode, setMode } = useTheme();
 
   useEffect(() => {
@@ -142,6 +145,11 @@ export function ProfileScreen({
                 </Pressable>
               ))}
             </View>
+
+            <Pressable style={local.deleteAccountRow} onPress={() => setShowDelete(true)}>
+              <Trash2 size={18} color={c.danger} strokeWidth={2.2} />
+              <Text style={local.deleteAccountText}>Delete account</Text>
+            </Pressable>
           </View>
         )}
       </View>
@@ -149,6 +157,13 @@ export function ProfileScreen({
       <Pressable style={local.signOutButton} onPress={handleSignOut}>
         <Text style={local.signOutText}>Sign Out</Text>
       </Pressable>
+
+      <DeleteAccountModal
+        visible={showDelete}
+        userId={session.user.id}
+        isRecruiter={!!profile?.is_recruiter}
+        onCancel={() => setShowDelete(false)}
+      />
     </View>
   );
 }
@@ -164,6 +179,20 @@ function useLocalStyles() {
           fontWeight: '800',
           color: c.text,
           marginTop: 8,
+        },
+
+        deleteAccountRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          marginTop: 18,
+          paddingVertical: 10,
+        },
+
+        deleteAccountText: {
+          fontSize: 15,
+          fontWeight: '600',
+          color: c.danger,
         },
 
         profileRoleLine: {
