@@ -45,6 +45,7 @@ export function PositionsScreen({
 
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
+  const [defaultCompany, setDefaultCompany] = useState('');
   const [payType, setPayType] = useState('');
   const [payMin, setPayMin] = useState('');
   const [payMax, setPayMax] = useState('');
@@ -76,6 +77,14 @@ export function PositionsScreen({
 
   useEffect(() => {
     fetchPositions();
+
+    // New postings default to the company on the recruiter's profile.
+    supabase
+      .from('profiles')
+      .select('company_name')
+      .eq('id', session.user.id)
+      .single()
+      .then(({ data }) => setDefaultCompany(data?.company_name ?? ''));
   }, []);
 
   const resetForm = () => {
@@ -98,6 +107,7 @@ export function PositionsScreen({
 
   const openAddForm = () => {
     resetForm();
+    setCompany(defaultCompany);
     setView('form');
   };
 

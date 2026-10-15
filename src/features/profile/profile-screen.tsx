@@ -9,6 +9,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
+import { formatWorkerEpa } from '../../../lib/hvac';
 import { supabase } from '../../../lib/supabase';
 import { width } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
@@ -30,6 +31,10 @@ export function ProfileScreen({
     username: string | null;
     avatar_url: string | null;
     is_recruiter: boolean;
+    company_name: string | null;
+    recruiter_title: string | null;
+    trade_role: string | null;
+    epa_608_types: string[] | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -39,7 +44,9 @@ export function ProfileScreen({
     const loadProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('name, username, avatar_url, is_recruiter')
+        .select(
+          'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types'
+        )
         .eq('id', session.user.id)
         .single();
 
@@ -54,6 +61,12 @@ export function ProfileScreen({
 
     loadProfile();
   }, []);
+
+  const roleLine = profile?.is_recruiter
+    ? [profile.recruiter_title, profile.company_name].filter(Boolean).join(' at ')
+    : [profile?.trade_role, profile && formatWorkerEpa(profile.epa_608_types)]
+        .filter(Boolean)
+        .join(' · ');
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -85,6 +98,7 @@ export function ProfileScreen({
             <Text style={local.profileSubtext}>
               {profile?.username ? `@${profile.username}` : 'Complete your profile'}
             </Text>
+            {roleLine ? <Text style={local.profileRoleLine}>{roleLine}</Text> : null}
           </>
         )}
       </View>
@@ -150,6 +164,14 @@ function useLocalStyles() {
           fontWeight: '800',
           color: c.text,
           marginTop: 8,
+        },
+
+        profileRoleLine: {
+          marginTop: 6,
+          fontSize: 13,
+          fontWeight: '600',
+          color: c.textStrong,
+          textAlign: 'center',
         },
 
         profileSubtext: {

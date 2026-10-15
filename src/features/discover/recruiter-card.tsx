@@ -1,8 +1,15 @@
-import { BriefcaseBusiness, MapPin, UserRound } from 'lucide-react-native';
+import { BriefcaseBusiness, MapPin, ShieldCheck, UserRound } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
-import { epaMismatchNote, experienceMismatchNote, formatPay, getSchedules } from '../../../lib/hvac';
+import {
+  epaMismatchNote,
+  experienceMismatchNote,
+  formatCompanySize,
+  formatEstablished,
+  formatPay,
+  getSchedules,
+} from '../../../lib/hvac';
 import { Tag } from '../../components/tag';
 import { useSharedStyles } from '../../styles/shared';
 
@@ -13,6 +20,11 @@ export function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: a
   const positions = recruiter.positions ?? [];
   const primary = positions[0];
   const schedules = primary ? getSchedules(primary) : [];
+  const companyTags = [
+    ...(recruiter.work_types ?? []),
+    formatCompanySize(recruiter.company_size),
+    formatEstablished(recruiter.company_founded_year),
+  ].filter(Boolean) as string[];
   const mismatches = [
     epaMismatchNote(primary?.epa_608_required, me?.epa_608_types),
     experienceMismatchNote(primary?.min_experience_years, me?.trade_start_year),
@@ -29,8 +41,14 @@ export function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: a
 
         <View style={shared.profileInfo}>
           <Text numberOfLines={1} style={shared.name}>
-            {recruiter.name}
+            {recruiter.company_name || recruiter.name}
           </Text>
+          {recruiter.company_name ? (
+            <Text numberOfLines={1} style={local.contactLine}>
+              {recruiter.name}
+              {recruiter.recruiter_title ? ` · ${recruiter.recruiter_title}` : ''}
+            </Text>
+          ) : null}
 
           <View style={shared.recruiterMeta}>
             <Text numberOfLines={1} style={shared.recruiterTitle}>
@@ -96,6 +114,39 @@ export function RecruiterCardContent({ recruiter, me }: { recruiter: any; me?: a
         {primary?.description ? (
           <Text style={shared.note}>"{primary.description}"</Text>
         ) : null}
+
+        {!!(companyTags.length || recruiter.licensed_insured || recruiter.location || recruiter.description) && (
+          <>
+            <Text style={[shared.sectionLabel, { marginTop: 22 }]}>ABOUT THE COMPANY</Text>
+
+            {!!(companyTags.length || recruiter.licensed_insured) && (
+              <View style={[shared.tags, { marginTop: 10 }]}>
+                {recruiter.licensed_insured ? (
+                  <View style={local.trustTag}>
+                    <ShieldCheck size={13} color={c.green} strokeWidth={2.4} />
+                    <Text style={local.trustTagText}>Licensed & insured</Text>
+                  </View>
+                ) : null}
+                {companyTags.map((t) => (
+                  <Tag key={t} text={t} />
+                ))}
+              </View>
+            )}
+
+            {recruiter.location ? (
+              <View style={local.locationRow}>
+                <MapPin size={15} color={c.textSecondary} strokeWidth={2} />
+                <Text numberOfLines={1} style={local.location}>
+                  Serves {recruiter.location}
+                </Text>
+              </View>
+            ) : null}
+
+            {recruiter.description ? (
+              <Text style={[shared.note, { marginTop: 12 }]}>{recruiter.description}</Text>
+            ) : null}
+          </>
+        )}
       </View>
     </>
   );
@@ -107,6 +158,30 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        contactLine: {
+          marginTop: 2,
+          fontSize: 13,
+          color: c.textSecondary,
+        },
+
+        trustTag: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 5,
+          paddingHorizontal: 11,
+          paddingVertical: 7,
+          borderRadius: 20,
+          backgroundColor: c.surfaceAlt,
+          borderWidth: 1,
+          borderColor: c.green,
+        },
+
+        trustTagText: {
+          fontSize: 12,
+          fontWeight: '600',
+          color: c.textStrong,
+        },
+
         positionRow: {
           flexDirection: 'row',
           alignItems: 'center',
