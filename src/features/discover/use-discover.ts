@@ -1,6 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, LayoutAnimation } from 'react-native';
 
 import { supabase } from '../../../lib/supabase';
 import { MyProfile } from '../profile/use-my-profile';
@@ -20,6 +20,18 @@ export function useDiscover(
   } | null>(null);
 
   const topCard = discoverCards[0];
+
+  // Which card is expanded to its full details; only ever the top card.
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const expandTopCard = () => {
+    if (!topCard) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCardId(topCard.id);
+  };
+  const collapseCard = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCardId(null);
+  };
 
   const fetchMyPositions = async () => {
     if (!session) return;
@@ -140,6 +152,9 @@ export function useDiscover(
     discoverCards,
     discoverLoading,
     topCard,
+    expandedCardId,
+    expandTopCard,
+    collapseCard,
     fetchDiscoverCards,
     pendingInterestTarget,
     clearPendingInterestTarget: () => setPendingInterestTarget(null),

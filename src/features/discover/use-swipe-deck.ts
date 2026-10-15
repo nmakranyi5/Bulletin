@@ -22,7 +22,8 @@ import {
 export function useSwipeDeck(
   topCardId: string | undefined,
   interestsRemaining: number,
-  onSwiped: (direction: number) => void
+  onSwiped: (direction: number) => void,
+  onTap: () => void
 ) {
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
@@ -74,7 +75,11 @@ export function useSwipeDeck(
    * Gesture callbacks run as Reanimated worklets on native.
    * Keep all animation logic directly inside them.
    */
-  const gesture = Gesture.Pan()
+  const pan = Gesture.Pan()
+    // Horizontal drags swipe the card; vertical drags are left to the scroll view
+    // of an expanded card.
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-14, 14])
     .onUpdate((event) => {
       translateX.value = event.translationX;
     })
@@ -116,6 +121,15 @@ export function useSwipeDeck(
         stiffness: 180,
       });
     });
+
+  // A tap (finger barely moves) expands the card; a drag is a swipe.
+  const tap = Gesture.Tap()
+    .maxDistance(10)
+    .onEnd((_event, success) => {
+      if (success) runOnJS(onTap)();
+    });
+
+  const gesture = Gesture.Race(pan, tap);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,

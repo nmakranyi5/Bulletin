@@ -53,7 +53,8 @@ export default function Index() {
   const swipe = useSwipeDeck(
     discover.topCard?.id,
     interests.interestsRemaining,
-    discover.removeTopCard
+    discover.removeTopCard,
+    discover.expandTopCard
   );
 
   if (authLoading || (session && onboarded === null)) {
@@ -113,6 +114,8 @@ export default function Index() {
             interestedStyle={swipe.interestedStyle}
             gesture={swipe.gesture}
             buttonSwipe={swipe.buttonSwipe}
+            expandedCardId={discover.expandedCardId}
+            onCollapse={discover.collapseCard}
             onRefresh={discover.fetchDiscoverCards}
             interestsRemaining={interests.interestsRemaining}
             isRecruiter={!!myProfile?.is_recruiter}

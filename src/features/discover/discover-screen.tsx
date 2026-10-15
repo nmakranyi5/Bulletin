@@ -17,6 +17,8 @@ export function DiscoverScreen({
   interestedStyle,
   gesture,
   buttonSwipe,
+  expandedCardId,
+  onCollapse,
   onRefresh,
   interestsRemaining,
   isRecruiter,
@@ -30,6 +32,8 @@ export function DiscoverScreen({
   interestedStyle: any;
   gesture: any;
   buttonSwipe: (direction: number) => void;
+  expandedCardId: string | null;
+  onCollapse: () => void;
   onRefresh: () => void;
   interestsRemaining: number;
   isRecruiter: boolean;
@@ -118,9 +122,18 @@ export function DiscoverScreen({
                       </Animated.View>
 
                       {isRecruiter ? (
-                        <WorkerCardContent candidate={card} />
+                        <WorkerCardContent
+                          candidate={card}
+                          expanded={expandedCardId === card.id}
+                          onCollapse={onCollapse}
+                        />
                       ) : (
-                        <RecruiterCardContent recruiter={card} me={me} />
+                        <RecruiterCardContent
+                          recruiter={card}
+                          me={me}
+                          expanded={expandedCardId === card.id}
+                          onCollapse={onCollapse}
+                        />
                       )}
                     </Animated.View>
                   </GestureDetector>
