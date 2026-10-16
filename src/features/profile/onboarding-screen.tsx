@@ -3,7 +3,7 @@ import { decode } from 'base64-arraybuffer';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, UserRound } from 'lucide-react-native';
+import { ArrowLeft, UserRound, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -39,10 +39,14 @@ export function OnboardingScreen({
   session,
   onComplete,
   onCancel,
+  onBackToLogin,
 }: {
   session: Session;
   onComplete: () => void;
+  // Editing an existing profile: go back.
   onCancel?: () => void;
+  // First-time setup: leave (sign out) and return to the login screen.
+  onBackToLogin?: () => void;
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
@@ -217,9 +221,20 @@ export function OnboardingScreen({
           contentContainerStyle={{ gap: 12 }}
           keyboardShouldPersistTaps="handled"
         >
-          {onCancel && (
-            <Pressable onPress={onCancel} style={shared.chatBackButton}>
-              <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
+          {(onCancel || onBackToLogin) && (
+            <Pressable
+              onPress={onCancel ?? onBackToLogin}
+              disabled={submitting}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={onCancel ? 'Go back' : 'Cancel and return to login'}
+              style={shared.chatBackButton}
+            >
+              {onCancel ? (
+                <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
+              ) : (
+                <X size={22} color={c.text} strokeWidth={2.2} />
+              )}
             </Pressable>
           )}
 

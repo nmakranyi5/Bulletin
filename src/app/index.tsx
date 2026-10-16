@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../lib/app-theme';
+import { supabase } from '../../lib/supabase';
 import { TabBar, TabKey } from '../components/tab-bar';
 import { AuthScreen } from '../features/auth/auth-screen';
 import { ResetPasswordScreen } from '../features/auth/reset-password-screen';
@@ -51,7 +52,15 @@ export default function Index() {
   }
 
   if (!onboarded) {
-    return <OnboardingScreen session={session} onComplete={() => setOnboarded(true)} />;
+    return (
+      <OnboardingScreen
+        session={session}
+        onComplete={() => setOnboarded(true)}
+        // Leaving setup signs out, which returns to the login screen. The account and
+        // its (unfinished) profile are kept, so signing back in resumes setup.
+        onBackToLogin={() => supabase.auth.signOut()}
+      />
+    );
   }
 
   return <MainApp key={session.user.id} session={session} />;
