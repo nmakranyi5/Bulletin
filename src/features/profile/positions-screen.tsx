@@ -7,13 +7,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import {
   EPA_TYPES,
@@ -269,7 +269,7 @@ export function PositionsScreen({
                 <Text style={local.payDollar}>$</Text>
                 <TextInput
                   style={local.payInput}
-                  placeholder={payType === 'Salary' ? 'Min / yr (e.g. 55000)' : 'Min / hr (e.g. 28)'}
+                  placeholder={payType === 'Salary' ? 'Min /yr' : 'Min /hr'}
                   placeholderTextColor={c.muted}
                   value={payMin}
                   onChangeText={setPayMin}
@@ -280,7 +280,7 @@ export function PositionsScreen({
                 <Text style={local.payDollar}>$</Text>
                 <TextInput
                   style={local.payInput}
-                  placeholder={payType === 'Salary' ? 'Max / yr (e.g. 70000)' : 'Max / hr (e.g. 38)'}
+                  placeholder={payType === 'Salary' ? 'Max /yr' : 'Max /hr'}
                   placeholderTextColor={c.muted}
                   value={payMax}
                   onChangeText={setPayMax}

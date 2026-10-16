@@ -17,7 +17,7 @@ export function ChipSelect({
   const shared = useSharedStyles();
   const local = useLocalStyles();
   return (
-    <View>
+    <View style={{ marginTop: 8 }}>
       <Text style={shared.sectionLabel}>{label}</Text>
       <View style={[shared.tags, { marginTop: 8 }]}>
         {options.map((option) => {

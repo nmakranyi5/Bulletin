@@ -8,11 +8,10 @@ import {
   UserRound,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { formatWorkerEpa } from '../../../lib/hvac';
 import { supabase } from '../../../lib/supabase';
-import { width } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
 import { DeleteAccountModal } from './delete-account-modal';
 
@@ -76,7 +75,11 @@ export function ProfileScreen({
   };
 
   return (
-    <View style={shared.simpleScreen}>
+    <ScrollView
+      style={shared.simpleScreen}
+      contentContainerStyle={local.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={shared.screenHeader}>
         <Text style={shared.screenTitle}>bulletin.</Text>
         <Text style={shared.subtitle}>Manage your account.</Text>
@@ -164,7 +167,7 @@ export function ProfileScreen({
         isRecruiter={!!profile?.is_recruiter}
         onCancel={() => setShowDelete(false)}
       />
-    </View>
+    </ScrollView>
   );
 }
 
@@ -179,6 +182,10 @@ function useLocalStyles() {
           fontWeight: '800',
           color: c.text,
           marginTop: 8,
+        },
+
+        scrollContent: {
+          paddingBottom: 24,
         },
 
         deleteAccountRow: {

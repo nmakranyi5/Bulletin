@@ -20,7 +20,7 @@ export function WorkerCardContent({
 
   const info = (
     <>
-      <Text numberOfLines={1} style={shared.name}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={shared.name}>
         {candidate.name}
       </Text>
 
@@ -35,7 +35,15 @@ export function WorkerCardContent({
   const basics = (
     <>
       <Text style={shared.sectionLabel}>EPA 608</Text>
-      <Text style={shared.position}>{formatWorkerEpa(candidate.epa_608_types)}</Text>
+      {/* shared.position is flex: 1 for rows; don't let it stretch in this column. */}
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={[shared.position, { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' }]}
+      >
+        {formatWorkerEpa(candidate.epa_608_types)}
+      </Text>
     </>
   );
 

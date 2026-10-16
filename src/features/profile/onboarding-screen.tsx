@@ -11,12 +11,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';

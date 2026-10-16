@@ -4,13 +4,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
@@ -69,9 +70,14 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
   return (
     <SafeAreaView style={shared.authContainer}>
       <KeyboardAvoidingView
-        style={shared.authInner}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        <ScrollView
+          contentContainerStyle={shared.authScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <Text style={shared.logo}>bulletin.</Text>
         <Text style={shared.subtitle}>
           {mode === 'signIn' ? 'Welcome back.' : 'Create your account.'}
@@ -155,6 +161,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
             <Text style={shared.subtitle}>Forgot password?</Text>
           </Pressable>
         )}
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

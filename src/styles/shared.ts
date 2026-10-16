@@ -258,6 +258,15 @@ export function makeSharedStyles(c: Colors) {
       backgroundColor: c.bg,
     },
 
+    // Scrollable variant for short screens / open keyboards: centred when it fits.
+    authScroll: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+      paddingVertical: 16,
+      gap: 12,
+    },
+
     authInner: {
       flex: 1,
       justifyContent: 'center',

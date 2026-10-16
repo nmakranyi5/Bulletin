@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../lib/app-theme';
 import { TabBar, TabKey } from '../components/tab-bar';
@@ -104,7 +105,11 @@ export default function Index() {
 
   return (
     <GestureHandlerRootView style={local.root}>
-      <SafeAreaView style={local.container}>
+      {/* The tab bar handles the bottom inset; chat hides it, so then we do. */}
+      <SafeAreaView
+        style={local.container}
+        edges={matches.selectedMatch ? ['top', 'bottom'] : ['top']}
+      >
         {activeTab === 'discover' && (
           <DiscoverScreen
             cards={discover.discoverCards}

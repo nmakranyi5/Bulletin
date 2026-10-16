@@ -1,10 +1,11 @@
 import { Check, Handshake, X } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../../../lib/app-theme';
-import { CARD_WIDTH, width } from '../../constants/app';
+import { CARD_MAX_WIDTH } from '../../constants/app';
+import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
 import { RecruiterCardContent } from './recruiter-card';
 import { WorkerCardContent } from './worker-card';
@@ -42,7 +43,9 @@ export function DiscoverScreen({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
-  const local = useLocalStyles();
+  const compact = useIsCompact();
+  const { width } = useWindowDimensions();
+  const local = useLocalStyles(Math.min(width - 36, CARD_MAX_WIDTH), compact);
   return (
     <>
       {/* Header */}
@@ -50,9 +53,11 @@ export function DiscoverScreen({
         <View style={local.headerTop}>
           <View>
             <Text style={shared.logo}>bulletin.</Text>
-            <Text style={shared.subtitle}>
-              {isRecruiter ? 'Find your next hire.' : 'Find your next opportunity.'}
-            </Text>
+            {!compact && (
+              <Text style={shared.subtitle}>
+                {isRecruiter ? 'Find your next hire.' : 'Find your next opportunity.'}
+              </Text>
+            )}
           </View>
 
           <View style={local.interestCounter}>
@@ -196,7 +201,7 @@ export function DiscoverScreen({
   );
 }
 
-function useLocalStyles() {
+function useLocalStyles(cardWidth: number, compact: boolean) {
   const c = useTheme().colors;
 
   return useMemo(
@@ -205,7 +210,7 @@ function useLocalStyles() {
         header: {
           paddingHorizontal: 22,
           paddingTop: 8,
-          paddingBottom: 14,
+          paddingBottom: compact ? 8 : 14,
         },
 
         deck: {
@@ -216,7 +221,7 @@ function useLocalStyles() {
 
         card: {
           position: 'absolute',
-          width: CARD_WIDTH,
+          width: cardWidth,
           height: '96%',
           backgroundColor: c.surface,
           borderRadius: 28,
@@ -278,8 +283,8 @@ function useLocalStyles() {
           alignItems: 'center',
 
           gap: 24,
-          paddingTop: 12,
-          paddingBottom: 18,
+          paddingTop: compact ? 8 : 12,
+          paddingBottom: compact ? 10 : 18,
         },
 
         actionButton: {
@@ -298,9 +303,9 @@ function useLocalStyles() {
         },
 
         passButton: {
-          width: 60,
-          height: 60,
-          borderRadius: 30,
+          width: compact ? 52 : 60,
+          height: compact ? 52 : 60,
+          borderRadius: compact ? 26 : 30,
 
           backgroundColor: c.surface,
 
@@ -309,9 +314,9 @@ function useLocalStyles() {
         },
 
         interestedButton: {
-          width: 70,
-          height: 70,
-          borderRadius: 35,
+          width: compact ? 60 : 70,
+          height: compact ? 60 : 70,
+          borderRadius: compact ? 30 : 35,
 
           backgroundColor: c.accent,
         },
@@ -339,6 +344,6 @@ function useLocalStyles() {
           color: c.text,
         },
       }),
-    [c]
+    [c, cardWidth, compact]
   );
 }

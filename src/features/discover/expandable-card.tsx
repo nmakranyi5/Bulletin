@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, UserRound } from 'lucide-react-native';
 import { ReactNode, useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
+import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
 
 // Discover card frame. Collapsed: hero + a brief rundown + a "tap for details" hint.
@@ -26,20 +27,33 @@ export function ExpandableCard({
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
+  const compact = useIsCompact();
 
   if (!expanded) {
     return (
       <>
-        <View style={shared.profileSection}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={shared.cardAvatarPreview} />
-          ) : (
-            <UserRound size={92} color={c.muted} strokeWidth={1.5} />
-          )}
-          <View style={shared.profileInfo}>{info}</View>
-        </View>
+        {compact ? (
+          // Short screens: a compact header row leaves room for the rundown.
+          <View style={local.compactHero}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={local.compactAvatar} />
+            ) : (
+              <UserRound size={48} color={c.muted} strokeWidth={1.5} />
+            )}
+            <View style={local.compactInfo}>{info}</View>
+          </View>
+        ) : (
+          <View style={shared.profileSection}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={shared.cardAvatarPreview} />
+            ) : (
+              <UserRound size={92} color={c.muted} strokeWidth={1.5} />
+            )}
+            <View style={shared.profileInfo}>{info}</View>
+          </View>
+        )}
 
-        <View style={shared.content}>
+        <View style={[shared.content, compact && local.contentCompact]}>
           {brief}
 
           <View style={local.hintRow}>
@@ -113,6 +127,11 @@ function useLocalStyles() {
           width: 48,
           height: 48,
           borderRadius: 24,
+        },
+
+        contentCompact: {
+          padding: 16,
+          paddingTop: 14,
         },
 
         compactInfo: {

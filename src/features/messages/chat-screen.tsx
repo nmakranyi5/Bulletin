@@ -14,7 +14,6 @@ import {
 import { useTheme } from '../../../lib/app-theme';
 import { formatDayLabel, formatTime, isSameDay, MessageStatus } from '../../../lib/chat';
 import { supabase } from '../../../lib/supabase';
-import { width } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
 import { Match } from '../../types';
 

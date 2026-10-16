@@ -11,6 +11,7 @@ import {
   getSchedules,
 } from '../../../lib/hvac';
 import { Tag } from '../../components/tag';
+import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
 import { ExpandableCard } from './expandable-card';
 
@@ -28,6 +29,7 @@ export function RecruiterCardContent({
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
+  const compact = useIsCompact();
   const positions = recruiter.positions ?? [];
   const primary = positions[0];
   const schedules = primary ? getSchedules(primary) : [];
@@ -43,7 +45,7 @@ export function RecruiterCardContent({
 
   const info = (
     <>
-      <Text numberOfLines={1} style={shared.name}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={shared.name}>
         {recruiter.company_name || recruiter.name}
       </Text>
       {recruiter.company_name ? (
@@ -67,7 +69,7 @@ export function RecruiterCardContent({
 
       <View style={local.positionRow}>
         <BriefcaseBusiness size={20} color={c.text} strokeWidth={2.2} />
-        <Text numberOfLines={1} style={shared.position}>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={shared.position}>
           {primary?.title ?? 'Position'}
         </Text>
       </View>
@@ -97,10 +99,12 @@ export function RecruiterCardContent({
 
       {requirementTags.length > 0 && (
         <View style={shared.tags}>
-          {requirementTags.slice(0, 3).map((t) => (
+          {requirementTags.slice(0, compact ? 2 : 3).map((t) => (
             <Tag key={t} text={t} />
           ))}
-          {requirementTags.length > 3 && <Tag text={`+${requirementTags.length - 3} more`} />}
+          {requirementTags.length > (compact ? 2 : 3) && (
+            <Tag text={`+${requirementTags.length - (compact ? 2 : 3)} more`} />
+          )}
         </View>
       )}
 
