@@ -46,12 +46,12 @@ export function formatTradeStart(year: number | null | undefined): string | null
   return year ? `Started ${year}` : null;
 }
 
-export function parseYear(input: string): number | null | 'invalid' {
+export function parseYear(input: string, minYear = 1950): number | null | 'invalid' {
   const trimmed = input.trim();
   if (!trimmed) return null;
   if (!/^\d{4}$/.test(trimmed)) return 'invalid';
   const year = Number(trimmed);
-  return year >= 1950 && year <= new Date().getFullYear() ? year : 'invalid';
+  return year >= minYear && year <= new Date().getFullYear() ? year : 'invalid';
 }
 
 export function parseMinYears(input: string): number | null | 'invalid' {
@@ -129,4 +129,30 @@ export function formatPay(position: {
     return `${range}${unit}`;
   }
   return position.pay_range || null;
+}
+
+// --- Recruiter / company profile ---
+
+export const RECRUITER_TITLES = [
+  'Owner',
+  'Service manager',
+  'Hiring manager',
+  'HR / Recruiter',
+] as const;
+
+export const COMPANY_SIZES = ['1–10', '11–50', '51–200', '200+'] as const;
+
+export const WORK_TYPES = [
+  'Residential',
+  'Light commercial',
+  'New construction',
+  'Service & repair',
+] as const;
+
+export function formatCompanySize(size: string | null | undefined): string | null {
+  return size ? `${size} employees` : null;
+}
+
+export function formatEstablished(year: number | null | undefined): string | null {
+  return year ? `Est. ${year}` : null;
 }

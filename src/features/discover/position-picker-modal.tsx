@@ -2,7 +2,6 @@ import { Check, Send } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
-import { width } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
 
 export function PositionPickerModal({

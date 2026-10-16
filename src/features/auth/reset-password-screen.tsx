@@ -3,11 +3,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Pressable,
-  SafeAreaView,
   Text,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
@@ -45,9 +46,14 @@ export function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
   return (
     <SafeAreaView style={shared.authContainer}>
       <KeyboardAvoidingView
-        style={shared.authInner}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        <ScrollView
+          contentContainerStyle={shared.authScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <Text style={shared.logo}>bulletin.</Text>
         <Text style={shared.subtitle}>Choose a new password.</Text>
 
@@ -75,6 +81,7 @@ export function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
         >
           <Text style={shared.authButtonText}>{loading ? 'Please wait...' : 'Save password'}</Text>
         </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

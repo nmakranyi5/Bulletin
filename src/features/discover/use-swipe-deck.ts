@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, useWindowDimensions } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import {
   interpolate,
@@ -10,20 +10,18 @@ import {
   withTiming,
 } from 'react-native-reanimated';
 
-import {
-  SWIPE_DISTANCE,
-  SWIPE_THRESHOLD,
-  SWIPE_VELOCITY,
-  width,
-} from '../../constants/app';
+import { SWIPE_VELOCITY, swipeMetrics } from '../../constants/app';
 
 // Drag/swipe animation for the discover deck. `onSwiped` runs on the JS thread once
 // the card has flown off screen (direction > 0 means interested).
 export function useSwipeDeck(
   topCardId: string | undefined,
   interestsRemaining: number,
-  onSwiped: (direction: number) => void
+  onSwiped: (direction: number) => void,
+  onTap: () => void
 ) {
+  const { width } = useWindowDimensions();
+  const { threshold: SWIPE_THRESHOLD, distance: SWIPE_DISTANCE } = swipeMetrics(width);
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
   const interestsRemainingSV = useSharedValue(interestsRemaining);
@@ -74,7 +72,11 @@ export function useSwipeDeck(
    * Gesture callbacks run as Reanimated worklets on native.
    * Keep all animation logic directly inside them.
    */
-  const gesture = Gesture.Pan()
+  const pan = Gesture.Pan()
+    // Horizontal drags swipe the card; vertical drags are left to the scroll view
+    // of an expanded card.
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-14, 14])
     .onUpdate((event) => {
       translateX.value = event.translationX;
     })
@@ -116,6 +118,15 @@ export function useSwipeDeck(
         stiffness: 180,
       });
     });
+
+  // A tap (finger barely moves) expands the card; a drag is a swipe.
+  const tap = Gesture.Tap()
+    .maxDistance(10)
+    .onEnd((_event, success) => {
+      if (success) runOnJS(onTap)();
+    });
+
+  const gesture = Gesture.Race(pan, tap);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,

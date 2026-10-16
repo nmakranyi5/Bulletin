@@ -1,6 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, LayoutAnimation } from 'react-native';
 
 import { supabase } from '../../../lib/supabase';
 import { MyProfile } from '../profile/use-my-profile';
@@ -20,6 +20,18 @@ export function useDiscover(
   } | null>(null);
 
   const topCard = discoverCards[0];
+
+  // Which card is expanded to its full details; only ever the top card.
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const expandTopCard = () => {
+    if (!topCard) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCardId(topCard.id);
+  };
+  const collapseCard = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCardId(null);
+  };
 
   const fetchMyPositions = async () => {
     if (!session) return;
@@ -55,7 +67,7 @@ export function useDiscover(
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, description, certifications, epa_608_types, trade_start_year, trade_role'
+          'id, name, username, avatar_url, description, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules'
         )
         .eq('is_recruiter', false)
         .not('id', 'in', `(${excludeIds.join(',')})`);
@@ -66,7 +78,7 @@ export function useDiscover(
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
+          'id, name, username, avatar_url, description, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, location, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
         )
         .eq('is_recruiter', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);
@@ -140,6 +152,9 @@ export function useDiscover(
     discoverCards,
     discoverLoading,
     topCard,
+    expandedCardId,
+    expandTopCard,
+    collapseCard,
     fetchDiscoverCards,
     pendingInterestTarget,
     clearPendingInterestTarget: () => setPendingInterestTarget(null),

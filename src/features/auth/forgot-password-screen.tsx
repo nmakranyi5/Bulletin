@@ -4,11 +4,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Pressable,
-  SafeAreaView,
   Text,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { authRedirectUrl } from '../../../lib/auth-links';
 import { supabase } from '../../../lib/supabase';
@@ -76,9 +77,14 @@ export function ForgotPasswordScreen({
   return (
     <SafeAreaView style={shared.authContainer}>
       <KeyboardAvoidingView
-        style={shared.authInner}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        <ScrollView
+          contentContainerStyle={shared.authScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <Text style={shared.logo}>bulletin.</Text>
         <Text style={shared.subtitle}>
           {step === 'request'
@@ -132,6 +138,7 @@ export function ForgotPasswordScreen({
         <Pressable style={{ marginTop: 14, alignItems: 'center' }} onPress={onBack}>
           <Text style={shared.subtitle}>Back to log in</Text>
         </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

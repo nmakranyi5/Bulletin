@@ -4,14 +4,16 @@ import {
   ChevronRight,
   Pencil,
   Settings,
+  Trash2,
   UserRound,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
+import { formatWorkerEpa } from '../../../lib/hvac';
 import { supabase } from '../../../lib/supabase';
-import { width } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
+import { DeleteAccountModal } from './delete-account-modal';
 
 export function ProfileScreen({
   session,
@@ -30,22 +32,29 @@ export function ProfileScreen({
     username: string | null;
     avatar_url: string | null;
     is_recruiter: boolean;
+    company_name: string | null;
+    recruiter_title: string | null;
+    trade_role: string | null;
+    epa_608_types: string[] | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const { mode, setMode } = useTheme();
 
   useEffect(() => {
     const loadProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('name, username, avatar_url, is_recruiter')
+        .select(
+          'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types'
+        )
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         Alert.alert('Error', error.message);
-      } else {
+      } else if (data) {
         setProfile(data);
       }
 
@@ -55,12 +64,22 @@ export function ProfileScreen({
     loadProfile();
   }, []);
 
+  const roleLine = profile?.is_recruiter
+    ? [profile.recruiter_title, profile.company_name].filter(Boolean).join(' at ')
+    : [profile?.trade_role, profile && formatWorkerEpa(profile.epa_608_types)]
+        .filter(Boolean)
+        .join(' · ');
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <View style={shared.simpleScreen}>
+    <ScrollView
+      style={shared.simpleScreen}
+      contentContainerStyle={local.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={shared.screenHeader}>
         <Text style={shared.screenTitle}>bulletin.</Text>
         <Text style={shared.subtitle}>Manage your account.</Text>
@@ -85,6 +104,7 @@ export function ProfileScreen({
             <Text style={local.profileSubtext}>
               {profile?.username ? `@${profile.username}` : 'Complete your profile'}
             </Text>
+            {roleLine ? <Text style={local.profileRoleLine}>{roleLine}</Text> : null}
           </>
         )}
       </View>
@@ -128,6 +148,11 @@ export function ProfileScreen({
                 </Pressable>
               ))}
             </View>
+
+            <Pressable style={local.deleteAccountRow} onPress={() => setShowDelete(true)}>
+              <Trash2 size={18} color={c.danger} strokeWidth={2.2} />
+              <Text style={local.deleteAccountText}>Delete account</Text>
+            </Pressable>
           </View>
         )}
       </View>
@@ -135,7 +160,14 @@ export function ProfileScreen({
       <Pressable style={local.signOutButton} onPress={handleSignOut}>
         <Text style={local.signOutText}>Sign Out</Text>
       </Pressable>
-    </View>
+
+      <DeleteAccountModal
+        visible={showDelete}
+        userId={session.user.id}
+        isRecruiter={!!profile?.is_recruiter}
+        onCancel={() => setShowDelete(false)}
+      />
+    </ScrollView>
   );
 }
 
@@ -150,6 +182,32 @@ function useLocalStyles() {
           fontWeight: '800',
           color: c.text,
           marginTop: 8,
+        },
+
+        scrollContent: {
+          paddingBottom: 24,
+        },
+
+        deleteAccountRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          marginTop: 18,
+          paddingVertical: 10,
+        },
+
+        deleteAccountText: {
+          fontSize: 15,
+          fontWeight: '600',
+          color: c.danger,
+        },
+
+        profileRoleLine: {
+          marginTop: 6,
+          fontSize: 13,
+          fontWeight: '600',
+          color: c.textStrong,
+          textAlign: 'center',
         },
 
         profileSubtext: {

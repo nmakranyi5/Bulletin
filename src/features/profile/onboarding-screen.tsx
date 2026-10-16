@@ -3,7 +3,7 @@ import { decode } from 'base64-arraybuffer';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, UserRound } from 'lucide-react-native';
+import { ArrowLeft, UserRound, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -11,36 +11,51 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
-import { EPA_TYPES, isUniversal, parseYear, TRADE_ROLES } from '../../../lib/hvac';
 import { supabase } from '../../../lib/supabase';
-import { ChipSelect } from '../../components/chip-select';
 import { useSharedStyles } from '../../styles/shared';
+import {
+  buildRecruiterPayload,
+  emptyRecruiter,
+  RecruiterFields,
+  recruiterFromRow,
+  RecruiterValues,
+} from './recruiter-fields';
+import {
+  buildSeekerPayload,
+  emptySeeker,
+  SeekerFields,
+  seekerFromRow,
+  SeekerValues,
+} from './seeker-fields';
 
 export function OnboardingScreen({
   session,
   onComplete,
   onCancel,
+  onBackToLogin,
 }: {
   session: Session;
   onComplete: () => void;
+  // Editing an existing profile: go back.
   onCancel?: () => void;
+  // First-time setup: leave (sign out) and return to the login screen.
+  onBackToLogin?: () => void;
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
-  const [epaCertified, setEpaCertified] = useState(false);
-  const [epaTypes, setEpaTypes] = useState<string[]>([]);
-  const [startYear, setStartYear] = useState('');
-  const [tradeRole, setTradeRole] = useState('');
+  const [isRecruiter, setIsRecruiter] = useState(false);
+  const [seeker, setSeeker] = useState<SeekerValues>(emptySeeker);
+  const [recruiter, setRecruiter] = useState<RecruiterValues>(emptyRecruiter);
   const [description, setDescription] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
@@ -52,18 +67,17 @@ export function OnboardingScreen({
       const { data } = await supabase
         .from('profiles')
         .select(
-          'name, username, epa_608_types, trade_start_year, trade_role, description, avatar_url, resume_url'
+          '*'
         )
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setName(data.name ?? '');
         setUsername(data.username ?? '');
-        setEpaTypes(data.epa_608_types ?? []);
-        setEpaCertified((data.epa_608_types ?? []).length > 0);
-        setStartYear(data.trade_start_year ? String(data.trade_start_year) : '');
-        setTradeRole(data.trade_role ?? '');
+        setIsRecruiter(!!data.is_recruiter);
+        setSeeker(seekerFromRow(data));
+        setRecruiter(recruiterFromRow(data));
         setDescription(data.description ?? '');
         if (data.avatar_url) setAvatarUri(data.avatar_url);
         if (data.resume_url) {
@@ -145,13 +159,9 @@ export function OnboardingScreen({
       return;
     }
 
-    const parsedYear = parseYear(startYear);
-    if (parsedYear === 'invalid') {
-      Alert.alert('Invalid year', 'Enter the four-digit year you started in the trade, e.g. 2020.');
-      return;
-    }
-    if (epaCertified && epaTypes.length === 0) {
-      Alert.alert('EPA 608', 'Select at least one certification type, or choose No.');
+    const built = isRecruiter ? buildRecruiterPayload(recruiter) : buildSeekerPayload(seeker);
+    if ('error' in built) {
+      Alert.alert(built.error.title, built.error.message);
       return;
     }
 
@@ -165,7 +175,7 @@ export function OnboardingScreen({
         avatarUrl = await uploadFile('avatars', avatarUri, 'avatar.jpg', 'image/jpeg');
       }
 
-      if (resumeFile && !resumeFile.uri.startsWith('http')) {
+      if (!isRecruiter && resumeFile && !resumeFile.uri.startsWith('http')) {
         resumeUrl = await uploadFile(
           'resumes',
           resumeFile.uri,
@@ -179,9 +189,7 @@ export function OnboardingScreen({
         .update({
           name: name.trim(),
           username: username.trim(),
-          epa_608_types: epaCertified ? epaTypes : [],
-          trade_start_year: parsedYear,
-          trade_role: tradeRole || null,
+          ...built.payload,
           description: description.trim(),
           ...(avatarUrl && { avatar_url: avatarUrl }),
           ...(resumeUrl && { resume_url: resumeUrl }),
@@ -213,9 +221,21 @@ export function OnboardingScreen({
           contentContainerStyle={{ gap: 12 }}
           keyboardShouldPersistTaps="handled"
         >
-          {onCancel && (
-            <Pressable onPress={onCancel} style={shared.chatBackButton}>
-              <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
+          {(onCancel || onBackToLogin) && (
+            <Pressable
+              onPress={onCancel ?? onBackToLogin}
+              disabled={submitting}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={onCancel ? 'Go back' : 'Cancel and return to login'}
+              // Back arrow sits top-left; the setup X sits top-right.
+              style={[shared.chatBackButton, !onCancel && { alignSelf: 'flex-end' }]}
+            >
+              {onCancel ? (
+                <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
+              ) : (
+                <X size={22} color={c.text} strokeWidth={2.2} />
+              )}
             </Pressable>
           )}
 
@@ -235,13 +255,17 @@ export function OnboardingScreen({
                   <UserRound size={40} color={c.muted} strokeWidth={1.5} />
                 )}
                 <Text style={local.avatarPickerText}>
-                  {avatarUri ? 'Change photo' : 'Add profile photo'}
+                  {avatarUri
+                    ? 'Change photo'
+                    : isRecruiter
+                    ? 'Add company logo'
+                    : 'Add profile photo'}
                 </Text>
               </Pressable>
 
               <TextInput
                 style={shared.authInput}
-                placeholder="Name"
+                placeholder={isRecruiter ? 'Your name' : 'Name'}
                 placeholderTextColor={c.muted}
                 value={name}
                 onChangeText={setName}
@@ -256,66 +280,34 @@ export function OnboardingScreen({
                 autoCapitalize="none"
               />
 
-              <ChipSelect
-                label="EPA 608 CERTIFIED?"
-                options={['Yes', 'No']}
-                selected={[epaCertified ? 'Yes' : 'No']}
-                onToggle={(o) => {
-                  setEpaCertified(o === 'Yes');
-                  if (o === 'No') setEpaTypes([]);
-                }}
-              />
-
-              {epaCertified && (
-                <>
-                  <ChipSelect
-                    label="CERTIFICATION TYPES"
-                    options={EPA_TYPES.map((t) => `Type ${t}`)}
-                    selected={epaTypes.map((t) => `Type ${t}`)}
-                    onToggle={(o) => {
-                      const t = o.replace('Type ', '');
-                      setEpaTypes((prev) =>
-                        prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
-                      );
-                    }}
-                  />
-                  {isUniversal(epaTypes) && (
-                    <Text style={shared.chipHint}>Shown on your profile as Universal.</Text>
-                  )}
-                </>
+              {isRecruiter ? (
+                <RecruiterFields
+                  value={recruiter}
+                  onChange={(patch) => setRecruiter((prev) => ({ ...prev, ...patch }))}
+                />
+              ) : (
+                <SeekerFields
+                  value={seeker}
+                  onChange={(patch) => setSeeker((prev) => ({ ...prev, ...patch }))}
+                />
               )}
 
               <TextInput
-                style={shared.authInput}
-                placeholder="Year started in the trade (e.g. 2020)"
-                placeholderTextColor={c.muted}
-                value={startYear}
-                onChangeText={setStartYear}
-                keyboardType="number-pad"
-                maxLength={4}
-              />
-
-              <ChipSelect
-                label="CURRENT / MOST RECENT ROLE"
-                options={TRADE_ROLES}
-                selected={tradeRole ? [tradeRole] : []}
-                onToggle={(o) => setTradeRole((prev) => (prev === o ? '' : o))}
-              />
-
-              <TextInput
                 style={[shared.authInput, shared.authTextArea]}
-                placeholder="A bit about yourself"
+                placeholder={isRecruiter ? 'About your company' : 'A bit about yourself'}
                 placeholderTextColor={c.muted}
                 value={description}
                 onChangeText={setDescription}
                 multiline
               />
 
-              <Pressable style={local.resumePicker} onPress={pickResume}>
-                <Text style={local.resumePickerText}>
-                  {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
-                </Text>
-              </Pressable>
+              {!isRecruiter && (
+                <Pressable style={local.resumePicker} onPress={pickResume}>
+                  <Text style={local.resumePickerText}>
+                    {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
+                  </Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={[shared.authButton, submitting && shared.authButtonDisabled]}
