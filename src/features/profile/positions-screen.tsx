@@ -83,7 +83,7 @@ export function PositionsScreen({
       .from('profiles')
       .select('company_name')
       .eq('id', session.user.id)
-      .single()
+      .maybeSingle()
       .then(({ data }) => setDefaultCompany(data?.company_name ?? ''));
   }, []);
 

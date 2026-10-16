@@ -11,7 +11,18 @@ export function useAuthSession() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
-  const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  // Keyed by user: a stale `true` from a previous account must never apply to a
+  // new one (that made the app fetch a profile row that didn't exist yet).
+  const [onboardedState, setOnboardedState] = useState<{
+    userId: string;
+    value: boolean;
+  } | null>(null);
+  const userId = session?.user.id ?? null;
+  const onboarded =
+    onboardedState && onboardedState.userId === userId ? onboardedState.value : null;
+  const setOnboarded = (value: boolean) => {
+    if (userId) setOnboardedState({ userId, value });
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,27 +58,39 @@ export function useAuthSession() {
 
   useEffect(() => {
     if (!session) return;
+    const uid = session.user.id;
+    let cancelled = false;
 
     const ensureProfile = async () => {
       const { data: existing } = await supabase
         .from('profiles')
         .select('onboarded')
-        .eq('id', session.user.id)
+        .eq('id', uid)
         .maybeSingle();
+      if (cancelled) return;
 
       if (!existing) {
-        await supabase.from('profiles').insert({
-          id: session.user.id,
+        const { error } = await supabase.from('profiles').insert({
+          id: uid,
           is_recruiter: session.user.user_metadata?.role === 'recruiter',
         });
-        setOnboarded(false);
+        if (cancelled) return;
+        // 23505 = row already exists (e.g. a sign-up trigger or a parallel run).
+        if (error && error.code !== '23505') {
+          Alert.alert('Could not set up your profile', error.message);
+        }
+        setOnboardedState({ userId: uid, value: false });
       } else {
-        setOnboarded(existing.onboarded ?? false);
+        setOnboardedState({ userId: uid, value: existing.onboarded ?? false });
       }
     };
 
     ensureProfile();
-  }, [session]);
+    return () => {
+      cancelled = true;
+    };
+    // Re-run per user, not on every token refresh.
+  }, [userId]);
 
   return { session, authLoading, recovering, setRecovering, onboarded, setOnboarded };
 }

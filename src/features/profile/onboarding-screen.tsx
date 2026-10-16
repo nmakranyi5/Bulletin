@@ -66,7 +66,7 @@ export function OnboardingScreen({
           '*'
         )
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setName(data.name ?? '');

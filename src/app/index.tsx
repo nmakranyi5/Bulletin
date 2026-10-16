@@ -1,3 +1,4 @@
+import { Session } from '@supabase/supabase-js';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -23,40 +24,15 @@ import { ProfileScreen } from '../features/profile/profile-screen';
 import { useMyProfile } from '../features/profile/use-my-profile';
 import { useSharedStyles } from '../styles/shared';
 
-// App shell: wires auth + feature state together and picks what to show.
-// Each feature owns its data in a use-*.ts hook; this file only connects them.
+// App shell. `Index` decides which auth state we're in; once someone is signed in and
+// onboarded, `MainApp` takes over. MainApp is keyed by user id, so signing out and
+// signing in as someone else (or creating a new account) always starts from clean state
+// instead of inheriting the previous account's profile, interests and matches.
 export default function Index() {
   const shared = useSharedStyles();
   const local = useLocalStyles();
-  const [activeTab, setActiveTab] = useState<TabKey>('discover');
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [managingPositions, setManagingPositions] = useState(false);
-
   const { session, authLoading, recovering, setRecovering, onboarded, setOnboarded } =
     useAuthSession();
-  const ready = !!session && !!onboarded;
-
-  const { myProfile, fetchMyProfile } = useMyProfile(session, onboarded);
-
-  // The hooks below depend on each other's refetchers; the callbacks are only
-  // invoked later (never during render), so referencing later consts is safe.
-  const interests = useInterests(session, ready, {
-    onAccepted: () => matches.fetchMatches(),
-    onWithdrawn: () => discover.fetchDiscoverCards(),
-  });
-  const matches = useMatches(session, ready, () => interests.fetchInterests());
-  const discover = useDiscover(
-    session,
-    myProfile,
-    interests.interestsRemaining,
-    interests.sendInterest
-  );
-  const swipe = useSwipeDeck(
-    discover.topCard?.id,
-    interests.interestsRemaining,
-    discover.removeTopCard,
-    discover.expandTopCard
-  );
 
   if (authLoading || (session && onboarded === null)) {
     return (
@@ -78,6 +54,40 @@ export default function Index() {
     return <OnboardingScreen session={session} onComplete={() => setOnboarded(true)} />;
   }
 
+  return <MainApp key={session.user.id} session={session} />;
+}
+
+// Wires the feature hooks together. Each feature owns its data in a use-*.ts hook;
+// this only connects them.
+function MainApp({ session }: { session: Session }) {
+  const shared = useSharedStyles();
+  const local = useLocalStyles();
+  const [activeTab, setActiveTab] = useState<TabKey>('discover');
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [managingPositions, setManagingPositions] = useState(false);
+
+  const { myProfile, fetchMyProfile } = useMyProfile(session, true);
+
+  // The hooks below depend on each other's refetchers; the callbacks are only
+  // invoked later (never during render), so referencing later consts is safe.
+  const interests = useInterests(session, true, {
+    onAccepted: () => matches.fetchMatches(),
+    onWithdrawn: () => discover.fetchDiscoverCards(),
+  });
+  const matches = useMatches(session, true, () => interests.fetchInterests());
+  const discover = useDiscover(
+    session,
+    myProfile,
+    interests.interestsRemaining,
+    interests.sendInterest
+  );
+  const swipe = useSwipeDeck(
+    discover.topCard?.id,
+    interests.interestsRemaining,
+    discover.removeTopCard,
+    discover.expandTopCard
+  );
+
   if (editingProfile) {
     return (
       <OnboardingScreen
@@ -95,7 +105,7 @@ export default function Index() {
     return <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />;
   }
 
-  if (onboarded && myProfile === null) {
+  if (myProfile === null) {
     return (
       <View style={local.authLoadingContainer}>
         <Text style={shared.subtitle}>Loading...</Text>

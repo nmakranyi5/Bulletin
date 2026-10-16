@@ -24,14 +24,15 @@ export function useMyProfile(session: Session | null, onboarded: boolean | null)
       .from('profiles')
       .select('id, name, username, avatar_url, is_recruiter, epa_608_types, trade_start_year')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       Alert.alert('Error', error.message);
       return;
     }
 
-    setMyProfile(data);
+    // No row yet (brand-new account): nothing to show, and not worth an error.
+    if (data) setMyProfile(data);
   };
 
   useEffect(() => {

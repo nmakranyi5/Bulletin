@@ -50,11 +50,11 @@ export function ProfileScreen({
           'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types'
         )
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         Alert.alert('Error', error.message);
-      } else {
+      } else if (data) {
         setProfile(data);
       }
 
