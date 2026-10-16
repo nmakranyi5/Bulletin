@@ -228,7 +228,8 @@ export function OnboardingScreen({
               hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel={onCancel ? 'Go back' : 'Cancel and return to login'}
-              style={shared.chatBackButton}
+              // Back arrow sits top-left; the setup X sits top-right.
+              style={[shared.chatBackButton, !onCancel && { alignSelf: 'flex-end' }]}
             >
               {onCancel ? (
                 <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
