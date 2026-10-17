@@ -87,7 +87,8 @@ export function ExpandableCard({
       </Pressable>
 
       <ScrollView
-        style={local.scroll}
+        // In the popup the card is only as tall as its content (up to the screen).
+        style={modal ? local.scrollFit : local.scroll}
         contentContainerStyle={local.detailsContent}
         showsVerticalScrollIndicator={false}
       >
@@ -147,6 +148,11 @@ function useLocalStyles() {
 
         compactInfo: {
           flex: 1,
+        },
+
+        scrollFit: {
+          flexGrow: 0,
+          flexShrink: 1,
         },
 
         scroll: {

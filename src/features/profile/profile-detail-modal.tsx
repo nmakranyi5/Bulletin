@@ -109,8 +109,7 @@ function useLocalStyles() {
         card: {
           width: '100%',
           maxWidth: 440,
-          maxHeight: 760,
-          height: '100%',
+          maxHeight: '100%',
           backgroundColor: c.surface,
           borderRadius: 28,
           overflow: 'hidden',
@@ -123,7 +122,7 @@ function useLocalStyles() {
         },
 
         loading: {
-          flex: 1,
+          minHeight: 180,
           alignItems: 'center',
           justifyContent: 'center',
         },
