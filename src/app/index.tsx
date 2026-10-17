@@ -142,11 +142,6 @@ function MainApp({ session }: { session: Session }) {
     sentInterests: interests.sentInterests,
     loaded: interests.interestsLoaded,
     userId: session.user.id,
-    onView: () => {
-      matches.setSelectedMatch(null);
-      setInterestsView((v) => ({ sub: 'sent', nonce: v.nonce + 1 }));
-      setActiveTab('interests');
-    },
   });
 
   // Reminds recruiters to extend or confirm a position as its close date approaches.

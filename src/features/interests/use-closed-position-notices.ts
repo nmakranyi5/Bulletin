@@ -10,12 +10,10 @@ export function useClosedPositionNotices({
   sentInterests,
   loaded,
   userId,
-  onView,
 }: {
   sentInterests: InterestRow[];
   loaded: boolean;
   userId: string;
-  onView: () => void;
 }) {
   useAnnounceOnce({
     items: sentInterests.filter((i) => i.status === 'position_closed'),
@@ -29,21 +27,11 @@ export function useClosedPositionNotices({
         }))
       );
 
-      Alert.alert(
-        title,
-        message,
-        [
-          { text: 'OK', style: 'cancel', onPress: done },
-          {
-            text: 'View',
-            onPress: () => {
-              done();
-              onView();
-            },
-          },
-        ],
-        { cancelable: true, onDismiss: done }
-      );
+      // Nothing to open: the interest is already gone from your list.
+      Alert.alert(title, message, [{ text: 'OK', onPress: done }], {
+        cancelable: true,
+        onDismiss: done,
+      });
     },
   });
 }

@@ -22,9 +22,10 @@ export function useInterests(
   const [decliningInterest, setDecliningInterest] = useState<InterestRow | null>(null);
 
   // Only pending sent interests hold a slot. Once one becomes a match it moves to
-  // Messages (Active, then Archived when closed) and the slot is returned.
+  // Messages (Active, then Archived when closed) and the slot is returned. An interest
+  // whose position closed is returned too and leaves the list (you're told once).
   const visibleSentInterests = sentInterests.filter(
-    (i) => i.status !== 'accepted' && i.status !== 'closed'
+    (i) => i.status !== 'accepted' && i.status !== 'closed' && i.status !== 'position_closed'
   );
   const activeSentCount = sentInterests.filter((i) => i.status === 'pending').length;
   const interestsRemaining = Math.max(0, MAX_INTERESTS - activeSentCount);
@@ -163,9 +164,7 @@ export function useInterests(
   const removeDeclinedInterest = (interest: InterestRow) => {
     Alert.alert(
       'Remove from your list?',
-      interest.status === 'position_closed'
-        ? `${interest.position?.title ?? 'This position'} has closed, so this just clears it from your list.`
-        : `${interest.to_profile?.name ?? 'This person'} declined, so this just clears it from your list. They won't show up in Discover again.`,
+      `${interest.to_profile?.name ?? 'This person'} declined, so this just clears it from your list. They won't show up in Discover again.`,
       [
         { text: 'Keep', style: 'cancel' },
         {
