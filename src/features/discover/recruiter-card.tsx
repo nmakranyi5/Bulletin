@@ -11,6 +11,7 @@ import {
   getSchedules,
 } from '../../../lib/hvac';
 import { URGENCY, urgencyOf } from '../../../lib/response-timers';
+import { RatingBadge } from '../../components/rating-badge';
 import { Tag } from '../../components/tag';
 import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
@@ -64,6 +65,7 @@ export function RecruiterCardContent({
           {positions.length} open position{positions.length === 1 ? '' : 's'}
         </Text>
       </View>
+      <RatingBadge rating={recruiter.rating} />
     </>
   );
 

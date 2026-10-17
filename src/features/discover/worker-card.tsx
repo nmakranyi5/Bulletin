@@ -2,6 +2,7 @@ import { MapPin } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { formatTradeStart, formatWorkerEpa } from '../../../lib/hvac';
+import { RatingBadge } from '../../components/rating-badge';
 import { Tag } from '../../components/tag';
 import { useSharedStyles } from '../../styles/shared';
 import { ExpandableCard } from './expandable-card';
@@ -32,6 +33,7 @@ export function WorkerCardContent({
           @{candidate.username}
         </Text>
       </View>
+      <RatingBadge rating={candidate.rating} />
     </>
   );
 
