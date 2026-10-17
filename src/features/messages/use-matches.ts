@@ -2,6 +2,8 @@ import { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { CloseReason } from '../../../lib/close-reasons';
+
 import { ConversationMeta, summarizeConversations } from '../../../lib/chat';
 import { urgencyOf } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
@@ -15,7 +17,17 @@ export function useMatches(
 ) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [convoMeta, setConvoMeta] = useState<Record<string, ConversationMeta>>({});
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  // Stored as an id and looked up, so an open chat updates when the other person closes it.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The chat the user is closing (shows the reason picker).
+  const [closingMatch, setClosingMatch] = useState<Match | null>(null);
+
+  const selectedMatch = matches.find((m) => m.id === selectedId) ?? null;
+  const setSelectedMatch = (match: Match | null) => setSelectedId(match?.id ?? null);
+  const activeMatches = matches.filter((m) => m.status === 'accepted');
+  const archivedMatches = matches
+    .filter((m) => m.status === 'closed')
+    .sort((a, b) => ((a.closed?.at ?? '') < (b.closed?.at ?? '') ? 1 : -1));
 
   const fetchConversationMeta = async (matchIds: string[]) => {
     if (!session || matchIds.length === 0) {
@@ -40,9 +52,9 @@ export function useMatches(
     const { data, error } = await supabase
       .from('interests')
       .select(
-        'id, from_user, to_user, from_profile:profiles!from_user(id, name, username, avatar_url), to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
+        'id, status, from_user, to_user, closed_reason, closed_note, closed_at, closed_by, from_profile:profiles!from_user(id, name, username, avatar_url), to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
       )
-      .eq('status', 'accepted')
+      .in('status', ['accepted', 'closed'])
       .or(`from_user.eq.${me},to_user.eq.${me}`);
 
     if (error) {
@@ -57,6 +69,16 @@ export function useMatches(
         const other = row.from_user === me ? row.to_profile : row.from_profile;
         return {
           id: row.id,
+          status: row.status === 'closed' ? ('closed' as const) : ('accepted' as const),
+          closed:
+            row.status === 'closed'
+              ? {
+                  reason: row.closed_reason ?? null,
+                  note: row.closed_note ?? null,
+                  at: row.closed_at ?? null,
+                  byMe: row.closed_by === me,
+                }
+              : undefined,
           otherUserId: other?.id ?? '',
           name: other?.name ?? other?.username ?? 'Unknown',
           position: row.position?.title ?? 'General',
@@ -72,40 +94,40 @@ export function useMatches(
     if (enabled) fetchMatches();
   }, [session, enabled]);
 
-  const closeMatch = (match: Match) => {
-    Alert.alert(
-      'Close chat?',
-      `This ends your conversation with ${match.name} for both of you.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Close chat',
-          style: 'destructive',
-          onPress: async () => {
-            const { data, error } = await supabase
-              .from('interests')
-              .update({ status: 'closed' })
-              .eq('id', match.id)
-              .eq('status', 'accepted')
-              .select('id');
+  // Closing always carries a reason (and an optional note) for the other person.
+  // Returns true on success so the picker knows to close.
+  const closeChat = async (reason: CloseReason, note: string | null): Promise<boolean> => {
+    if (!closingMatch) return false;
 
-            if (error) {
-              Alert.alert('Error', error.message);
-              return;
-            }
-            if (!data || data.length === 0) {
-              Alert.alert('Could not close', 'Something went wrong closing this chat.');
-              return;
-            }
+    const { error } = await supabase.rpc('close_chat', {
+      p_interest_id: closingMatch.id,
+      p_reason: reason,
+      p_note: note,
+    });
 
-            setSelectedMatch(null);
-            fetchMatches();
-            onClosed();
-          },
-        },
-      ]
-    );
+    if (error) {
+      Alert.alert('Could not close chat', error.message);
+      return false;
+    }
+
+    setClosingMatch(null);
+    setSelectedId(null);
+    fetchMatches();
+    onClosed();
+    return true;
   };
 
-  return { matches, convoMeta, selectedMatch, setSelectedMatch, fetchMatches, closeMatch };
+  return {
+    matches,
+    activeMatches,
+    archivedMatches,
+    convoMeta,
+    selectedMatch,
+    setSelectedMatch,
+    fetchMatches,
+    closingMatch,
+    requestClose: setClosingMatch,
+    cancelClose: () => setClosingMatch(null),
+    closeChat,
+  };
 }

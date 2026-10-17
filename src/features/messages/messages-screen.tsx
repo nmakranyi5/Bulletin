@@ -1,8 +1,9 @@
-import { Check, CheckCheck, MessageCircle } from 'lucide-react-native';
-import { useEffect, useMemo } from 'react';
+import { Archive, Check, CheckCheck, MessageCircle } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { ConversationMeta, formatListTime } from '../../../lib/chat';
+import { closeOutcome, isDeal } from '../../../lib/close-reasons';
 import { timerStatus } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
 import { Avatar } from '../../components/avatar';
@@ -14,12 +15,14 @@ import { useSharedStyles } from '../../styles/shared';
 import { Match } from '../../types';
 
 export function MessagesScreen({
-  matches,
+  active,
+  archived,
   meta,
   onMatchPress,
   onRefresh,
 }: {
-  matches: Match[];
+  active: Match[];
+  archived: Match[];
   meta: Record<string, ConversationMeta>;
   onMatchPress: (match: Match) => void;
   // Reloads matches and previews; also used for pull-to-refresh (resolves when done).
@@ -30,6 +33,9 @@ export function MessagesScreen({
   const local = useLocalStyles();
   const now = useNow();
   const refreshControl = useRefreshControl(onRefresh);
+  const [view, setView] = useState<'active' | 'archived'>('active');
+  const isArchive = view === 'archived';
+  const matches = isArchive ? archived : active;
 
   useEffect(() => {
     onRefresh();
@@ -48,7 +54,8 @@ export function MessagesScreen({
   }, []);
 
   // Conversations with messages first (newest on top), then new matches.
-  const sorted = [...matches].sort((a, b) => {
+  // Archived chats are already ordered by when they were closed.
+  const sorted = isArchive ? matches : [...matches].sort((a, b) => {
     const at = meta[a.id]?.lastAt ?? '';
     const bt = meta[b.id]?.lastAt ?? '';
     return at < bt ? 1 : at > bt ? -1 : 0;
@@ -61,13 +68,39 @@ export function MessagesScreen({
         <Text style={shared.subtitle}>Real conversations. No BS.</Text>
       </View>
 
+      <View style={shared.subTabBar}>
+        {(['active', 'archived'] as const).map((v) => {
+          const count = v === 'active' ? active.length : archived.length;
+          return (
+            <Pressable
+              key={v}
+              style={[shared.subTabItem, view === v && shared.subTabItemActive]}
+              onPress={() => setView(v)}
+            >
+              <Text style={[shared.subTabText, view === v && shared.subTabTextActive]}>
+                {v === 'active' ? 'Active' : 'Archived'}
+                {count > 0 ? ` (${count})` : ''}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       {matches.length === 0 ? (
 <RefreshableEmpty refreshControl={refreshControl}>
         <View style={shared.emptyState}>
-          <MessageCircle size={48} color={c.muted} strokeWidth={1.5} />
-          <Text style={shared.emptyTitle}>No messages yet.</Text>
+          {isArchive ? (
+            <Archive size={48} color={c.muted} strokeWidth={1.5} />
+          ) : (
+            <MessageCircle size={48} color={c.muted} strokeWidth={1.5} />
+          )}
+          <Text style={shared.emptyTitle}>
+            {isArchive ? 'Nothing archived.' : 'No messages yet.'}
+          </Text>
           <Text style={shared.emptySubtitle}>
-            Once you match with someone, your conversation shows up here.
+            {isArchive
+              ? 'Chats you close, and chats closed on you, are kept here.'
+              : 'Once you match with someone, your conversation shows up here.'}
           </Text>
         </View>
 </RefreshableEmpty>
@@ -127,7 +160,24 @@ export function MessagesScreen({
                     )}
                   </View>
 
-                  {m?.awaitingSince ? (
+                  {isArchive && item.closed ? (
+                    <View style={local.outcomeRow}>
+                      <View style={[local.outcomePill, isDeal(item.closed.reason) && local.outcomeDeal]}>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            local.outcomeText,
+                            isDeal(item.closed.reason) && local.outcomeTextDeal,
+                          ]}
+                        >
+                          {closeOutcome(item.closed.reason)}
+                        </Text>
+                      </View>
+                      <Text style={local.outcomeBy}>
+                        {item.closed.byMe ? 'by you' : `by ${item.name.split(' ')[0]}`}
+                      </Text>
+                    </View>
+                  ) : !isArchive && m?.awaitingSince ? (
                     <TimerChip
                       side="responder"
                       status={timerStatus(m.awaitingSince, item.urgency, now)}
@@ -149,6 +199,40 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        outcomeRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: 6,
+        },
+
+        outcomePill: {
+          flexShrink: 1,
+          paddingHorizontal: 10,
+          paddingVertical: 3,
+          borderRadius: 10,
+          backgroundColor: c.surfaceAlt,
+        },
+
+        outcomeDeal: {
+          backgroundColor: c.green,
+        },
+
+        outcomeText: {
+          fontSize: 12,
+          fontWeight: '700',
+          color: c.textSecondary,
+        },
+
+        outcomeTextDeal: {
+          color: c.white,
+        },
+
+        outcomeBy: {
+          fontSize: 12,
+          color: c.muted,
+        },
+
         convoTopRow: {
           flexDirection: 'row',
           alignItems: 'center',
