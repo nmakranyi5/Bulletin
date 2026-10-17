@@ -22,9 +22,10 @@ export function useInterests(
   const [decliningInterest, setDecliningInterest] = useState<InterestRow | null>(null);
 
   // Only pending sent interests hold a slot. Once one becomes a match it moves to
-  // Messages (Active, then Archived when closed) and the slot is returned.
+  // Messages (Active, then Archived when closed) and the slot is returned. An interest
+  // whose position closed is returned too and leaves the list (you're told once).
   const visibleSentInterests = sentInterests.filter(
-    (i) => i.status !== 'accepted' && i.status !== 'closed'
+    (i) => i.status !== 'accepted' && i.status !== 'closed' && i.status !== 'position_closed'
   );
   const activeSentCount = sentInterests.filter((i) => i.status === 'pending').length;
   const interestsRemaining = Math.max(0, MAX_INTERESTS - activeSentCount);
@@ -34,6 +35,9 @@ export function useInterests(
   const fetchInterests = async (opts?: { silent?: boolean }) => {
     const silent = !!opts?.silent;
     if (!session) return;
+
+    // Positions past their close date close now, returning interests still waiting on them.
+    await supabase.rpc('close_expired_positions');
 
     const { data: sent, error: sentError } = await supabase
       .from('interests')

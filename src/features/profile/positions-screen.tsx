@@ -24,12 +24,28 @@ import {
   parsePay,
   SCHEDULE_TYPES,
 } from '../../../lib/hvac';
+import {
+  CLOSE_ERRORS,
+  CLOSE_PRESETS,
+  MAX_CLOSE_AHEAD_MS,
+  REMINDER_LEAD_MS,
+  checkCloseAt,
+  closeAtToDate,
+  closeLabel,
+  closeState,
+  presetCloseAt,
+  sameInstant,
+} from '../../../lib/close-date';
 import { URGENCY, URGENCY_LEVELS, Urgency, urgencyOf } from '../../../lib/response-timers';
+import { serverNow } from '../../../lib/time';
 import { supabase } from '../../../lib/supabase';
 import { RefreshableEmpty } from '../../components/refreshable-empty';
+import { useNow } from '../../hooks/use-now';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { ChipSelect } from '../../components/chip-select';
+import { DateTimeField } from '../../components/date-time-field';
 import { useSharedStyles } from '../../styles/shared';
+import { confirmPositionClose, promptClose, promptExtend, reopenPosition } from './position-close';
 
 export function PositionsScreen({
   session,
@@ -62,12 +78,17 @@ export function PositionsScreen({
   const [description, setDescription] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState('');
+  const [closeAt, setCloseAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
+  const now = useNow();
 
   // `silent` keeps the current list on screen (used by pull-to-refresh) instead of
   // swapping it for a "Loading..." placeholder.
   const fetchPositions = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
+
+    // Make sure anything past its close date has actually been closed before listing.
+    await supabase.rpc('close_expired_positions');
 
     const { data, error } = await supabase
       .from('positions')
@@ -111,6 +132,7 @@ export function PositionsScreen({
     setDescription('');
     setSkills([]);
     setSkillInput('');
+    setCloseAt(null);
     setEditingId(null);
   };
 
@@ -135,6 +157,7 @@ export function PositionsScreen({
     setMinYears(position.min_experience_years != null ? String(position.min_experience_years) : '');
     setDescription(position.description ?? '');
     setSkills(position.skills ?? []);
+    setCloseAt(closeAtToDate(position.close_at));
     setEditingId(position.id);
     setView('form');
   };
@@ -181,6 +204,30 @@ export function PositionsScreen({
       return;
     }
 
+    const checked = checkCloseAt(closeAt, serverNow());
+    if (!checked.ok) {
+      Alert.alert('Close date', CLOSE_ERRORS[checked.error]);
+      return;
+    }
+
+    // Closing details only change when the date does, so re-saving other edits doesn't
+    // undo a confirmation or reopen anything by accident.
+    const existing = positions.find((p) => p.id === editingId);
+    const sameDate =
+      !!existing?.close_at && sameInstant(closeAtToDate(existing.close_at), closeAt);
+    const closeFields = sameDate
+      ? {}
+      : {
+          close_at: checked.iso,
+          // A date chosen inside the reminder window was chosen on purpose; don't nag.
+          close_confirmed_at:
+            checked.iso && new Date(checked.iso).getTime() - serverNow() <= REMINDER_LEAD_MS
+              ? new Date().toISOString()
+              : null,
+          // Picking a new date (or none) on a position that already closed reopens it.
+          ...(existing?.closed_at ? { active: true, closed_at: null } : {}),
+        };
+
     setSaving(true);
 
     const payload = {
@@ -202,6 +249,7 @@ export function PositionsScreen({
       min_experience_years: parsedMinYears,
       description: description.trim() || null,
       skills,
+      ...closeFields,
       ...(editingId ? {} : { active: true }),
     };
 
@@ -327,6 +375,30 @@ export function PositionsScreen({
                 )
               }
             />
+
+            <ChipSelect
+              label="HIRE BY / CLOSE DATE (OPTIONAL)"
+              options={CLOSE_PRESETS.map((p) => p.label)}
+              selected={CLOSE_PRESETS.filter((p) =>
+                sameInstant(presetCloseAt(p.days, serverNow()), closeAt)
+              ).map((p) => p.label)}
+              onToggle={(o) => {
+                const preset = CLOSE_PRESETS.find((p) => p.label === o);
+                if (preset) setCloseAt(presetCloseAt(preset.days, serverNow()));
+              }}
+            />
+            <DateTimeField
+              value={closeAt}
+              onChange={setCloseAt}
+              minimumDate={new Date(serverNow())}
+              maximumDate={new Date(serverNow() + MAX_CLOSE_AHEAD_MS)}
+              placeholder="Or pick a date and time"
+            />
+            <Text style={shared.chipHint}>
+              When this passes, the position closes on its own: it leaves Discover and anyone
+              still waiting on it gets their interest back. Chats stay open. You'll be reminded
+              before it closes so you can extend or confirm.
+            </Text>
 
             <TextInput
               style={shared.authInput}
@@ -477,6 +549,65 @@ export function PositionsScreen({
                   {item.company} · {URGENCY[urgencyOf(item)].label} (replies within{' '}
                   {URGENCY[urgencyOf(item)].windowLabel})
                 </Text>
+                {(() => {
+                  const state = closeState(item, now);
+                  const label = closeLabel(item, now);
+                  const refresh = () => fetchPositions({ silent: true });
+                  const closed = state.kind === 'closed';
+                  return (
+                    <>
+                      {label ? (
+                        <Text
+                          numberOfLines={2}
+                          style={[
+                            local.closeLine,
+                            state.kind === 'soon' && local.closeLineSoon,
+                            closed && local.closeLineClosed,
+                          ]}
+                        >
+                          {label}
+                          {state.kind === 'confirmed' ? ' · confirmed' : ''}
+                        </Text>
+                      ) : null}
+                      <View style={local.closeActions}>
+                        {closed ? (
+                          <Pressable
+                            style={local.closeAction}
+                            onPress={() => reopenPosition(item, now, refresh)}
+                          >
+                            <Text style={local.closeActionText}>Reopen</Text>
+                          </Pressable>
+                        ) : (
+                          <>
+                            {state.kind === 'soon' && (
+                              <Pressable style={local.closeAction} onPress={() => promptExtend(item, refresh)}>
+                                <Text style={local.closeActionText}>Extend</Text>
+                              </Pressable>
+                            )}
+                            {state.kind === 'soon' && (
+                              <Pressable
+                                style={local.closeAction}
+                                onPress={async () => {
+                                  if (await confirmPositionClose(item)) refresh();
+                                }}
+                              >
+                                <Text style={local.closeActionText}>Confirm closing</Text>
+                              </Pressable>
+                            )}
+                            <Pressable
+                              style={local.closeAction}
+                              onPress={() => promptClose(item, refresh)}
+                            >
+                              <Text style={[local.closeActionText, { color: c.danger }]}>
+                                Close position
+                              </Text>
+                            </Pressable>
+                          </>
+                        )}
+                      </View>
+                    </>
+                  );
+                })()}
               </View>
               <Pressable onPress={() => handleDelete(item.id)} style={{ padding: 6 }}>
                 <X size={18} color={c.danger} strokeWidth={2.2} />
@@ -495,6 +626,43 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        closeLine: {
+          marginTop: 4,
+          fontSize: 12,
+          color: c.textSecondary,
+        },
+
+        closeLineSoon: {
+          color: c.amber,
+          fontWeight: '700',
+        },
+
+        closeLineClosed: {
+          color: c.danger,
+          fontWeight: '700',
+        },
+
+        closeActions: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 8,
+          marginTop: 8,
+        },
+
+        closeAction: {
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: c.borderStrong,
+        },
+
+        closeActionText: {
+          fontSize: 12,
+          fontWeight: '700',
+          color: c.text,
+        },
+
         payRow: {
           flexDirection: 'row',
           gap: 10,

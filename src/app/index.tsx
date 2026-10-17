@@ -19,6 +19,7 @@ import { useSwipeDeck } from '../features/discover/use-swipe-deck';
 import { DeclineModal } from '../features/interests/decline-modal';
 import { InterestRow } from '../types';
 import { InterestsScreen } from '../features/interests/interests-screen';
+import { useClosedPositionNotices } from '../features/interests/use-closed-position-notices';
 import { useDeclineNotices } from '../features/interests/use-decline-notices';
 import { useInterests } from '../features/interests/use-interests';
 import { ChatScreen } from '../features/messages/chat-screen';
@@ -29,6 +30,7 @@ import { ProfileDetailModal } from '../features/profile/profile-detail-modal';
 import { OnboardingScreen } from '../features/profile/onboarding-screen';
 import { PositionsScreen } from '../features/profile/positions-screen';
 import { ProfileScreen } from '../features/profile/profile-screen';
+import { usePositionReminders } from '../features/profile/use-position-reminders';
 import { useMyProfile } from '../features/profile/use-my-profile';
 import { useResponseTimers } from '../features/timers/use-response-timers';
 import { useSharedStyles } from '../styles/shared';
@@ -133,6 +135,20 @@ function MainApp({ session }: { session: Session }) {
       setInterestsView((v) => ({ sub: 'sent', nonce: v.nonce + 1 }));
       setActiveTab('interests');
     },
+  });
+
+  // Tells you (once) when a position you were waiting on closes and your interest is returned.
+  useClosedPositionNotices({
+    sentInterests: interests.sentInterests,
+    loaded: interests.interestsLoaded,
+    userId: session.user.id,
+  });
+
+  // Reminds recruiters to extend or confirm a position as its close date approaches.
+  usePositionReminders({
+    session,
+    enabled: !!myProfile?.is_recruiter,
+    onOpenPositions: () => setManagingPositions(true),
   });
 
   // Reply timers: tracks everything waiting on your answer and alerts when a limit
