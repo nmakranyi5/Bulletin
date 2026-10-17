@@ -11,7 +11,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { formatWorkerEpa } from '../../../lib/hvac';
+import { Rating } from '../../../lib/rating';
 import { supabase } from '../../../lib/supabase';
+import { RatingBadge } from '../../components/rating-badge';
+import { fetchRatings } from './ratings';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { DeleteAccountModal } from './delete-account-modal';
@@ -38,6 +41,7 @@ export function ProfileScreen({
     trade_role: string | null;
     epa_608_types: string[] | null;
   } | null>(null);
+  const [rating, setRating] = useState<Rating | undefined>();
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -58,6 +62,7 @@ export function ProfileScreen({
       setProfile(data);
     }
 
+    fetchRatings([session.user.id]).then((r) => setRating(r[session.user.id]));
     setLoading(false);
   };
 
@@ -109,6 +114,7 @@ export function ProfileScreen({
               {profile?.username ? `@${profile.username}` : 'Complete your profile'}
             </Text>
             {roleLine ? <Text style={local.profileRoleLine}>{roleLine}</Text> : null}
+            <RatingBadge rating={rating} />
           </>
         )}
       </View>

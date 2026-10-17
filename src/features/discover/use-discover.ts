@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, LayoutAnimation } from 'react-native';
 
 import { supabase } from '../../../lib/supabase';
+import { fetchRatings } from '../profile/ratings';
 import { MyProfile } from '../profile/use-my-profile';
 
 export function useDiscover(
@@ -50,6 +51,12 @@ export function useDiscover(
     setMyPositions(data ?? []);
   };
 
+  // Attaches each person's response rating so the card can show it.
+  const withRatings = async (cards: any[]) => {
+    const ratings = await fetchRatings(cards.map((c) => c.id));
+    return cards.map((c) => ({ ...c, rating: ratings[c.id] }));
+  };
+
   const fetchDiscoverCards = async () => {
     if (!session || !myProfile) return;
 
@@ -73,7 +80,7 @@ export function useDiscover(
         .not('id', 'in', `(${excludeIds.join(',')})`);
 
       if (error) Alert.alert('Error', error.message);
-      else setDiscoverCards(data ?? []);
+      else setDiscoverCards(await withRatings(data ?? []));
     } else {
       const { data, error } = await supabase
         .from('profiles')
@@ -92,7 +99,7 @@ export function useDiscover(
             positions: (r.positions ?? []).filter((p: any) => p.active),
           }))
           .filter((r: any) => r.positions.length > 0);
-        setDiscoverCards(withOpenPositions);
+        setDiscoverCards(await withRatings(withOpenPositions));
       }
     }
 
