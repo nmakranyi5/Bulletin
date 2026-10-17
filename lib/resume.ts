@@ -9,3 +9,10 @@ export function resumeViewerUrl(url: string, platform: string): string {
   }
   return url;
 }
+
+// The file's path inside the "resumes" bucket (e.g. "<user id>/resume.pdf"), taken from the
+// public-style URL saved on the profile, or null if it isn't one of ours.
+export function resumeStoragePath(url: string): string | null {
+  const match = /\/object\/(?:public|sign|authenticated)\/resumes\/([^?#]+)/.exec(url);
+  return match ? decodeURIComponent(match[1]) : null;
+}

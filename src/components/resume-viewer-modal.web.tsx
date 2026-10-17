@@ -2,6 +2,7 @@ import { ExternalLink, X } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../lib/app-theme';
+import { useResumeUrl } from './use-resume-url';
 
 // Shows someone's PDF resume on the web, using the browser's own PDF viewer.
 export function ResumeViewerModal({
@@ -17,6 +18,7 @@ export function ResumeViewerModal({
 }) {
   const c = useTheme().colors;
   const local = useLocalStyles();
+  const link = useResumeUrl(url, visible);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -27,7 +29,7 @@ export function ResumeViewerModal({
               {name ? `${name}'s resume` : 'Resume'}
             </Text>
             <Pressable
-              onPress={() => Linking.openURL(url)}
+              onPress={() => Linking.openURL(link.url ?? url)}
               hitSlop={10}
               accessibilityLabel="Open in a new tab"
             >
@@ -37,9 +39,9 @@ export function ResumeViewerModal({
               <X size={22} color={c.text} strokeWidth={2.2} />
             </Pressable>
           </View>
-          {visible && (
+          {visible && link.url && (
             <iframe
-              src={url}
+              src={link.url}
               title="Resume"
               style={{ flex: 1, width: '100%', border: 'none', background: '#fff' }}
             />

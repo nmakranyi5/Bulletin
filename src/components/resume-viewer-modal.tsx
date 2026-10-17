@@ -13,6 +13,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../../lib/app-theme';
 import { resumeViewerUrl } from '../../lib/resume';
+import { useResumeUrl } from './use-resume-url';
 
 // Shows someone's PDF resume inside the app. (The web version is resume-viewer-modal.web.tsx.)
 export function ResumeViewerModal({
@@ -29,6 +30,7 @@ export function ResumeViewerModal({
   const c = useTheme().colors;
   const local = useLocalStyles();
   const [loading, setLoading] = useState(true);
+  const link = useResumeUrl(url, visible);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -45,16 +47,16 @@ export function ResumeViewerModal({
           </View>
 
           <View style={local.body}>
-            {visible && (
+            {visible && link.url && (
               <WebView
-                source={{ uri: resumeViewerUrl(url, Platform.OS) }}
+                source={{ uri: resumeViewerUrl(link.url, Platform.OS) }}
                 style={local.web}
                 onLoadStart={() => setLoading(true)}
                 onLoadEnd={() => setLoading(false)}
                 startInLoadingState={false}
               />
             )}
-            {loading && visible && (
+            {(loading || !link.url) && visible && (
               <View style={local.loading} pointerEvents="none">
                 <ActivityIndicator color={c.muted} />
               </View>
