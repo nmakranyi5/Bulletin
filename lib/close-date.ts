@@ -108,9 +108,11 @@ export type CloseState =
   | { kind: 'closed' };
 
 export function closeState(position: Closable, now: number): CloseState {
+  // Closed by hand (or automatically), whether or not there's a close date.
+  if (position.closed_at) return { kind: 'closed' };
   if (!position.close_at) return { kind: 'none' };
   const msLeft = parseServerTime(position.close_at).getTime() - now;
-  if (position.closed_at || msLeft <= 0) return { kind: 'closed' };
+  if (msLeft <= 0) return { kind: 'closed' };
   if (position.close_confirmed_at) return { kind: 'confirmed', msLeft };
   return msLeft <= REMINDER_LEAD_MS ? { kind: 'soon', msLeft } : { kind: 'open', msLeft };
 }
@@ -139,7 +141,7 @@ export function closesOn(position: Closable): string | null {
 export function closeLabel(position: Closable, now: number): string | null {
   const state = closeState(position, now);
   if (state.kind === 'none') return null;
-  if (state.kind === 'closed') return `Closed ${stamp(position.close_at!)}`;
+  if (state.kind === 'closed') return `Closed ${stamp((position.closed_at ?? position.close_at)!)}`;
   return `Closes ${stamp(position.close_at!)} · in ${formatDuration(state.msLeft)}`;
 }
 

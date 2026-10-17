@@ -45,3 +45,45 @@ export function promptExtend(position: Position, onDone: () => void) {
     ]
   );
 }
+
+// Closes a position now, after asking. People still waiting on it get their interest back;
+// chats that already started stay open.
+export function promptClose(position: Position, onDone: () => void) {
+  Alert.alert(
+    'Close this position?',
+    `${position.title} leaves Discover right away. Anyone still waiting on it gets their interest back, and chats that already started stay open. You can reopen it later.`,
+    [
+      { text: 'Keep open', style: 'cancel' },
+      {
+        text: 'Close position',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.rpc('close_position', { p_position_id: position.id });
+          if (error) {
+            Alert.alert('Could not close', error.message);
+            return;
+          }
+          onDone();
+        },
+      },
+    ]
+  );
+}
+
+// Reopens a closed position. One whose date has passed needs a new date, so it goes
+// through the extend prompt; otherwise it just opens again.
+export async function reopenPosition(
+  position: Position,
+  now: number,
+  onDone: () => void
+): Promise<void> {
+  const dateHasPassed =
+    !!position.close_at && new Date(position.close_at).getTime() <= now;
+  if (dateHasPassed) {
+    promptExtend(position, onDone);
+    return;
+  }
+  const { error } = await supabase.rpc('reopen_position', { p_position_id: position.id });
+  if (error) Alert.alert('Could not reopen', error.message);
+  else onDone();
+}

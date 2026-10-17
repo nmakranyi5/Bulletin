@@ -45,7 +45,7 @@ import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { ChipSelect } from '../../components/chip-select';
 import { DateTimeField } from '../../components/date-time-field';
 import { useSharedStyles } from '../../styles/shared';
-import { confirmPositionClose, promptExtend } from './position-close';
+import { confirmPositionClose, promptClose, promptExtend, reopenPosition } from './position-close';
 
 export function PositionsScreen({
   session,
@@ -552,42 +552,59 @@ export function PositionsScreen({
                 {(() => {
                   const state = closeState(item, now);
                   const label = closeLabel(item, now);
-                  if (!label) return null;
+                  const refresh = () => fetchPositions({ silent: true });
+                  const closed = state.kind === 'closed';
                   return (
                     <>
-                      <Text
-                        numberOfLines={2}
-                        style={[
-                          local.closeLine,
-                          state.kind === 'soon' && local.closeLineSoon,
-                          state.kind === 'closed' && local.closeLineClosed,
-                        ]}
-                      >
-                        {label}
-                        {state.kind === 'confirmed' ? ' · confirmed' : ''}
-                      </Text>
-                      {(state.kind === 'soon' || state.kind === 'closed') && (
-                        <View style={local.closeActions}>
+                      {label ? (
+                        <Text
+                          numberOfLines={2}
+                          style={[
+                            local.closeLine,
+                            state.kind === 'soon' && local.closeLineSoon,
+                            closed && local.closeLineClosed,
+                          ]}
+                        >
+                          {label}
+                          {state.kind === 'confirmed' ? ' · confirmed' : ''}
+                        </Text>
+                      ) : null}
+                      <View style={local.closeActions}>
+                        {closed ? (
                           <Pressable
                             style={local.closeAction}
-                            onPress={() => promptExtend(item, () => fetchPositions({ silent: true }))}
+                            onPress={() => reopenPosition(item, now, refresh)}
                           >
-                            <Text style={local.closeActionText}>
-                              {state.kind === 'closed' ? 'Reopen' : 'Extend'}
-                            </Text>
+                            <Text style={local.closeActionText}>Reopen</Text>
                           </Pressable>
-                          {state.kind === 'soon' && (
+                        ) : (
+                          <>
+                            {state.kind === 'soon' && (
+                              <Pressable style={local.closeAction} onPress={() => promptExtend(item, refresh)}>
+                                <Text style={local.closeActionText}>Extend</Text>
+                              </Pressable>
+                            )}
+                            {state.kind === 'soon' && (
+                              <Pressable
+                                style={local.closeAction}
+                                onPress={async () => {
+                                  if (await confirmPositionClose(item)) refresh();
+                                }}
+                              >
+                                <Text style={local.closeActionText}>Confirm closing</Text>
+                              </Pressable>
+                            )}
                             <Pressable
                               style={local.closeAction}
-                              onPress={async () => {
-                                if (await confirmPositionClose(item)) fetchPositions({ silent: true });
-                              }}
+                              onPress={() => promptClose(item, refresh)}
                             >
-                              <Text style={local.closeActionText}>Confirm closing</Text>
+                              <Text style={[local.closeActionText, { color: c.danger }]}>
+                                Close position
+                              </Text>
                             </Pressable>
-                          )}
-                        </View>
-                      )}
+                          </>
+                        )}
+                      </View>
                     </>
                   );
                 })()}
@@ -627,6 +644,7 @@ function useLocalStyles() {
 
         closeActions: {
           flexDirection: 'row',
+          flexWrap: 'wrap',
           gap: 8,
           marginTop: 8,
         },
