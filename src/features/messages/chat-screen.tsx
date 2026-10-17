@@ -19,6 +19,7 @@ import { parseServerTime } from '../../../lib/time';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
 import { Avatar } from '../../components/avatar';
+import { TurnPill } from '../../components/turn-pill';
 import { useNow } from '../../hooks/use-now';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { Match } from '../../types';
@@ -362,9 +363,14 @@ export function ChatScreen({
         <Avatar uri={match.avatarUrl} size={38} framed />
 
         <View style={shared.chatHeaderInfo}>
-          <Text numberOfLines={1} style={shared.chatHeaderName}>
-            {match.name}
-          </Text>
+          <View style={local.nameRow}>
+            <Text numberOfLines={1} style={[shared.chatHeaderName, local.nameText]}>
+              {match.name}
+            </Text>
+            {!archived && historyLoaded && (
+              <TurnPill turn={awaiting?.side === 'responder' ? 'you' : 'them'} />
+            )}
+          </View>
           <Text numberOfLines={1} style={local.chatHeaderMeta}>
             {match.company ? `${match.position} · ${match.company}` : match.position}
           </Text>
@@ -549,6 +555,16 @@ function useLocalStyles() {
       StyleSheet.create({
         chatContainer: {
           flex: 1,
+        },
+
+        nameRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+        },
+
+        nameText: {
+          flexShrink: 1,
         },
 
         headerProfile: {

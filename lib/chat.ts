@@ -54,6 +54,16 @@ export function isSameDay(a: string, b: string): boolean {
   return sameDay(parseServerTime(a), parseServerTime(b));
 }
 
+export type Turn = 'you' | 'them';
+
+// Whose move is it, Hinge-style? If they wrote last and you haven't answered, it's yours;
+// otherwise you're waiting on them. A chat with no messages yet is whoever owes the first
+// one (`firstMoveMine`).
+export function whoseTurn(meta: ConversationMeta | undefined, firstMoveMine: boolean): Turn {
+  if (!meta) return firstMoveMine ? 'you' : 'them';
+  return meta.awaitingSince ? 'you' : 'them';
+}
+
 // rows must be ordered newest first.
 export function summarizeConversations(
   rows: {

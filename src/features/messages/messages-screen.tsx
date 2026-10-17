@@ -2,12 +2,13 @@ import { Archive, Check, CheckCheck, MessageCircle } from 'lucide-react-native';
 import { useEffect, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
-import { ConversationMeta, formatListTime } from '../../../lib/chat';
+import { ConversationMeta, formatListTime, whoseTurn } from '../../../lib/chat';
 import { closeOutcome, isDeal } from '../../../lib/close-reasons';
 import { timerStatus } from '../../../lib/response-timers';
 import { Avatar } from '../../components/avatar';
 import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { TimerChip } from '../../components/timer-chip';
+import { TurnPill } from '../../components/turn-pill';
 import { useNow } from '../../hooks/use-now';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
@@ -50,11 +51,13 @@ export function MessagesScreen({
 
   // Conversations with messages first (newest on top), then new matches.
   // Archived chats are already ordered by when they were closed.
-  const sorted = isArchive ? matches : [...matches].sort((a, b) => {
-    const at = meta[a.id]?.lastAt ?? '';
-    const bt = meta[b.id]?.lastAt ?? '';
-    return at < bt ? 1 : at > bt ? -1 : 0;
-  });
+  const sorted = isArchive
+    ? matches
+    : [...matches].sort((a, b) => {
+        const at = meta[a.id]?.lastAt ?? '';
+        const bt = meta[b.id]?.lastAt ?? '';
+        return at < bt ? 1 : at > bt ? -1 : 0;
+      });
 
   return (
     <View style={shared.simpleScreen}>
@@ -82,23 +85,23 @@ export function MessagesScreen({
       </View>
 
       {matches.length === 0 ? (
-<RefreshableEmpty refreshControl={refreshControl}>
-        <View style={shared.emptyState}>
-          {isArchive ? (
-            <Archive size={48} color={c.muted} strokeWidth={1.5} />
-          ) : (
-            <MessageCircle size={48} color={c.muted} strokeWidth={1.5} />
-          )}
-          <Text style={shared.emptyTitle}>
-            {isArchive ? 'Nothing archived.' : 'No messages yet.'}
-          </Text>
-          <Text style={shared.emptySubtitle}>
-            {isArchive
-              ? 'Chats you close, and chats closed on you, are kept here.'
-              : 'Once you match with someone, your conversation shows up here.'}
-          </Text>
-        </View>
-</RefreshableEmpty>
+        <RefreshableEmpty refreshControl={refreshControl}>
+          <View style={shared.emptyState}>
+            {isArchive ? (
+              <Archive size={48} color={c.muted} strokeWidth={1.5} />
+            ) : (
+              <MessageCircle size={48} color={c.muted} strokeWidth={1.5} />
+            )}
+            <Text style={shared.emptyTitle}>
+              {isArchive ? 'Nothing archived.' : 'No messages yet.'}
+            </Text>
+            <Text style={shared.emptySubtitle}>
+              {isArchive
+                ? 'Chats you close, and chats closed on you, are kept here.'
+                : 'Once you match with someone, your conversation shows up here.'}
+            </Text>
+          </View>
+        </RefreshableEmpty>
       ) : (
         <FlatList
           data={sorted}
@@ -116,10 +119,7 @@ export function MessagesScreen({
 
                 <View style={shared.interestRowInfo}>
                   <View style={local.convoTopRow}>
-                    <Text
-                      numberOfLines={1}
-                      style={[shared.interestRowName, local.convoName]}
-                    >
+                    <Text numberOfLines={1} style={[shared.interestRowName, local.convoName]}>
                       {item.name}
                     </Text>
                     {m && (
@@ -147,8 +147,8 @@ export function MessagesScreen({
                       {m
                         ? `${m.lastFromMe ? 'You: ' : ''}${m.lastText}`
                         : item.company
-                        ? `${item.position} · ${item.company}`
-                        : item.position}
+                          ? `${item.position} · ${item.company}`
+                          : item.position}
                     </Text>
                     {unread > 0 && (
                       <View style={local.unreadPill}>
@@ -159,7 +159,9 @@ export function MessagesScreen({
 
                   {isArchive && item.closed ? (
                     <View style={local.outcomeRow}>
-                      <View style={[local.outcomePill, isDeal(item.closed.reason) && local.outcomeDeal]}>
+                      <View
+                        style={[local.outcomePill, isDeal(item.closed.reason) && local.outcomeDeal]}
+                      >
                         <Text
                           numberOfLines={1}
                           style={[
@@ -174,19 +176,23 @@ export function MessagesScreen({
                         {item.closed.byMe ? 'by you' : `by ${item.name.split(' ')[0]}`}
                       </Text>
                     </View>
-                  ) : !isArchive && !m && item.matchedAt ? (
-                    // New match, nobody has written yet: the recruiter owes the first message.
-                    <TimerChip
-                      side={item.firstMoveMine ? 'responder' : 'waiting'}
-                      status={timerStatus(item.matchedAt, item.urgency, now)}
-                      prefix={item.firstMoveMine ? 'Say hello' : undefined}
-                    />
-                  ) : !isArchive && m?.awaitingSince ? (
-                    <TimerChip
-                      side="responder"
-                      status={timerStatus(m.awaitingSince, item.urgency, now)}
-                    />
-                  ) : null}
+                  ) : (
+                    <View style={local.statusRow}>
+                      <TurnPill turn={whoseTurn(m, !!item.firstMoveMine)} />
+                      {!m && item.matchedAt ? (
+                        <TimerChip
+                          side={item.firstMoveMine ? 'responder' : 'waiting'}
+                          status={timerStatus(item.matchedAt, item.urgency, now)}
+                          prefix={item.firstMoveMine ? 'Say hello' : undefined}
+                        />
+                      ) : m?.awaitingSince ? (
+                        <TimerChip
+                          side="responder"
+                          status={timerStatus(m.awaitingSince, item.urgency, now)}
+                        />
+                      ) : null}
+                    </View>
+                  )}
                 </View>
               </Pressable>
             );
@@ -203,6 +209,14 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        statusRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
+          marginTop: 6,
+        },
+
         outcomeRow: {
           flexDirection: 'row',
           alignItems: 'center',
