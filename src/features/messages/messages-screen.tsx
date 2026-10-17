@@ -3,7 +3,10 @@ import { useEffect, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { ConversationMeta, formatListTime } from '../../../lib/chat';
+import { timerStatus } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
+import { TimerChip } from '../../components/timer-chip';
+import { useNow } from '../../hooks/use-now';
 import { useSharedStyles } from '../../styles/shared';
 import { Match } from '../../types';
 
@@ -21,6 +24,8 @@ export function MessagesScreen({
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
+  const now = useNow();
+
   useEffect(() => {
     onRefresh();
 
@@ -113,6 +118,13 @@ export function MessagesScreen({
                       </View>
                     )}
                   </View>
+
+                  {m?.awaitingSince ? (
+                    <TimerChip
+                      side="responder"
+                      status={timerStatus(m.awaitingSince, item.urgency, now)}
+                    />
+                  ) : null}
                 </View>
               </Pressable>
             );

@@ -8,6 +8,9 @@ export type ConversationMeta = {
   lastFromMe: boolean;
   lastRead: boolean;
   unread: number;
+  // When the oldest message in the unanswered run from the other person was sent
+  // (null if you've replied since, or they haven't written). Drives reply timers.
+  awaitingSince: string | null;
 };
 
 const sameDay = (a: Date, b: Date) =>
@@ -62,6 +65,9 @@ export function summarizeConversations(
   userId: string
 ): Record<string, ConversationMeta> {
   const out: Record<string, ConversationMeta> = {};
+  // Rows are newest first. Once we reach one of my own messages, anything older
+  // from them was already answered.
+  const answered = new Set<string>();
   for (const r of rows) {
     const fromMe = r.sender_id === userId;
     const meta = (out[r.interest_id] ??= {
@@ -70,8 +76,13 @@ export function summarizeConversations(
       lastFromMe: fromMe,
       lastRead: !!r.read_at,
       unread: 0,
+      awaitingSince: null,
     });
     if (!fromMe && !r.read_at && !r.deleted_at) meta.unread += 1;
+
+    if (fromMe) answered.add(r.interest_id);
+    // A deleted message no longer needs an answer.
+    else if (!answered.has(r.interest_id) && !r.deleted_at) meta.awaitingSince = r.created_at;
   }
   return out;
 }

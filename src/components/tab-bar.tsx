@@ -18,10 +18,13 @@ export function TabBar({
   activeTab,
   onTabPress,
   unseenReceivedCount,
+  overdueMessagesCount = 0,
 }: {
   activeTab: TabKey;
   onTabPress: (tab: TabKey) => void;
   unseenReceivedCount: number;
+  // Chats where you owe an overdue reply.
+  overdueMessagesCount?: number;
 }) {
   const c = useTheme().colors;
   const local = useLocalStyles();
@@ -44,6 +47,13 @@ export function TabBar({
               color={isActive ? c.text : c.muted}
               strokeWidth={isActive ? 2.4 : 2}
             />
+            {key === 'messages' && overdueMessagesCount > 0 && (
+              <View style={local.badge}>
+                <Text style={local.badgeText}>
+                  {overdueMessagesCount > 9 ? '9+' : overdueMessagesCount}
+                </Text>
+              </View>
+            )}
             {key === 'interests' && unseenReceivedCount > 0 && (
               <View style={local.badge}>
                 <Text style={local.badgeText}>

@@ -10,6 +10,7 @@ import {
   formatPay,
   getSchedules,
 } from '../../../lib/hvac';
+import { URGENCY, urgencyOf } from '../../../lib/response-timers';
 import { Tag } from '../../components/tag';
 import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
@@ -88,6 +89,8 @@ export function RecruiterCardContent({
   );
 
   const requirementTags = [
+    // The recruiter's commitment to answer, set by the posting's urgency.
+    primary ? `Replies within ${URGENCY[urgencyOf(primary)].windowLabel}` : null,
     ...schedules,
     primary?.epa_608_required ? `EPA 608 Type ${primary.epa_608_required}+` : null,
     primary?.min_experience_years ? `${primary.min_experience_years}+ yrs` : null,

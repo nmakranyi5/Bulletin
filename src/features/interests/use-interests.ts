@@ -21,29 +21,33 @@ export function useInterests(
   const interestsRemaining = Math.max(0, MAX_INTERESTS - activeSentCount);
   const unseenReceivedCount = receivedInterests.length;
 
-  const fetchInterests = async () => {
+  // `silent` is for background refreshes: don't pop an error alert every minute offline.
+  const fetchInterests = async (opts?: { silent?: boolean }) => {
+    const silent = !!opts?.silent;
     if (!session) return;
 
     const { data: sent, error: sentError } = await supabase
       .from('interests')
       .select(
-        '*, to_profile:profiles!to_user(id, name, username), position:positions(id, title, company)'
+        '*, to_profile:profiles!to_user(id, name, username), position:positions(id, title, company, urgency)'
       )
       .eq('from_user', session.user.id);
 
-    if (sentError) Alert.alert('Error', sentError.message);
-    else setSentInterests(sent ?? []);
+    if (sentError) {
+      if (!silent) Alert.alert('Error', sentError.message);
+    } else setSentInterests(sent ?? []);
 
     const { data: received, error: receivedError } = await supabase
       .from('interests')
       .select(
-        '*, from_profile:profiles!from_user(id, name, username, epa_608_types, trade_start_year), position:positions(id, title, company, epa_608_required, min_experience_years)'
+        '*, from_profile:profiles!from_user(id, name, username, epa_608_types, trade_start_year), position:positions(id, title, company, epa_608_required, min_experience_years, urgency)'
       )
       .eq('to_user', session.user.id)
       .eq('status', 'pending');
 
-    if (receivedError) Alert.alert('Error', receivedError.message);
-    else setReceivedInterests(received ?? []);
+    if (receivedError) {
+      if (!silent) Alert.alert('Error', receivedError.message);
+    } else setReceivedInterests(received ?? []);
   };
 
   useEffect(() => {

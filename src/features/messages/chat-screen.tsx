@@ -13,9 +13,12 @@ import {
 } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { formatDayLabel, formatTime, isSameDay, MessageStatus } from '../../../lib/chat';
+import { timerStatus } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
+import { useNow } from '../../hooks/use-now';
 import { Match } from '../../types';
+import { ReplyBanner } from './reply-banner';
 
 export type ChatMessage = {
   id: string;
@@ -49,6 +52,7 @@ export function ChatScreen({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const now = useNow();
   const listRef = useRef<FlatList<ChatItem>>(null);
 
   const markRead = () => {
@@ -257,6 +261,20 @@ export function ChatScreen({
     sendBody(msg.text, msg.id);
   };
 
+  // Who owes a reply right now? Look at the unanswered run at the end of the chat: its
+  // oldest live message started the clock. Sending/failed messages don't count yet.
+  const awaiting = (() => {
+    const last = messages[messages.length - 1];
+    if (!last) return null;
+    let since: string | null = null;
+    for (let k = messages.length - 1; k >= 0; k--) {
+      const m = messages[k];
+      if (m.fromMe !== last.fromMe) break;
+      if (!m.deletedAt && m.status !== 'sending' && m.status !== 'failed') since = m.createdAt;
+    }
+    return since ? { side: last.fromMe ? ('waiting' as const) : ('responder' as const), since } : null;
+  })();
+
   // Flatten into day separators + grouped bubbles; the status line sits under my latest message.
   const lastMineId = [...messages].reverse().find((m) => m.fromMe)?.id;
   const items: ChatItem[] = [];
@@ -316,6 +334,15 @@ export function ChatScreen({
           <X size={22} color={c.textSecondary} strokeWidth={2.2} />
         </Pressable>
       </View>
+
+      {awaiting && (
+        <ReplyBanner
+          side={awaiting.side}
+          status={timerStatus(awaiting.since, match.urgency, now)}
+          name={match.name}
+          urgency={match.urgency}
+        />
+      )}
 
       <FlatList
         ref={listRef}

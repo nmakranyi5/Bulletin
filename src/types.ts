@@ -1,5 +1,9 @@
+import type { Urgency } from '../lib/response-timers';
+
 export type InterestRow = {
   id: string;
+  // When the interest was sent; starts its reply timer.
+  created_at?: string;
   from_user: string;
   to_user: string;
   status: string;
@@ -18,6 +22,7 @@ export type InterestRow = {
     company: string;
     epa_608_required?: string | null;
     min_experience_years?: number | null;
+    urgency?: string | null;
   } | null;
 };
 
@@ -28,4 +33,6 @@ export type Match = {
   name: string;
   position: string;
   company: string;
+  // How quickly replies are expected; from the posting this match came from.
+  urgency: Urgency;
 };

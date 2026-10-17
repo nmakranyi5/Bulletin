@@ -23,6 +23,7 @@ import { OnboardingScreen } from '../features/profile/onboarding-screen';
 import { PositionsScreen } from '../features/profile/positions-screen';
 import { ProfileScreen } from '../features/profile/profile-screen';
 import { useMyProfile } from '../features/profile/use-my-profile';
+import { useResponseTimers } from '../features/timers/use-response-timers';
 import { useSharedStyles } from '../styles/shared';
 
 // App shell. `Index` decides which auth state we're in; once someone is signed in and
@@ -96,6 +97,29 @@ function MainApp({ session }: { session: Session }) {
     discover.removeTopCard,
     discover.expandTopCard
   );
+
+  // Reply timers: tracks everything waiting on your answer and alerts when a limit
+  // is reached. Never closes or blocks anything.
+  const timers = useResponseTimers({
+    receivedInterests: interests.receivedInterests,
+    matches: matches.matches,
+    convoMeta: matches.convoMeta,
+    openChatId: activeTab === 'messages' ? matches.selectedMatch?.id ?? null : null,
+    refresh: () => {
+      interests.fetchInterests({ silent: true });
+      matches.fetchMatches({ silent: true });
+    },
+    onOpenInterests: () => {
+      matches.setSelectedMatch(null);
+      setActiveTab('interests');
+    },
+    onOpenChat: (matchId) => {
+      const match = matches.matches.find((m) => m.id === matchId);
+      if (!match) return;
+      setActiveTab('messages');
+      matches.setSelectedMatch(match);
+    },
+  });
 
   if (editingProfile) {
     return (
@@ -190,6 +214,7 @@ function MainApp({ session }: { session: Session }) {
           activeTab={activeTab}
           onTabPress={setActiveTab}
           unseenReceivedCount={interests.unseenReceivedCount}
+          overdueMessagesCount={timers.overdueChatCount}
         />
       )}
 
