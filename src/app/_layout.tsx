@@ -2,6 +2,10 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { ThemeProvider, useTheme } from '../../lib/app-theme';
+import { installWebAlert, WebAlertHost } from '../../lib/web-alert';
+
+// On the web, make Alert.alert show real dialogs (it's a no-op there otherwise).
+installWebAlert();
 
 function ThemedStack() {
   const { mode, colors } = useTheme();
@@ -17,6 +21,7 @@ function ThemedStack() {
       >
         <Stack.Screen name="index" />
       </Stack>
+      <WebAlertHost />
     </>
   );
 }
