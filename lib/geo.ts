@@ -79,3 +79,64 @@ export function roundedCoords(lat: number | null, lng: number | null) {
   }
   return { lat: Math.round(lat * 1000) / 1000, lng: Math.round(lng * 1000) / 1000 };
 }
+
+// --- OpenStreetMap geocoding (Nominatim) ---
+// Free, key-less, and works the same on every platform. Their policy allows light,
+// user-driven use (one lookup per pin drop or search), which is how it's used here.
+
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+
+export type NominatimAddress = {
+  city?: string;
+  town?: string;
+  village?: string;
+  hamlet?: string;
+  municipality?: string;
+  county?: string;
+  state?: string;
+  country?: string;
+  country_code?: string;
+  'ISO3166-2-lvl4'?: string;
+};
+
+// Place name for a reverse-geocoded Nominatim address: "Austin, TX" in the US.
+export function nominatimLabel(address: NominatimAddress | null | undefined): string | null {
+  if (!address) return null;
+  const iso = address['ISO3166-2-lvl4'];
+  // US results carry "US-TX": use the abbreviation straight from it.
+  const region =
+    address.country_code?.toLowerCase() === 'us' && iso?.startsWith('US-')
+      ? iso.slice(3)
+      : address.state;
+  return placeLabel({
+    city: address.city ?? address.town ?? address.village ?? address.hamlet ?? address.municipality,
+    subregion: address.county,
+    region,
+    country: address.country,
+  });
+}
+
+async function nominatim(path: string): Promise<any> {
+  const res = await fetch(`${NOMINATIM}${path}`, {
+    headers: { Accept: 'application/json', 'Accept-Language': 'en' },
+  });
+  if (!res.ok) throw new Error(`Place lookup failed (${res.status})`);
+  return res.json();
+}
+
+// Finds a town or address; null when there's no match.
+export async function searchPlace(query: string): Promise<Coords | null> {
+  const hits = await nominatim(`/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`);
+  const hit = Array.isArray(hits) ? hits[0] : null;
+  const latitude = Number(hit?.lat);
+  const longitude = Number(hit?.lon);
+  return isValidCoords(latitude, longitude) ? { latitude, longitude } : null;
+}
+
+// The place name at a spot, or null when nothing useful is known there (open water, etc).
+export async function reversePlace({ latitude, longitude }: Coords): Promise<string | null> {
+  const data = await nominatim(
+    `/reverse?format=jsonv2&zoom=10&addressdetails=1&lat=${latitude}&lon=${longitude}`
+  );
+  return nominatimLabel(data?.address);
+}
