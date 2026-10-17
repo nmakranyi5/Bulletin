@@ -1,4 +1,4 @@
-import { ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, X } from 'lucide-react-native';
+import { Archive, ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
+import { closeOutcome, isDeal } from '../../../lib/close-reasons';
 import { formatDayLabel, formatTime, isSameDay, MessageStatus } from '../../../lib/chat';
 import { timerStatus } from '../../../lib/response-timers';
 import { parseServerTime } from '../../../lib/time';
@@ -52,6 +53,8 @@ export function ChatScreen({
   const { colors: c, mode } = useTheme();
   const shared = useSharedStyles();
   const local = useLocalStyles();
+  // Archived chats are read-only: no sending, editing, deleting or closing.
+  const archived = match.status === 'closed';
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -224,7 +227,7 @@ export function ChatScreen({
 
   // Long-press on one of your own sent messages.
   const openMessageMenu = (msg: ChatMessage) => {
-    if (!msg.fromMe || msg.deletedAt || (msg.status !== 'sent' && msg.status !== 'read')) return;
+    if (archived || !msg.fromMe || msg.deletedAt || (msg.status !== 'sent' && msg.status !== 'read')) return;
 
     Alert.alert('Message', undefined, [
       {
@@ -276,6 +279,7 @@ export function ChatScreen({
   // Who owes a reply right now? Look at the unanswered run at the end of the chat: its
   // oldest live message started the clock. Sending/failed messages don't count yet.
   const awaiting = (() => {
+    if (archived) return null;
     const last = messages[messages.length - 1];
     if (!last) return null;
     let since: string | null = null;
@@ -341,10 +345,31 @@ export function ChatScreen({
           </Text>
         </View>
 
-        <Pressable onPress={onClose} hitSlop={10} style={shared.chatBackButton}>
-          <X size={22} color={c.textSecondary} strokeWidth={2.2} />
-        </Pressable>
+        {!archived && (
+          <Pressable onPress={onClose} hitSlop={10} style={shared.chatBackButton}>
+            <X size={22} color={c.textSecondary} strokeWidth={2.2} />
+          </Pressable>
+        )}
       </View>
+
+      {archived && (
+        <View style={[local.archiveBanner, isDeal(match.closed?.reason) && local.archiveBannerDeal]}>
+          <Archive
+            size={16}
+            color={isDeal(match.closed?.reason) ? c.green : c.textSecondary}
+            strokeWidth={2.4}
+          />
+          <View style={local.archiveBannerInfo}>
+            <Text style={local.archiveTitle}>
+              {closeOutcome(match.closed?.reason)}
+              {match.closed?.byMe ? ' · by you' : ` · by ${match.name.split(' ')[0]}`}
+            </Text>
+            {match.closed?.note ? (
+              <Text style={local.archiveNote}>"{match.closed.note}"</Text>
+            ) : null}
+          </View>
+        </View>
+      )}
 
       {awaiting && (
         <ReplyBanner
@@ -437,12 +462,12 @@ export function ChatScreen({
         }}
         ListEmptyComponent={
           <Text style={local.chatEmptyText}>
-            Say hello to {match.name.split(' ')[0]}.
+            {archived ? 'No messages were sent.' : `Say hello to ${match.name.split(' ')[0]}.`}
           </Text>
         }
       />
 
-      {editingId && (
+      {!archived && editingId && (
         <View style={local.editBar}>
           <Pencil size={14} color={c.textSecondary} strokeWidth={2.4} />
           <Text style={local.editBarText}>Editing message</Text>
@@ -452,6 +477,11 @@ export function ChatScreen({
         </View>
       )}
 
+      {archived ? (
+        <View style={local.archivedFooter}>
+          <Text style={local.archivedFooterText}>This chat is archived and read-only.</Text>
+        </View>
+      ) : (
       <View style={local.chatInputRow}>
         <TextInput
           style={local.chatInput}
@@ -474,6 +504,7 @@ export function ChatScreen({
           )}
         </Pressable>
       </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -492,6 +523,50 @@ function useLocalStyles() {
           marginTop: 1,
           fontSize: 12,
           color: c.textSecondary,
+        },
+
+        archiveBanner: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 10,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          backgroundColor: c.surfaceAlt,
+        },
+
+        archiveBannerDeal: {
+          borderBottomWidth: 2,
+          borderBottomColor: c.green,
+        },
+
+        archiveBannerInfo: {
+          flex: 1,
+        },
+
+        archiveTitle: {
+          fontSize: 13,
+          fontWeight: '700',
+          color: c.text,
+        },
+
+        archiveNote: {
+          marginTop: 2,
+          fontSize: 13,
+          fontStyle: 'italic',
+          color: c.textSecondary,
+        },
+
+        archivedFooter: {
+          paddingVertical: 14,
+          alignItems: 'center',
+          borderTopWidth: 1,
+          borderTopColor: c.border,
+          backgroundColor: c.surface,
+        },
+
+        archivedFooterText: {
+          fontSize: 13,
+          color: c.muted,
         },
 
         chatMessages: {

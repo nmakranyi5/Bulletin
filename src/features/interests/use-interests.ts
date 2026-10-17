@@ -22,8 +22,10 @@ export function useInterests(
   const [decliningInterest, setDecliningInterest] = useState<InterestRow | null>(null);
 
   // Only pending sent interests hold a slot. Once one becomes a match it moves to
-  // Messages and the slot is returned.
-  const visibleSentInterests = sentInterests.filter((i) => i.status !== 'accepted');
+  // Messages (Active, then Archived when closed) and the slot is returned.
+  const visibleSentInterests = sentInterests.filter(
+    (i) => i.status !== 'accepted' && i.status !== 'closed'
+  );
   const activeSentCount = sentInterests.filter((i) => i.status === 'pending').length;
   const interestsRemaining = Math.max(0, MAX_INTERESTS - activeSentCount);
   const unseenReceivedCount = receivedInterests.length;

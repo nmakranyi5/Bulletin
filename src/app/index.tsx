@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../lib/app-theme';
+import { closeReasonsFor } from '../../lib/close-reasons';
 import { reasonsFor } from '../../lib/decline-reasons';
 import { supabase } from '../../lib/supabase';
 import { TabBar, TabKey } from '../components/tab-bar';
@@ -20,6 +21,7 @@ import { InterestsScreen } from '../features/interests/interests-screen';
 import { useDeclineNotices } from '../features/interests/use-decline-notices';
 import { useInterests } from '../features/interests/use-interests';
 import { ChatScreen } from '../features/messages/chat-screen';
+import { CloseChatModal } from '../features/messages/close-chat-modal';
 import { MessagesScreen } from '../features/messages/messages-screen';
 import { useMatches } from '../features/messages/use-matches';
 import { OnboardingScreen } from '../features/profile/onboarding-screen';
@@ -127,7 +129,7 @@ function MainApp({ session }: { session: Session }) {
   // is reached. Never closes or blocks anything.
   const timers = useResponseTimers({
     receivedInterests: interests.receivedInterests,
-    matches: matches.matches,
+    matches: matches.activeMatches,
     convoMeta: matches.convoMeta,
     openChatId: activeTab === 'messages' ? matches.selectedMatch?.id ?? null : null,
     refresh: () => {
@@ -216,7 +218,7 @@ function MainApp({ session }: { session: Session }) {
             <ChatScreen
               match={matches.selectedMatch}
               userId={session.user.id}
-              onClose={() => matches.closeMatch(matches.selectedMatch!)}
+              onClose={() => matches.requestClose(matches.selectedMatch)}
               onBack={() => {
                 matches.setSelectedMatch(null);
                 matches.fetchMatches();
@@ -224,7 +226,8 @@ function MainApp({ session }: { session: Session }) {
             />
           ) : (
             <MessagesScreen
-              matches={matches.matches}
+              active={matches.activeMatches}
+              archived={matches.archivedMatches}
               meta={matches.convoMeta}
               onMatchPress={matches.setSelectedMatch}
               onRefresh={matches.fetchMatches}
@@ -254,6 +257,14 @@ function MainApp({ session }: { session: Session }) {
         reasons={reasonsFor(interests.declineAsRecruiter)}
         onCancel={interests.cancelDecline}
         onSubmit={interests.declineInterest}
+      />
+
+      <CloseChatModal
+        visible={!!matches.closingMatch}
+        name={matches.closingMatch?.name ?? 'This person'}
+        reasons={closeReasonsFor(!!myProfile?.is_recruiter)}
+        onCancel={matches.cancelClose}
+        onSubmit={matches.closeChat}
       />
 
       <PositionPickerModal

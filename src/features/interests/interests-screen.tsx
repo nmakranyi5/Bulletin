@@ -159,8 +159,6 @@ export function InterestsScreen({
                     ? 'Pending'
                     : item.status === 'accepted'
                     ? 'Matched'
-                    : item.status === 'closed'
-                    ? 'Chat closed'
                     : 'Declined'}
                   {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                 </Text>

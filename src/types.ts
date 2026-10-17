@@ -33,9 +33,18 @@ export type InterestRow = {
   } | null;
 };
 
-// A match is an accepted interest; `id` is the interest id.
+// A match is an accepted interest (an active chat) or a closed one (archived);
+// `id` is the interest id.
 export type Match = {
   id: string;
+  status: 'accepted' | 'closed';
+  // Set once the chat is closed.
+  closed?: {
+    reason: string | null;
+    note: string | null;
+    at: string | null;
+    byMe: boolean;
+  };
   otherUserId: string;
   name: string;
   position: string;
