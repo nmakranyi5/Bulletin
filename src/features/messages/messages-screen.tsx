@@ -1,10 +1,11 @@
-import { Check, CheckCheck, MessageCircle, UserRound } from 'lucide-react-native';
+import { Check, CheckCheck, MessageCircle } from 'lucide-react-native';
 import { useEffect, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { ConversationMeta, formatListTime } from '../../../lib/chat';
 import { timerStatus } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
+import { Avatar } from '../../components/avatar';
 import { TimerChip } from '../../components/timer-chip';
 import { useNow } from '../../hooks/use-now';
 import { useSharedStyles } from '../../styles/shared';
@@ -74,7 +75,7 @@ export function MessagesScreen({
             const unread = m?.unread ?? 0;
             return (
               <Pressable style={shared.interestRow} onPress={() => onMatchPress(item)}>
-                <UserRound size={40} color={c.muted} strokeWidth={1.5} />
+                <Avatar uri={item.avatarUrl} />
 
                 <View style={shared.interestRowInfo}>
                   <View style={local.convoTopRow}>

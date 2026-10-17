@@ -1,9 +1,11 @@
-import { Handshake, UserRound, X } from 'lucide-react-native';
+import { Handshake, Trash2, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
+import { reasonLabel } from '../../../lib/decline-reasons';
 import { epaMismatchNote, experienceMismatchNote } from '../../../lib/hvac';
 import { timerStatus, urgencyOf } from '../../../lib/response-timers';
+import { Avatar } from '../../components/avatar';
 import { TimerChip } from '../../components/timer-chip';
 import { useNow } from '../../hooks/use-now';
 import { MAX_INTERESTS } from '../../constants/app';
@@ -15,18 +17,23 @@ export function InterestsScreen({
   receivedInterests,
   onReceivedPress,
   onWithdraw,
+  onRemoveDeclined,
   interestsRemaining,
+  initialSubTab = 'received',
 }: {
   sentInterests: InterestRow[];
   receivedInterests: InterestRow[];
   onReceivedPress: (interest: InterestRow) => void;
   onWithdraw: (interest: InterestRow) => void;
+  // Clears a declined interest from the list.
+  onRemoveDeclined: (interest: InterestRow) => void;
   interestsRemaining: number;
+  initialSubTab?: 'sent' | 'received';
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
-  const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
+  const [subTab, setSubTab] = useState<'sent' | 'received'>(initialSubTab);
   const now = useNow();
 
   return (
@@ -78,7 +85,7 @@ export function InterestsScreen({
             contentContainerStyle={shared.interestsList}
             renderItem={({ item }) => (
               <Pressable style={shared.interestRow} onPress={() => onReceivedPress(item)}>
-                <UserRound size={40} color={c.muted} strokeWidth={1.5} />
+                <Avatar uri={item.from_profile?.avatar_url} />
                 <View style={shared.interestRowInfo}>
                   <Text numberOfLines={1} style={shared.interestRowName}>
                     {item.from_profile?.name ?? 'Unknown'}
@@ -130,7 +137,7 @@ export function InterestsScreen({
           contentContainerStyle={shared.interestsList}
           renderItem={({ item }) => (
             <View style={shared.interestRow}>
-              <UserRound size={40} color={c.muted} strokeWidth={1.5} />
+              <Avatar uri={item.to_profile?.avatar_url} />
               <View style={shared.interestRowInfo}>
                 <Text numberOfLines={1} style={shared.interestRowName}>
                   {item.to_profile?.name ?? 'Unknown'}
@@ -142,9 +149,21 @@ export function InterestsScreen({
                     ? 'Matched'
                     : item.status === 'closed'
                     ? 'Chat closed'
-                    : 'Not interested'}
+                    : 'Declined'}
                   {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                 </Text>
+                {item.status === 'rejected' && (
+                  <View style={local.declineBox}>
+                    <Text style={local.declineReason}>
+                      {reasonLabel(item.decline_reason)
+                        ? `Reason: ${reasonLabel(item.decline_reason)}`
+                        : 'No reason was given'}
+                    </Text>
+                    {item.decline_note ? (
+                      <Text style={local.declineNote}>"{item.decline_note}"</Text>
+                    ) : null}
+                  </View>
+                )}
                 {item.status === 'pending' && item.created_at ? (
                   <TimerChip
                     side="waiting"
@@ -161,6 +180,17 @@ export function InterestsScreen({
                   <X size={18} color={c.textSecondary} strokeWidth={2.2} />
                 </Pressable>
               )}
+              {item.status === 'rejected' && (
+                <Pressable
+                  hitSlop={10}
+                  style={local.interestRowAction}
+                  onPress={() => onRemoveDeclined(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove declined interest"
+                >
+                  <Trash2 size={18} color={c.textSecondary} strokeWidth={2.2} />
+                </Pressable>
+              )}
             </View>
           )}
         />
@@ -175,6 +205,27 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        declineBox: {
+          marginTop: 8,
+          paddingLeft: 10,
+          borderLeftWidth: 3,
+          borderLeftColor: c.border,
+          gap: 3,
+        },
+
+        declineReason: {
+          fontSize: 13,
+          fontWeight: '700',
+          color: c.textStrong,
+        },
+
+        declineNote: {
+          fontSize: 13,
+          lineHeight: 18,
+          fontStyle: 'italic',
+          color: c.textSecondary,
+        },
+
         interestRowAction: {
           padding: 6,
         },

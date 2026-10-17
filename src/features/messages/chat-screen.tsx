@@ -1,4 +1,4 @@
-import { ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, UserRound, X } from 'lucide-react-native';
+import { ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -17,6 +17,7 @@ import { timerStatus } from '../../../lib/response-timers';
 import { parseServerTime } from '../../../lib/time';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
+import { Avatar } from '../../components/avatar';
 import { useNow } from '../../hooks/use-now';
 import { Match } from '../../types';
 import { ReplyBanner } from './reply-banner';
@@ -319,9 +320,7 @@ export function ChatScreen({
           <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
 
-        <View style={local.chatHeaderAvatar}>
-          <UserRound size={22} color={c.textSecondary} strokeWidth={1.8} />
-        </View>
+        <Avatar uri={match.avatarUrl} size={38} framed />
 
         <View style={shared.chatHeaderInfo}>
           <Text numberOfLines={1} style={shared.chatHeaderName}>
@@ -518,15 +517,6 @@ function useLocalStyles() {
 
         chatRowGroupStart: {
           marginTop: 8,
-        },
-
-        chatHeaderAvatar: {
-          width: 38,
-          height: 38,
-          borderRadius: 19,
-          backgroundColor: c.surfaceAlt,
-          alignItems: 'center',
-          justifyContent: 'center',
         },
 
         chatDayWrap: {

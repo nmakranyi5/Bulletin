@@ -40,7 +40,7 @@ export function useMatches(
     const { data, error } = await supabase
       .from('interests')
       .select(
-        'id, from_user, to_user, from_profile:profiles!from_user(id, name, username), to_profile:profiles!to_user(id, name, username), position:positions(id, title, company, urgency)'
+        'id, from_user, to_user, from_profile:profiles!from_user(id, name, username, avatar_url), to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
       )
       .eq('status', 'accepted')
       .or(`from_user.eq.${me},to_user.eq.${me}`);
@@ -61,6 +61,7 @@ export function useMatches(
           name: other?.name ?? other?.username ?? 'Unknown',
           position: row.position?.title ?? 'General',
           company: row.position?.company ?? '',
+          avatarUrl: other?.avatar_url ?? null,
           urgency: urgencyOf(row.position),
         };
       })
