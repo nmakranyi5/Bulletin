@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -45,22 +42,18 @@ import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { ChipSelect } from '../../components/chip-select';
 import { DateTimeField } from '../../components/date-time-field';
 import { LocationField } from '../../components/location-field';
+import { FormStep, StepForm } from '../../components/step-form';
 import { useSharedStyles } from '../../styles/shared';
 import { confirmPositionClose, promptClose, promptExtend, reopenPosition } from './position-close';
 
-export function PositionsScreen({
-  session,
-  onBack,
-}: {
-  session: Session;
-  onBack: () => void;
-}) {
+export function PositionsScreen({ session, onBack }: { session: Session; onBack: () => void }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'form'>('list');
+  const [formStep, setFormStep] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
@@ -144,6 +137,7 @@ export function PositionsScreen({
   const openAddForm = () => {
     resetForm();
     setCompany(defaultCompany);
+    setFormStep(0);
     setView('form');
   };
 
@@ -166,6 +160,7 @@ export function PositionsScreen({
     setSkills(position.skills ?? []);
     setCloseAt(closeAtToDate(position.close_at));
     setEditingId(position.id);
+    setFormStep(0);
     setView('form');
   };
 
@@ -184,32 +179,19 @@ export function PositionsScreen({
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !company.trim()) {
-      Alert.alert('Missing info', 'Title and company are required.');
-      return;
+    for (const step of STEPS) {
+      const problem = stepProblem(step.key);
+      if (problem) {
+        Alert.alert(problem.title, problem.message);
+        if (wizard) setFormStep(STEPS.indexOf(step));
+        return;
+      }
     }
 
-    const parsedMinYears = parseMinYears(minYears);
-    if (parsedMinYears === 'invalid') {
-      Alert.alert('Invalid experience', 'Minimum experience must be a whole number of years.');
-      return;
-    }
-
-    const parsedMin = parsePay(payMin);
-    const parsedMax = parsePay(payMax);
-    if (parsedMin === 'invalid' || parsedMax === 'invalid') {
-      Alert.alert('Invalid pay', 'Enter pay as a number, e.g. 28 or 55000.');
-      return;
-    }
+    const parsedMinYears = parseMinYears(minYears) as number | null;
+    const parsedMin = parsePay(payMin) as number | null;
+    const parsedMax = parsePay(payMax) as number | null;
     const hasPay = parsedMin !== null || parsedMax !== null;
-    if (hasPay && !payType) {
-      Alert.alert('Pay type', 'Choose whether this pay is hourly or salary.');
-      return;
-    }
-    if (parsedMin !== null && parsedMax !== null && parsedMin > parsedMax) {
-      Alert.alert('Invalid pay', 'Minimum pay can\'t be higher than maximum pay.');
-      return;
-    }
 
     const checked = checkCloseAt(closeAt, serverNow());
     if (!checked.ok) {
@@ -220,8 +202,7 @@ export function PositionsScreen({
     // Closing details only change when the date does, so re-saving other edits doesn't
     // undo a confirmation or reopen anything by accident.
     const existing = positions.find((p) => p.id === editingId);
-    const sameDate =
-      !!existing?.close_at && sameInstant(closeAtToDate(existing.close_at), closeAt);
+    const sameDate = !!existing?.close_at && sameInstant(closeAtToDate(existing.close_at), closeAt);
     const closeFields = sameDate
       ? {}
       : {
@@ -292,218 +273,292 @@ export function PositionsScreen({
     ]);
   };
 
+  const STEPS: FormStep[] = [
+    {
+      key: 'basics',
+      title: 'The basics',
+      subtitle: 'What the job is and how fast you are hiring.',
+    },
+    { key: 'pay', title: 'Pay', subtitle: 'Techs ask about this first. Leave blank to skip it.' },
+    { key: 'where', title: 'Where and when', subtitle: 'The job site and the schedule.' },
+    {
+      key: 'requirements',
+      title: 'Requirements',
+      subtitle: 'What you need from a candidate. All optional.',
+    },
+    {
+      key: 'details',
+      title: 'About the job',
+      subtitle: 'A short description candidates will see.',
+    },
+    {
+      key: 'timeline',
+      title: 'Hire by',
+      subtitle: 'Optionally set when this position should close.',
+    },
+  ];
+
+  // Adding walks through one step at a time; editing shows everything together.
+  const wizard = !editingId;
+
+  const stepProblem = (key: string): { title: string; message: string } | null => {
+    if (key === 'basics' && (!title.trim() || !company.trim())) {
+      return { title: 'Missing info', message: 'Title and company are required.' };
+    }
+    if (key === 'pay') {
+      const min = parsePay(payMin);
+      const max = parsePay(payMax);
+      if (min === 'invalid' || max === 'invalid') {
+        return { title: 'Invalid pay', message: 'Enter pay as a number, e.g. 28 or 55000.' };
+      }
+      if ((min !== null || max !== null) && !payType) {
+        return { title: 'Pay type', message: 'Choose whether this pay is hourly or salary.' };
+      }
+      if (min !== null && max !== null && min > max) {
+        return { title: 'Invalid pay', message: "Minimum pay can't be higher than maximum pay." };
+      }
+    }
+    if (key === 'requirements' && parseMinYears(minYears) === 'invalid') {
+      return {
+        title: 'Invalid experience',
+        message: 'Minimum experience must be a whole number of years.',
+      };
+    }
+    if (key === 'timeline') {
+      const checked = checkCloseAt(closeAt, serverNow());
+      if (!checked.ok) return { title: 'Close date', message: CLOSE_ERRORS[checked.error] };
+    }
+    return null;
+  };
+
+  const renderStep = (key: string) => {
+    if (key === 'basics') {
+      return (
+        <>
+          <TextInput
+            style={shared.authInput}
+            placeholder="Job title"
+            placeholderTextColor={c.muted}
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          <TextInput
+            style={shared.authInput}
+            placeholder="Company"
+            placeholderTextColor={c.muted}
+            value={company}
+            onChangeText={setCompany}
+          />
+
+          <ChipSelect
+            label="HOW URGENT IS THIS HIRE?"
+            options={URGENCY_LEVELS.map((u) => URGENCY[u].label)}
+            selected={[URGENCY[urgency].label]}
+            onToggle={(o) => {
+              const next = URGENCY_LEVELS.find((u) => URGENCY[u].label === o);
+              if (next) setUrgency(next);
+            }}
+          />
+          <Text style={shared.chipHint}>
+            {URGENCY[urgency].blurb} You and candidates are each expected to reply within{' '}
+            {URGENCY[urgency].windowLabel}. Timers only remind people; nothing is closed.
+          </Text>
+        </>
+      );
+    }
+    if (key === 'pay') {
+      return (
+        <>
+          <ChipSelect
+            label="PAY TYPE"
+            options={PAY_TYPES}
+            selected={payType ? [payType] : []}
+            onToggle={(o) => setPayType((prev) => (prev === o ? '' : o))}
+          />
+
+          <View style={local.payRow}>
+            <View style={[shared.authInput, local.payField]}>
+              <Text style={local.payDollar}>$</Text>
+              <TextInput
+                style={local.payInput}
+                placeholder={payType === 'Salary' ? 'Min /yr' : 'Min /hr'}
+                placeholderTextColor={c.muted}
+                value={payMin}
+                onChangeText={setPayMin}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={[shared.authInput, local.payField]}>
+              <Text style={local.payDollar}>$</Text>
+              <TextInput
+                style={local.payInput}
+                placeholder={payType === 'Salary' ? 'Max /yr' : 'Max /hr'}
+                placeholderTextColor={c.muted}
+                value={payMax}
+                onChangeText={setPayMax}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+          {!!legacyPay && !payMin && !payMax && (
+            <Text style={shared.chipHint}>Previously entered as: {legacyPay}</Text>
+          )}
+
+          <ChipSelect
+            label="PAY EXTRAS (OPTIONAL)"
+            options={PAY_EXTRAS}
+            selected={payExtras}
+            onToggle={(o) =>
+              setPayExtras((prev) =>
+                prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
+              )
+            }
+          />
+        </>
+      );
+    }
+    if (key === 'where') {
+      return (
+        <>
+          <LocationField
+            placeholder="Location"
+            value={{ text: location, lat: locationLat, lng: locationLng }}
+            onChange={(p) => {
+              setLocation(p.text);
+              setLocationLat(p.lat);
+              setLocationLng(p.lng);
+            }}
+          />
+
+          <ChipSelect
+            label="SCHEDULE (SELECT ALL THAT APPLY)"
+            options={SCHEDULE_TYPES}
+            selected={scheduleTypes}
+            onToggle={(o) =>
+              setScheduleTypes((prev) =>
+                prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
+              )
+            }
+          />
+        </>
+      );
+    }
+    if (key === 'requirements') {
+      return (
+        <>
+          <ChipSelect
+            label="EPA 608 REQUIRED (MINIMUM TYPE)"
+            options={EPA_TYPES.map((t) => `Type ${t}`)}
+            selected={epaRequired ? [`Type ${epaRequired}`] : []}
+            onToggle={(o) => {
+              const t = o.replace('Type ', '');
+              setEpaRequired((prev) => (prev === t ? '' : t));
+            }}
+          />
+          <Text style={shared.chipHint}>
+            Universal-certified techs also qualify. Leave unselected if not required.
+          </Text>
+
+          <TextInput
+            style={shared.authInput}
+            placeholder="Minimum years of experience (e.g. 2)"
+            placeholderTextColor={c.muted}
+            value={minYears}
+            onChangeText={setMinYears}
+            keyboardType="number-pad"
+            maxLength={2}
+          />
+
+          <View style={local.skillInputRow}>
+            <TextInput
+              style={[shared.authInput, local.skillInput]}
+              placeholder="Add a skill or requirement"
+              placeholderTextColor={c.muted}
+              value={skillInput}
+              onChangeText={setSkillInput}
+              onSubmitEditing={addSkill}
+              returnKeyType="done"
+            />
+            <Pressable style={local.skillAddButton} onPress={addSkill}>
+              <Text style={local.skillAddButtonText}>Add</Text>
+            </Pressable>
+          </View>
+
+          {skills.length > 0 && (
+            <View style={shared.tags}>
+              {skills.map((skill) => (
+                <Pressable key={skill} style={local.skillTag} onPress={() => removeSkill(skill)}>
+                  <Text style={local.skillTagText}>{skill}</Text>
+                  <X size={12} color={c.textStrong} strokeWidth={2.4} />
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </>
+      );
+    }
+    if (key === 'details') {
+      return (
+        <TextInput
+          style={[shared.authInput, shared.authTextArea]}
+          placeholder="Description"
+          placeholderTextColor={c.muted}
+          value={description}
+          onChangeText={setDescription}
+          multiline
+        />
+      );
+    }
+    return (
+      <>
+        <ChipSelect
+          label="HIRE BY / CLOSE DATE (OPTIONAL)"
+          options={CLOSE_PRESETS.map((p) => p.label)}
+          selected={CLOSE_PRESETS.filter((p) =>
+            sameInstant(presetCloseAt(p.days, serverNow()), closeAt)
+          ).map((p) => p.label)}
+          onToggle={(o) => {
+            const preset = CLOSE_PRESETS.find((p) => p.label === o);
+            if (preset) setCloseAt(presetCloseAt(preset.days, serverNow()));
+          }}
+        />
+        <DateTimeField
+          value={closeAt}
+          onChange={setCloseAt}
+          minimumDate={new Date(serverNow())}
+          maximumDate={new Date(serverNow() + MAX_CLOSE_AHEAD_MS)}
+          placeholder="Or pick a date and time"
+        />
+        <Text style={shared.chipHint}>
+          When this passes, the position closes on its own: it leaves Discover and anyone still
+          waiting on it gets their interest back. Chats stay open. You'll be reminded before it
+          closes so you can extend or confirm.
+        </Text>
+      </>
+    );
+  };
+
   if (view === 'form') {
     return (
-      <SafeAreaView style={shared.authContainer}>
-        <KeyboardAvoidingView
-          style={shared.authInner}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled">
-            <Pressable onPress={() => setView('list')} style={shared.chatBackButton}>
-              <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
-            </Pressable>
-
-            <Text style={shared.logo}>bulletin.</Text>
-            <Text style={shared.subtitle}>
-              {editingId ? 'Edit position.' : 'Add a position.'}
-            </Text>
-
-            <TextInput
-              style={shared.authInput}
-              placeholder="Job title"
-              placeholderTextColor={c.muted}
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            <TextInput
-              style={shared.authInput}
-              placeholder="Company"
-              placeholderTextColor={c.muted}
-              value={company}
-              onChangeText={setCompany}
-            />
-
-            <ChipSelect
-              label="HOW URGENT IS THIS HIRE?"
-              options={URGENCY_LEVELS.map((u) => URGENCY[u].label)}
-              selected={[URGENCY[urgency].label]}
-              onToggle={(o) => {
-                const next = URGENCY_LEVELS.find((u) => URGENCY[u].label === o);
-                if (next) setUrgency(next);
-              }}
-            />
-            <Text style={shared.chipHint}>
-              {URGENCY[urgency].blurb} You and candidates are each expected to reply within{' '}
-              {URGENCY[urgency].windowLabel}. Timers only remind people; nothing is closed.
-            </Text>
-
-            <ChipSelect
-              label="PAY TYPE"
-              options={PAY_TYPES}
-              selected={payType ? [payType] : []}
-              onToggle={(o) => setPayType((prev) => (prev === o ? '' : o))}
-            />
-
-            <View style={local.payRow}>
-              <View style={[shared.authInput, local.payField]}>
-                <Text style={local.payDollar}>$</Text>
-                <TextInput
-                  style={local.payInput}
-                  placeholder={payType === 'Salary' ? 'Min /yr' : 'Min /hr'}
-                  placeholderTextColor={c.muted}
-                  value={payMin}
-                  onChangeText={setPayMin}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-              <View style={[shared.authInput, local.payField]}>
-                <Text style={local.payDollar}>$</Text>
-                <TextInput
-                  style={local.payInput}
-                  placeholder={payType === 'Salary' ? 'Max /yr' : 'Max /hr'}
-                  placeholderTextColor={c.muted}
-                  value={payMax}
-                  onChangeText={setPayMax}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-            </View>
-            {!!legacyPay && !payMin && !payMax && (
-              <Text style={shared.chipHint}>Previously entered as: {legacyPay}</Text>
-            )}
-
-            <ChipSelect
-              label="PAY EXTRAS (OPTIONAL)"
-              options={PAY_EXTRAS}
-              selected={payExtras}
-              onToggle={(o) =>
-                setPayExtras((prev) =>
-                  prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
-                )
-              }
-            />
-
-            <ChipSelect
-              label="HIRE BY / CLOSE DATE (OPTIONAL)"
-              options={CLOSE_PRESETS.map((p) => p.label)}
-              selected={CLOSE_PRESETS.filter((p) =>
-                sameInstant(presetCloseAt(p.days, serverNow()), closeAt)
-              ).map((p) => p.label)}
-              onToggle={(o) => {
-                const preset = CLOSE_PRESETS.find((p) => p.label === o);
-                if (preset) setCloseAt(presetCloseAt(preset.days, serverNow()));
-              }}
-            />
-            <DateTimeField
-              value={closeAt}
-              onChange={setCloseAt}
-              minimumDate={new Date(serverNow())}
-              maximumDate={new Date(serverNow() + MAX_CLOSE_AHEAD_MS)}
-              placeholder="Or pick a date and time"
-            />
-            <Text style={shared.chipHint}>
-              When this passes, the position closes on its own: it leaves Discover and anyone
-              still waiting on it gets their interest back. Chats stay open. You'll be reminded
-              before it closes so you can extend or confirm.
-            </Text>
-
-            <LocationField
-              placeholder="Location"
-              value={{ text: location, lat: locationLat, lng: locationLng }}
-              onChange={(p) => {
-                setLocation(p.text);
-                setLocationLat(p.lat);
-                setLocationLng(p.lng);
-              }}
-            />
-
-            <ChipSelect
-              label="SCHEDULE (SELECT ALL THAT APPLY)"
-              options={SCHEDULE_TYPES}
-              selected={scheduleTypes}
-              onToggle={(o) =>
-                setScheduleTypes((prev) =>
-                  prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
-                )
-              }
-            />
-
-            <ChipSelect
-              label="EPA 608 REQUIRED (MINIMUM TYPE)"
-              options={EPA_TYPES.map((t) => `Type ${t}`)}
-              selected={epaRequired ? [`Type ${epaRequired}`] : []}
-              onToggle={(o) => {
-                const t = o.replace('Type ', '');
-                setEpaRequired((prev) => (prev === t ? '' : t));
-              }}
-            />
-            <Text style={shared.chipHint}>
-              Universal-certified techs also qualify. Leave unselected if not required.
-            </Text>
-
-            <TextInput
-              style={shared.authInput}
-              placeholder="Minimum years of experience (e.g. 2)"
-              placeholderTextColor={c.muted}
-              value={minYears}
-              onChangeText={setMinYears}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-
-            <View style={local.skillInputRow}>
-              <TextInput
-                style={[shared.authInput, local.skillInput]}
-                placeholder="Add a skill or requirement"
-                placeholderTextColor={c.muted}
-                value={skillInput}
-                onChangeText={setSkillInput}
-                onSubmitEditing={addSkill}
-                returnKeyType="done"
-              />
-              <Pressable style={local.skillAddButton} onPress={addSkill}>
-                <Text style={local.skillAddButtonText}>Add</Text>
-              </Pressable>
-            </View>
-
-            {skills.length > 0 && (
-              <View style={shared.tags}>
-                {skills.map((skill) => (
-                  <Pressable
-                    key={skill}
-                    style={local.skillTag}
-                    onPress={() => removeSkill(skill)}
-                  >
-                    <Text style={local.skillTagText}>{skill}</Text>
-                    <X size={12} color={c.textStrong} strokeWidth={2.4} />
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            <TextInput
-              style={[shared.authInput, shared.authTextArea]}
-              placeholder="Description"
-              placeholderTextColor={c.muted}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-            />
-
-            <Pressable
-              style={[shared.authButton, saving && shared.authButtonDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              <Text style={shared.authButtonText}>
-                {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add position'}
-              </Text>
-            </Pressable>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+      <StepForm
+        steps={STEPS}
+        stepIndex={formStep}
+        onStepChange={setFormStep}
+        wizard={wizard}
+        renderStep={renderStep}
+        stepProblem={stepProblem}
+        onSubmit={handleSave}
+        submitting={saving}
+        submitLabel="Add position"
+        saveLabel="Save changes"
+        editingSubtitle="Edit position."
+        exit={
+          wizard
+            ? { kind: 'close', label: 'Cancel', onPress: () => setView('list') }
+            : { kind: 'back', label: 'Go back', onPress: () => setView('list') }
+        }
+      />
     );
   }
 
@@ -591,7 +646,10 @@ export function PositionsScreen({
                         ) : (
                           <>
                             {state.kind === 'soon' && (
-                              <Pressable style={local.closeAction} onPress={() => promptExtend(item, refresh)}>
+                              <Pressable
+                                style={local.closeAction}
+                                onPress={() => promptExtend(item, refresh)}
+                              >
                                 <Text style={local.closeActionText}>Extend</Text>
                               </Pressable>
                             )}

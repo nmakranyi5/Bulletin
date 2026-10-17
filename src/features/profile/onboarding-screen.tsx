@@ -3,23 +3,19 @@ import { decode } from 'base64-arraybuffer';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, UserRound, X } from 'lucide-react-native';
+import { UserRound } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
+import { StepForm } from '../../components/step-form';
 import { useSharedStyles } from '../../styles/shared';
 import {
   buildRecruiterPayload,
@@ -85,8 +81,6 @@ export function OnboardingScreen({
         : 'Tell shops who you are. A resume helps too.',
     },
   ];
-  const current = steps[Math.min(stepIndex, steps.length - 1)];
-  const isLastStep = stepIndex >= steps.length - 1;
 
   // What stops you moving on from a step, or null when it is fine to continue.
   const stepProblem = (key: string): { title: string; message: string } | null => {
@@ -95,16 +89,6 @@ export function OnboardingScreen({
     }
     if (isRecruiter) return recruiterStepError(key as any, recruiter);
     return seekerStepError(key as any, seeker);
-  };
-
-  const goNext = () => {
-    const problem = stepProblem(current.key);
-    if (problem) {
-      Alert.alert(problem.title, problem.message);
-      return;
-    }
-    if (isLastStep) handleSubmit();
-    else setStepIndex((i) => i + 1);
   };
 
   useEffect(() => {
@@ -314,96 +298,27 @@ export function OnboardingScreen({
   };
 
   return (
-    <SafeAreaView style={shared.authContainer}>
-      <KeyboardAvoidingView
-        style={local.page}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={local.topRow}>
-          <Text style={shared.logo}>bulletin.</Text>
-          {(onCancel || onBackToLogin) && (
-            <Pressable
-              onPress={onCancel ?? onBackToLogin}
-              disabled={submitting}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={onCancel ? 'Go back' : 'Cancel and return to login'}
-              style={shared.chatBackButton}
-            >
-              {onCancel ? (
-                <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
-              ) : (
-                <X size={22} color={c.text} strokeWidth={2.2} />
-              )}
-            </Pressable>
-          )}
-        </View>
-
-        {loading ? (
-          <Text style={shared.subtitle}>Loading...</Text>
-        ) : (
-          <>
-            {wizard ? (
-              <View
-                style={local.progress}
-                accessibilityLabel={`Step ${stepIndex + 1} of ${steps.length}`}
-              >
-                {steps.map((step, i) => (
-                  <View
-                    key={step.key}
-                    style={[local.progressBar, i <= stepIndex && local.progressDone]}
-                  />
-                ))}
-              </View>
-            ) : (
-              <Text style={shared.subtitle}>Edit your profile.</Text>
-            )}
-
-            <ScrollView
-              style={local.scroll}
-              contentContainerStyle={local.scrollContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              {(wizard ? [current] : steps).map((step) => (
-                <View key={step.key} style={local.section}>
-                  <Text style={local.stepTitle}>{step.title}</Text>
-                  <Text style={local.stepSubtitle}>{step.subtitle}</Text>
-                  <View style={local.stepBody}>{renderStep(step.key)}</View>
-                </View>
-              ))}
-            </ScrollView>
-
-            <View style={local.footer}>
-              {wizard && stepIndex > 0 && (
-                <Pressable
-                  style={local.backButton}
-                  onPress={() => setStepIndex((i) => Math.max(0, i - 1))}
-                  disabled={submitting}
-                >
-                  <Text style={local.backButtonText}>Back</Text>
-                </Pressable>
-              )}
-              <Pressable
-                style={[local.nextButton, submitting && shared.authButtonDisabled]}
-                onPress={wizard ? goNext : handleSubmit}
-                disabled={submitting}
-              >
-                <Text style={shared.authButtonText}>
-                  {submitting
-                    ? 'Saving...'
-                    : !wizard
-                      ? 'Save changes'
-                      : isLastStep
-                        ? 'Finish setup'
-                        : 'Next'}
-                </Text>
-              </Pressable>
-            </View>
-          </>
-        )}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <StepForm
+      steps={steps}
+      stepIndex={stepIndex}
+      onStepChange={setStepIndex}
+      wizard={wizard}
+      loading={loading}
+      renderStep={renderStep}
+      stepProblem={stepProblem}
+      onSubmit={handleSubmit}
+      submitting={submitting}
+      submitLabel="Finish setup"
+      saveLabel="Save changes"
+      editingSubtitle="Edit your profile."
+      exit={
+        onCancel
+          ? { kind: 'back', label: 'Go back', onPress: onCancel }
+          : onBackToLogin
+            ? { kind: 'close', label: 'Cancel and return to login', onPress: onBackToLogin }
+            : undefined
+      }
+    />
   );
 }
 
@@ -413,98 +328,6 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
-        page: {
-          flex: 1,
-          paddingHorizontal: 28,
-          paddingTop: 8,
-        },
-
-        topRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 14,
-        },
-
-        progress: {
-          flexDirection: 'row',
-          gap: 6,
-        },
-
-        progressBar: {
-          flex: 1,
-          height: 4,
-          borderRadius: 2,
-          backgroundColor: c.border,
-        },
-
-        progressDone: {
-          backgroundColor: c.accent,
-        },
-
-        scroll: {
-          flex: 1,
-        },
-
-        scrollContent: {
-          paddingTop: 22,
-          paddingBottom: 16,
-          gap: 28,
-        },
-
-        section: {
-          gap: 4,
-        },
-
-        stepTitle: {
-          fontSize: 26,
-          fontWeight: '800',
-          letterSpacing: -0.6,
-          color: c.text,
-        },
-
-        stepSubtitle: {
-          fontSize: 15,
-          lineHeight: 21,
-          color: c.textSecondary,
-        },
-
-        stepBody: {
-          marginTop: 14,
-          gap: 12,
-        },
-
-        footer: {
-          flexDirection: 'row',
-          gap: 10,
-          paddingTop: 10,
-          paddingBottom: 12,
-        },
-
-        backButton: {
-          paddingHorizontal: 22,
-          paddingVertical: 14,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: c.borderStrong,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-
-        backButtonText: {
-          fontSize: 15,
-          fontWeight: '700',
-          color: c.text,
-        },
-
-        nextButton: {
-          flex: 1,
-          paddingVertical: 14,
-          borderRadius: 14,
-          backgroundColor: c.accent,
-          alignItems: 'center',
-        },
-
         avatarPicker: {
           alignItems: 'center',
           gap: 8,
