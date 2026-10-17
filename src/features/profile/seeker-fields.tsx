@@ -8,6 +8,7 @@ import {
   TRADE_ROLES,
 } from '../../../lib/hvac';
 import { ChipSelect } from '../../components/chip-select';
+import { LocationField } from '../../components/location-field';
 import { useSharedStyles } from '../../styles/shared';
 
 export type SeekerValues = {
@@ -16,6 +17,8 @@ export type SeekerValues = {
   startYear: string;
   tradeRole: string;
   location: string;
+  locationLat: number | null;
+  locationLng: number | null;
   hasLicense: boolean;
   openSchedules: string[];
 };
@@ -26,6 +29,8 @@ export const emptySeeker: SeekerValues = {
   startYear: '',
   tradeRole: '',
   location: '',
+  locationLat: null,
+  locationLng: null,
   hasLicense: false,
   openSchedules: [],
 };
@@ -37,6 +42,8 @@ export function seekerFromRow(row: any): SeekerValues {
     startYear: row.trade_start_year ? String(row.trade_start_year) : '',
     tradeRole: row.trade_role ?? '',
     location: row.location ?? '',
+    locationLat: typeof row.location_lat === 'number' ? row.location_lat : null,
+    locationLng: typeof row.location_lng === 'number' ? row.location_lng : null,
     hasLicense: !!row.has_drivers_license,
     openSchedules: row.open_schedules ?? [],
   };
@@ -68,6 +75,9 @@ export function buildSeekerPayload(
       trade_start_year: year,
       trade_role: v.tradeRole || null,
       location: v.location.trim() || null,
+      ...(v.location.trim()
+        ? { location_lat: v.locationLat, location_lng: v.locationLng }
+        : { location_lat: null, location_lng: null }),
       has_drivers_license: v.hasLicense,
       open_schedules: v.openSchedules,
     },
@@ -129,12 +139,10 @@ export function SeekerFields({
         onToggle={(o) => onChange({ tradeRole: value.tradeRole === o ? '' : o })}
       />
 
-      <TextInput
-        style={shared.authInput}
+      <LocationField
         placeholder="Where you're based (e.g. Austin, TX)"
-        placeholderTextColor={c.muted}
-        value={value.location}
-        onChangeText={(location) => onChange({ location })}
+        value={{ text: value.location, lat: value.locationLat, lng: value.locationLng }}
+        onChange={(p) => onChange({ location: p.text, locationLat: p.lat, locationLng: p.lng })}
       />
 
       <ChipSelect

@@ -2,6 +2,7 @@ import { TextInput } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { COMPANY_SIZES, parseYear, RECRUITER_TITLES, WORK_TYPES } from '../../../lib/hvac';
 import { ChipSelect } from '../../components/chip-select';
+import { LocationField } from '../../components/location-field';
 import { useSharedStyles } from '../../styles/shared';
 
 export type RecruiterValues = {
@@ -11,6 +12,8 @@ export type RecruiterValues = {
   workTypes: string[];
   foundedYear: string;
   location: string;
+  locationLat: number | null;
+  locationLng: number | null;
   licensedInsured: boolean;
 };
 
@@ -21,6 +24,8 @@ export const emptyRecruiter: RecruiterValues = {
   workTypes: [],
   foundedYear: '',
   location: '',
+  locationLat: null,
+  locationLng: null,
   licensedInsured: false,
 };
 
@@ -32,6 +37,8 @@ export function recruiterFromRow(row: any): RecruiterValues {
     workTypes: row.work_types ?? [],
     foundedYear: row.company_founded_year ? String(row.company_founded_year) : '',
     location: row.location ?? '',
+    locationLat: typeof row.location_lat === 'number' ? row.location_lat : null,
+    locationLng: typeof row.location_lng === 'number' ? row.location_lng : null,
     licensedInsured: !!row.licensed_insured,
   };
 }
@@ -59,6 +66,9 @@ export function buildRecruiterPayload(
       work_types: v.workTypes,
       company_founded_year: year,
       location: v.location.trim() || null,
+      ...(v.location.trim()
+        ? { location_lat: v.locationLat, location_lng: v.locationLng }
+        : { location_lat: null, location_lng: null }),
       licensed_insured: v.licensedInsured,
     },
   };
@@ -108,12 +118,10 @@ export function RecruiterFields({
         onToggle={(o) => onChange({ workTypes: toggle(value.workTypes, o) })}
       />
 
-      <TextInput
-        style={shared.authInput}
+      <LocationField
         placeholder="Service area (e.g. Austin, TX)"
-        placeholderTextColor={c.muted}
-        value={value.location}
-        onChangeText={(location) => onChange({ location })}
+        value={{ text: value.location, lat: value.locationLat, lng: value.locationLng }}
+        onChange={(p) => onChange({ location: p.text, locationLat: p.lat, locationLng: p.lng })}
       />
 
       <TextInput
