@@ -26,81 +26,70 @@ export const EXTEND_OPTIONS = [
   { label: '2 weeks', days: 14 },
 ] as const;
 
-export const CLOSE_TIMES = [
-  { label: '8:00 AM', hour: 8, minute: 0 },
-  { label: '12:00 PM', hour: 12, minute: 0 },
-  { label: '5:00 PM', hour: 17, minute: 0 },
-  { label: '11:59 PM', hour: 23, minute: 59 },
-] as const;
-
-export type CloseTime = (typeof CLOSE_TIMES)[number];
-export const DEFAULT_CLOSE_TIME: CloseTime = CLOSE_TIMES[2];
+// The time of day quick picks and a fresh picker start at.
+export const DEFAULT_CLOSE_HOUR = 17;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-// "MM/DD/YYYY" for a date in local time.
-export function formatDateInput(date: Date): string {
-  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear()}`;
-}
-
-// The date `days` from now, as MM/DD/YYYY, for the quick-pick chips.
-export function dateInputAfter(days: number, now: number): string {
+// The quick-pick chips: N days from now at the default time of day.
+export function presetCloseAt(days: number, now: number): Date {
   const d = new Date(now);
   d.setDate(d.getDate() + days);
-  return formatDateInput(d);
+  d.setHours(DEFAULT_CLOSE_HOUR, 0, 0, 0);
+  return d;
 }
 
-// "MM/DD/YYYY" (or M/D/YYYY) to a real calendar date; null if empty, 'invalid' if not a date.
-export function parseDateInput(input: string): { y: number; m: number; d: number } | null | 'invalid' {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
-  if (!match) return 'invalid';
-  const [m, d, y] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  const check = new Date(y, m - 1, d);
-  if (check.getFullYear() !== y || check.getMonth() !== m - 1 || check.getDate() !== d) {
-    return 'invalid';
-  }
-  return { y, m, d };
+// Where a picker opens when nothing is set yet: tomorrow at the default time.
+export function defaultPickerDate(now: number): Date {
+  return presetCloseAt(1, now);
+}
+
+export function sameInstant(a: Date | null, b: Date | null): boolean {
+  return a === b || (!!a && !!b && a.getTime() === b.getTime());
 }
 
 export type CloseAtResult =
   | { ok: true; iso: string | null }
-  | { ok: false; error: 'invalid' | 'past' | 'too_far' };
+  | { ok: false; error: 'past' | 'too_far' };
 
-// The ISO timestamp to store for a typed date + chosen time, or why it can't be used.
-// An empty date means "no close date".
-export function buildCloseAt(
-  dateInput: string,
-  time: { hour: number; minute: number },
-  now: number
-): CloseAtResult {
-  const parsed = parseDateInput(dateInput);
-  if (parsed === null) return { ok: true, iso: null };
-  if (parsed === 'invalid') return { ok: false, error: 'invalid' };
-  const at = new Date(parsed.y, parsed.m - 1, parsed.d, time.hour, time.minute, 0, 0);
-  if (at.getTime() <= now) return { ok: false, error: 'past' };
-  if (at.getTime() - now > MAX_CLOSE_AHEAD_MS) return { ok: false, error: 'too_far' };
-  return { ok: true, iso: at.toISOString() };
+// The ISO timestamp to store for a picked date and time, or why it can't be used.
+// No date means "no close date".
+export function checkCloseAt(date: Date | null, now: number): CloseAtResult {
+  if (!date) return { ok: true, iso: null };
+  if (date.getTime() <= now) return { ok: false, error: 'past' };
+  if (date.getTime() - now > MAX_CLOSE_AHEAD_MS) return { ok: false, error: 'too_far' };
+  return { ok: true, iso: date.toISOString() };
 }
 
 export const CLOSE_ERRORS = {
-  invalid: 'Enter the date as MM/DD/YYYY, e.g. 11/15/2026.',
   past: 'The close date and time must be in the future.',
   too_far: 'Choose a close date within the next year.',
 } as const;
 
-// Pre-fills the form from a saved close_at: the date, and the nearest time chip.
-export function splitCloseAt(iso: string | null | undefined): { date: string; time: CloseTime } {
-  if (!iso) return { date: '', time: DEFAULT_CLOSE_TIME };
-  const d = parseServerTime(iso);
-  const minutes = d.getHours() * 60 + d.getMinutes();
-  const time = CLOSE_TIMES.reduce((best, t) =>
-    Math.abs(t.hour * 60 + t.minute - minutes) < Math.abs(best.hour * 60 + best.minute - minutes)
-      ? t
-      : best
-  );
-  return { date: formatDateInput(d), time };
+// The saved close_at as a Date to edit (null when there isn't one).
+export function closeAtToDate(iso: string | null | undefined): Date | null {
+  return iso ? parseServerTime(iso) : null;
+}
+
+// "Fri, Oct 30 · 5:00 PM" for the picker field.
+export function formatCloseField(date: Date): string {
+  const day = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${day} · ${time}`;
+}
+
+// The browser's <input type="datetime-local"> value for a local date: "2026-10-30T17:00".
+export function toLocalInputValue(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
+export function fromLocalInputValue(value: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 type Closable = {

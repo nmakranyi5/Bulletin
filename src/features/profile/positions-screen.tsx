@@ -27,15 +27,14 @@ import {
 import {
   CLOSE_ERRORS,
   CLOSE_PRESETS,
-  CLOSE_TIMES,
-  CloseTime,
-  DEFAULT_CLOSE_TIME,
+  MAX_CLOSE_AHEAD_MS,
   REMINDER_LEAD_MS,
-  buildCloseAt,
+  checkCloseAt,
+  closeAtToDate,
   closeLabel,
   closeState,
-  dateInputAfter,
-  splitCloseAt,
+  presetCloseAt,
+  sameInstant,
 } from '../../../lib/close-date';
 import { URGENCY, URGENCY_LEVELS, Urgency, urgencyOf } from '../../../lib/response-timers';
 import { serverNow } from '../../../lib/time';
@@ -44,6 +43,7 @@ import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { useNow } from '../../hooks/use-now';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { ChipSelect } from '../../components/chip-select';
+import { DateTimeField } from '../../components/date-time-field';
 import { useSharedStyles } from '../../styles/shared';
 import { confirmPositionClose, promptExtend } from './position-close';
 
@@ -78,8 +78,7 @@ export function PositionsScreen({
   const [description, setDescription] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState('');
-  const [closeDate, setCloseDate] = useState('');
-  const [closeTime, setCloseTime] = useState<CloseTime>(DEFAULT_CLOSE_TIME);
+  const [closeAt, setCloseAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
   const now = useNow();
 
@@ -133,8 +132,7 @@ export function PositionsScreen({
     setDescription('');
     setSkills([]);
     setSkillInput('');
-    setCloseDate('');
-    setCloseTime(DEFAULT_CLOSE_TIME);
+    setCloseAt(null);
     setEditingId(null);
   };
 
@@ -159,9 +157,7 @@ export function PositionsScreen({
     setMinYears(position.min_experience_years != null ? String(position.min_experience_years) : '');
     setDescription(position.description ?? '');
     setSkills(position.skills ?? []);
-    const split = splitCloseAt(position.close_at);
-    setCloseDate(split.date);
-    setCloseTime(split.time);
+    setCloseAt(closeAtToDate(position.close_at));
     setEditingId(position.id);
     setView('form');
   };
@@ -208,9 +204,9 @@ export function PositionsScreen({
       return;
     }
 
-    const closeAt = buildCloseAt(closeDate, closeTime, serverNow());
-    if (!closeAt.ok) {
-      Alert.alert('Close date', CLOSE_ERRORS[closeAt.error]);
+    const checked = checkCloseAt(closeAt, serverNow());
+    if (!checked.ok) {
+      Alert.alert('Close date', CLOSE_ERRORS[checked.error]);
       return;
     }
 
@@ -218,17 +214,14 @@ export function PositionsScreen({
     // undo a confirmation or reopen anything by accident.
     const existing = positions.find((p) => p.id === editingId);
     const sameDate =
-      !!existing &&
-      (existing.close_at ?? null) !== null &&
-      closeAt.iso !== null &&
-      new Date(existing.close_at).getTime() === new Date(closeAt.iso).getTime();
+      !!existing?.close_at && sameInstant(closeAtToDate(existing.close_at), closeAt);
     const closeFields = sameDate
       ? {}
       : {
-          close_at: closeAt.iso,
+          close_at: checked.iso,
           // A date chosen inside the reminder window was chosen on purpose; don't nag.
           close_confirmed_at:
-            closeAt.iso && new Date(closeAt.iso).getTime() - serverNow() <= REMINDER_LEAD_MS
+            checked.iso && new Date(checked.iso).getTime() - serverNow() <= REMINDER_LEAD_MS
               ? new Date().toISOString()
               : null,
           // Picking a new date (or none) on a position that already closed reopens it.
@@ -386,39 +379,21 @@ export function PositionsScreen({
             <ChipSelect
               label="HIRE BY / CLOSE DATE (OPTIONAL)"
               options={CLOSE_PRESETS.map((p) => p.label)}
-              selected={CLOSE_PRESETS.filter(
-                (p) => dateInputAfter(p.days, serverNow()) === closeDate
+              selected={CLOSE_PRESETS.filter((p) =>
+                sameInstant(presetCloseAt(p.days, serverNow()), closeAt)
               ).map((p) => p.label)}
               onToggle={(o) => {
                 const preset = CLOSE_PRESETS.find((p) => p.label === o);
-                if (preset) setCloseDate(dateInputAfter(preset.days, serverNow()));
+                if (preset) setCloseAt(presetCloseAt(preset.days, serverNow()));
               }}
             />
-            <TextInput
-              style={shared.authInput}
-              placeholder="Or type a date (MM/DD/YYYY)"
-              placeholderTextColor={c.muted}
-              value={closeDate}
-              onChangeText={setCloseDate}
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
+            <DateTimeField
+              value={closeAt}
+              onChange={setCloseAt}
+              minimumDate={new Date(serverNow())}
+              maximumDate={new Date(serverNow() + MAX_CLOSE_AHEAD_MS)}
+              placeholder="Or pick a date and time"
             />
-            {!!closeDate && (
-              <>
-                <ChipSelect
-                  label="CLOSES AT"
-                  options={CLOSE_TIMES.map((t) => t.label)}
-                  selected={[closeTime.label]}
-                  onToggle={(o) => {
-                    const t = CLOSE_TIMES.find((x) => x.label === o);
-                    if (t) setCloseTime(t);
-                  }}
-                />
-                <Pressable onPress={() => setCloseDate('')}>
-                  <Text style={local.clearDate}>Remove close date</Text>
-                </Pressable>
-              </>
-            )}
             <Text style={shared.chipHint}>
               When this passes, the position closes on its own: it leaves Discover and anyone
               still waiting on it gets their interest back. Chats stay open. You'll be reminded
@@ -634,13 +609,6 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
-        clearDate: {
-          fontSize: 13,
-          fontWeight: '600',
-          color: c.textSecondary,
-          paddingVertical: 4,
-        },
-
         closeLine: {
           marginTop: 4,
           fontSize: 12,
