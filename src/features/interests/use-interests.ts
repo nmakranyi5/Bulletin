@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { DeclineReason } from '../../../lib/decline-reasons';
 import { supabase } from '../../../lib/supabase';
 import { MAX_INTERESTS } from '../../constants/app';
 import { InterestRow } from '../../types';
@@ -9,10 +10,16 @@ import { InterestRow } from '../../types';
 export function useInterests(
   session: Session | null,
   enabled: boolean,
-  callbacks: { onAccepted: () => void; onWithdrawn: () => void }
+  callbacks: { onAccepted: () => void; onWithdrawn: () => void },
+  // Decides which reasons are offered when declining.
+  isRecruiter: boolean
 ) {
   const [sentInterests, setSentInterests] = useState<InterestRow[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<InterestRow[]>([]);
+  // True once the first fetch has finished, so "new" can be told apart from "not loaded yet".
+  const [loaded, setLoaded] = useState(false);
+  // The interest the user is currently declining (shows the reason picker).
+  const [decliningInterest, setDecliningInterest] = useState<InterestRow | null>(null);
 
   // Only pending sent interests hold a slot. Once one becomes a match it moves to
   // Messages and the slot is returned.
@@ -35,7 +42,10 @@ export function useInterests(
 
     if (sentError) {
       if (!silent) Alert.alert('Error', sentError.message);
-    } else setSentInterests(sent ?? []);
+    } else {
+      setSentInterests(sent ?? []);
+      setLoaded(true);
+    }
 
     const { data: received, error: receivedError } = await supabase
       .from('interests')
@@ -71,10 +81,11 @@ export function useInterests(
     }
   };
 
-  const respondToInterest = async (interestId: string, status: 'accepted' | 'rejected') => {
+  // Declining goes through declineInterest (it needs a reason); accepting is one step.
+  const acceptInterest = async (interestId: string) => {
     const { error } = await supabase
       .from('interests')
-      .update({ status })
+      .update({ status: 'accepted' })
       .eq('id', interestId);
 
     if (error) {
@@ -83,11 +94,8 @@ export function useInterests(
     }
 
     setReceivedInterests((prev) => prev.filter((r) => r.id !== interestId));
-
-    if (status === 'accepted') {
-      callbacks.onAccepted();
-      fetchInterests();
-    }
+    callbacks.onAccepted();
+    fetchInterests();
   };
 
   const withdrawInterest = (interest: InterestRow) => {
@@ -123,6 +131,27 @@ export function useInterests(
     );
   };
 
+  // Declining always carries a reason (and an optional note) for the other person.
+  // Returns true on success so the picker knows to close.
+  const declineInterest = async (reason: DeclineReason, note: string | null): Promise<boolean> => {
+    if (!decliningInterest) return false;
+
+    const { error } = await supabase.rpc('decline_interest', {
+      p_interest_id: decliningInterest.id,
+      p_reason: reason,
+      p_note: note,
+    });
+
+    if (error) {
+      Alert.alert('Could not decline', error.message);
+      return false;
+    }
+
+    setReceivedInterests((prev) => prev.filter((r) => r.id !== decliningInterest.id));
+    setDecliningInterest(null);
+    return true;
+  };
+
   const handleReceivedPress = (interest: InterestRow) => {
     const name = interest.from_profile?.name ?? 'Someone';
     const positionText = interest.position?.title
@@ -134,14 +163,15 @@ export function useInterests(
       `${name} is interested in connecting${positionText}.`,
       [
         {
-          text: 'Reject',
+          text: 'Decline',
           style: 'destructive',
-          onPress: () => respondToInterest(interest.id, 'rejected'),
+          // Asks for a reason first; see declineInterest.
+          onPress: () => setDecliningInterest(interest),
         },
         {
           text: 'Accept',
           style: 'default',
-          onPress: () => respondToInterest(interest.id, 'accepted'),
+          onPress: () => acceptInterest(interest.id),
         },
       ]
     );
@@ -156,5 +186,11 @@ export function useInterests(
     sendInterest,
     withdrawInterest,
     handleReceivedPress,
+    sentInterests,
+    interestsLoaded: loaded,
+    decliningInterest,
+    cancelDecline: () => setDecliningInterest(null),
+    declineInterest,
+    declineAsRecruiter: isRecruiter,
   };
 }

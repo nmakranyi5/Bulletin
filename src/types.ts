@@ -4,6 +4,10 @@ export type InterestRow = {
   id: string;
   // When the interest was sent; starts its reply timer.
   created_at?: string;
+  // Set when the interest was declined, so the sender can see why.
+  decline_reason?: string | null;
+  decline_note?: string | null;
+  declined_at?: string | null;
   from_user: string;
   to_user: string;
   status: string;

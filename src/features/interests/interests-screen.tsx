@@ -2,6 +2,7 @@ import { Handshake, UserRound, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
+import { reasonLabel } from '../../../lib/decline-reasons';
 import { epaMismatchNote, experienceMismatchNote } from '../../../lib/hvac';
 import { timerStatus, urgencyOf } from '../../../lib/response-timers';
 import { TimerChip } from '../../components/timer-chip';
@@ -16,17 +17,19 @@ export function InterestsScreen({
   onReceivedPress,
   onWithdraw,
   interestsRemaining,
+  initialSubTab = 'received',
 }: {
   sentInterests: InterestRow[];
   receivedInterests: InterestRow[];
   onReceivedPress: (interest: InterestRow) => void;
   onWithdraw: (interest: InterestRow) => void;
   interestsRemaining: number;
+  initialSubTab?: 'sent' | 'received';
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
-  const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
+  const [subTab, setSubTab] = useState<'sent' | 'received'>(initialSubTab);
   const now = useNow();
 
   return (
@@ -142,9 +145,21 @@ export function InterestsScreen({
                     ? 'Matched'
                     : item.status === 'closed'
                     ? 'Chat closed'
-                    : 'Not interested'}
+                    : 'Declined'}
                   {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                 </Text>
+                {item.status === 'rejected' && (
+                  <View style={local.declineBox}>
+                    <Text style={local.declineReason}>
+                      {reasonLabel(item.decline_reason)
+                        ? `Reason: ${reasonLabel(item.decline_reason)}`
+                        : 'No reason was given'}
+                    </Text>
+                    {item.decline_note ? (
+                      <Text style={local.declineNote}>"{item.decline_note}"</Text>
+                    ) : null}
+                  </View>
+                )}
                 {item.status === 'pending' && item.created_at ? (
                   <TimerChip
                     side="waiting"
@@ -175,6 +190,27 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        declineBox: {
+          marginTop: 8,
+          paddingLeft: 10,
+          borderLeftWidth: 3,
+          borderLeftColor: c.border,
+          gap: 3,
+        },
+
+        declineReason: {
+          fontSize: 13,
+          fontWeight: '700',
+          color: c.textStrong,
+        },
+
+        declineNote: {
+          fontSize: 13,
+          lineHeight: 18,
+          fontStyle: 'italic',
+          color: c.textSecondary,
+        },
+
         interestRowAction: {
           padding: 6,
         },

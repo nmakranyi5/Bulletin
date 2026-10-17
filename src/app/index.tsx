@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../lib/app-theme';
+import { reasonsFor } from '../../lib/decline-reasons';
 import { supabase } from '../../lib/supabase';
 import { TabBar, TabKey } from '../components/tab-bar';
 import { AuthScreen } from '../features/auth/auth-screen';
@@ -14,7 +15,9 @@ import { DiscoverScreen } from '../features/discover/discover-screen';
 import { PositionPickerModal } from '../features/discover/position-picker-modal';
 import { useDiscover } from '../features/discover/use-discover';
 import { useSwipeDeck } from '../features/discover/use-swipe-deck';
+import { DeclineModal } from '../features/interests/decline-modal';
 import { InterestsScreen } from '../features/interests/interests-screen';
+import { useDeclineNotices } from '../features/interests/use-decline-notices';
 import { useInterests } from '../features/interests/use-interests';
 import { ChatScreen } from '../features/messages/chat-screen';
 import { MessagesScreen } from '../features/messages/messages-screen';
@@ -75,15 +78,25 @@ function MainApp({ session }: { session: Session }) {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [editingProfile, setEditingProfile] = useState(false);
   const [managingPositions, setManagingPositions] = useState(false);
+  // Which Interests sub-tab to open on; the nonce remounts the screen to apply it.
+  const [interestsView, setInterestsView] = useState<{ sub: 'sent' | 'received'; nonce: number }>({
+    sub: 'received',
+    nonce: 0,
+  });
 
   const { myProfile, fetchMyProfile } = useMyProfile(session, true);
 
   // The hooks below depend on each other's refetchers; the callbacks are only
   // invoked later (never during render), so referencing later consts is safe.
-  const interests = useInterests(session, true, {
-    onAccepted: () => matches.fetchMatches(),
-    onWithdrawn: () => discover.fetchDiscoverCards(),
-  });
+  const interests = useInterests(
+    session,
+    true,
+    {
+      onAccepted: () => matches.fetchMatches(),
+      onWithdrawn: () => discover.fetchDiscoverCards(),
+    },
+    !!myProfile?.is_recruiter
+  );
   const matches = useMatches(session, true, () => interests.fetchInterests());
   const discover = useDiscover(
     session,
@@ -98,6 +111,18 @@ function MainApp({ session }: { session: Session }) {
     discover.expandTopCard
   );
 
+  // Tells you (once) when someone declines an interest you sent, and why.
+  useDeclineNotices({
+    sentInterests: interests.sentInterests,
+    loaded: interests.interestsLoaded,
+    userId: session.user.id,
+    onView: () => {
+      matches.setSelectedMatch(null);
+      setInterestsView((v) => ({ sub: 'sent', nonce: v.nonce + 1 }));
+      setActiveTab('interests');
+    },
+  });
+
   // Reply timers: tracks everything waiting on your answer and alerts when a limit
   // is reached. Never closes or blocks anything.
   const timers = useResponseTimers({
@@ -111,6 +136,7 @@ function MainApp({ session }: { session: Session }) {
     },
     onOpenInterests: () => {
       matches.setSelectedMatch(null);
+      setInterestsView((v) => ({ sub: 'received', nonce: v.nonce + 1 }));
       setActiveTab('interests');
     },
     onOpenChat: (matchId) => {
@@ -174,6 +200,8 @@ function MainApp({ session }: { session: Session }) {
 
         {activeTab === 'interests' && (
           <InterestsScreen
+            key={interestsView.nonce}
+            initialSubTab={interestsView.sub}
             sentInterests={interests.visibleSentInterests}
             receivedInterests={interests.receivedInterests}
             onReceivedPress={interests.handleReceivedPress}
@@ -217,6 +245,14 @@ function MainApp({ session }: { session: Session }) {
           overdueMessagesCount={timers.overdueChatCount}
         />
       )}
+
+      <DeclineModal
+        visible={!!interests.decliningInterest}
+        name={interests.decliningInterest?.from_profile?.name ?? 'This person'}
+        reasons={reasonsFor(interests.declineAsRecruiter)}
+        onCancel={interests.cancelDecline}
+        onSubmit={interests.declineInterest}
+      />
 
       <PositionPickerModal
         visible={!!discover.pendingInterestTarget}
