@@ -15,6 +15,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
@@ -23,15 +24,19 @@ import { useSharedStyles } from '../../styles/shared';
 import {
   buildRecruiterPayload,
   emptyRecruiter,
+  RECRUITER_STEPS,
   RecruiterFields,
   recruiterFromRow,
+  recruiterStepError,
   RecruiterValues,
 } from './recruiter-fields';
 import {
   buildSeekerPayload,
   emptySeeker,
+  SEEKER_STEPS,
   SeekerFields,
   seekerFromRow,
+  seekerStepError,
   SeekerValues,
 } from './seeker-fields';
 
@@ -61,14 +66,52 @@ export function OnboardingScreen({
   const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  // First-time setup shows one step at a time; editing shows every step together.
+  const wizard = !onCancel;
+  const steps: { key: string; title: string; subtitle: string }[] = [
+    {
+      key: 'basics',
+      title: isRecruiter ? "Let's set up your company" : "Let's get you set up",
+      subtitle: 'Start with the basics.',
+    },
+    ...(isRecruiter ? RECRUITER_STEPS : SEEKER_STEPS),
+    {
+      key: 'about',
+      title: isRecruiter ? 'About your company' : 'About you',
+      subtitle: isRecruiter
+        ? 'A short description candidates will see.'
+        : 'Tell shops who you are. A resume helps too.',
+    },
+  ];
+  const current = steps[Math.min(stepIndex, steps.length - 1)];
+  const isLastStep = stepIndex >= steps.length - 1;
+
+  // What stops you moving on from a step, or null when it is fine to continue.
+  const stepProblem = (key: string): { title: string; message: string } | null => {
+    if (key === 'basics' && (!name.trim() || !username.trim())) {
+      return { title: 'Missing info', message: 'Name and username are required.' };
+    }
+    if (isRecruiter) return recruiterStepError(key as any, recruiter);
+    return seekerStepError(key as any, seeker);
+  };
+
+  const goNext = () => {
+    const problem = stepProblem(current.key);
+    if (problem) {
+      Alert.alert(problem.title, problem.message);
+      return;
+    }
+    if (isLastStep) handleSubmit();
+    else setStepIndex((i) => i + 1);
+  };
 
   useEffect(() => {
     const loadExisting = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select(
-          '*'
-        )
+        .select('*')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -124,27 +167,18 @@ export function OnboardingScreen({
     }
   };
 
-  const uploadFile = async (
-    bucket: string,
-    uri: string,
-    fileName: string,
-    contentType: string
-  ) => {
+  const uploadFile = async (bucket: string, uri: string, fileName: string, contentType: string) => {
     const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
     });
 
     const path = `${session.user.id}/${fileName}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(
-      path,
-      decode(base64),
-      {
-        contentType,
-        upsert: true,
-        cacheControl: '3600',
-      }
-    );
+    const { error } = await supabase.storage.from(bucket).upload(path, decode(base64), {
+      contentType,
+      upsert: true,
+      cacheControl: '3600',
+    });
 
     if (error) throw error;
 
@@ -176,12 +210,7 @@ export function OnboardingScreen({
       }
 
       if (!isRecruiter && resumeFile && !resumeFile.uri.startsWith('http')) {
-        resumeUrl = await uploadFile(
-          'resumes',
-          resumeFile.uri,
-          'resume.pdf',
-          'application/pdf'
-        );
+        resumeUrl = await uploadFile('resumes', resumeFile.uri, 'resume.pdf', 'application/pdf');
       }
 
       const { error } = await supabase
@@ -204,23 +233,94 @@ export function OnboardingScreen({
       const message =
         err?.code === '23505'
           ? 'That username is already taken.'
-          : err?.message ?? 'Something went wrong.';
+          : (err?.message ?? 'Something went wrong.');
       Alert.alert('Error', message);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const renderStep = (key: string) => {
+    if (key === 'basics') {
+      return (
+        <>
+          <Pressable style={local.avatarPicker} onPress={pickAvatar}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={shared.avatarPreview} />
+            ) : (
+              <UserRound size={40} color={c.muted} strokeWidth={1.5} />
+            )}
+            <Text style={local.avatarPickerText}>
+              {avatarUri ? 'Change photo' : isRecruiter ? 'Add company logo' : 'Add profile photo'}
+            </Text>
+          </Pressable>
+
+          <TextInput
+            style={shared.authInput}
+            placeholder={isRecruiter ? 'Your name' : 'Name'}
+            placeholderTextColor={c.muted}
+            value={name}
+            onChangeText={setName}
+          />
+
+          <TextInput
+            style={shared.authInput}
+            placeholder="Username"
+            placeholderTextColor={c.muted}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+        </>
+      );
+    }
+
+    if (key === 'about') {
+      return (
+        <>
+          <TextInput
+            style={[shared.authInput, shared.authTextArea]}
+            placeholder={isRecruiter ? 'About your company' : 'A bit about yourself'}
+            placeholderTextColor={c.muted}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+          />
+
+          {!isRecruiter && (
+            <Pressable style={local.resumePicker} onPress={pickResume}>
+              <Text style={local.resumePickerText}>
+                {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
+              </Text>
+            </Pressable>
+          )}
+        </>
+      );
+    }
+
+    return isRecruiter ? (
+      <RecruiterFields
+        step={key as (typeof RECRUITER_STEPS)[number]['key']}
+        value={recruiter}
+        onChange={(patch) => setRecruiter((prev) => ({ ...prev, ...patch }))}
+      />
+    ) : (
+      <SeekerFields
+        step={key as (typeof SEEKER_STEPS)[number]['key']}
+        value={seeker}
+        onChange={(patch) => setSeeker((prev) => ({ ...prev, ...patch }))}
+      />
+    );
+  };
+
   return (
     <SafeAreaView style={shared.authContainer}>
       <KeyboardAvoidingView
-        style={shared.authInner}
+        style={local.page}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView
-          contentContainerStyle={{ gap: 12 }}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={local.topRow}>
+          <Text style={shared.logo}>bulletin.</Text>
           {(onCancel || onBackToLogin) && (
             <Pressable
               onPress={onCancel ?? onBackToLogin}
@@ -228,8 +328,7 @@ export function OnboardingScreen({
               hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel={onCancel ? 'Go back' : 'Cancel and return to login'}
-              // Back arrow sits top-left; the setup X sits top-right.
-              style={[shared.chatBackButton, !onCancel && { alignSelf: 'flex-end' }]}
+              style={shared.chatBackButton}
             >
               {onCancel ? (
                 <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
@@ -238,89 +337,71 @@ export function OnboardingScreen({
               )}
             </Pressable>
           )}
+        </View>
 
-          <Text style={shared.logo}>bulletin.</Text>
-          <Text style={shared.subtitle}>
-            {onCancel ? 'Edit your profile.' : 'Set up your profile.'}
-          </Text>
+        {loading ? (
+          <Text style={shared.subtitle}>Loading...</Text>
+        ) : (
+          <>
+            {wizard ? (
+              <View
+                style={local.progress}
+                accessibilityLabel={`Step ${stepIndex + 1} of ${steps.length}`}
+              >
+                {steps.map((step, i) => (
+                  <View
+                    key={step.key}
+                    style={[local.progressBar, i <= stepIndex && local.progressDone]}
+                  />
+                ))}
+              </View>
+            ) : (
+              <Text style={shared.subtitle}>Edit your profile.</Text>
+            )}
 
-          {loading ? (
-            <Text style={shared.subtitle}>Loading...</Text>
-          ) : (
-            <>
-              <Pressable style={local.avatarPicker} onPress={pickAvatar}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={shared.avatarPreview} />
-                ) : (
-                  <UserRound size={40} color={c.muted} strokeWidth={1.5} />
-                )}
-                <Text style={local.avatarPickerText}>
-                  {avatarUri
-                    ? 'Change photo'
-                    : isRecruiter
-                    ? 'Add company logo'
-                    : 'Add profile photo'}
-                </Text>
-              </Pressable>
+            <ScrollView
+              style={local.scroll}
+              contentContainerStyle={local.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {(wizard ? [current] : steps).map((step) => (
+                <View key={step.key} style={local.section}>
+                  <Text style={local.stepTitle}>{step.title}</Text>
+                  <Text style={local.stepSubtitle}>{step.subtitle}</Text>
+                  <View style={local.stepBody}>{renderStep(step.key)}</View>
+                </View>
+              ))}
+            </ScrollView>
 
-              <TextInput
-                style={shared.authInput}
-                placeholder={isRecruiter ? 'Your name' : 'Name'}
-                placeholderTextColor={c.muted}
-                value={name}
-                onChangeText={setName}
-              />
-
-              <TextInput
-                style={shared.authInput}
-                placeholder="Username"
-                placeholderTextColor={c.muted}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-
-              {isRecruiter ? (
-                <RecruiterFields
-                  value={recruiter}
-                  onChange={(patch) => setRecruiter((prev) => ({ ...prev, ...patch }))}
-                />
-              ) : (
-                <SeekerFields
-                  value={seeker}
-                  onChange={(patch) => setSeeker((prev) => ({ ...prev, ...patch }))}
-                />
-              )}
-
-              <TextInput
-                style={[shared.authInput, shared.authTextArea]}
-                placeholder={isRecruiter ? 'About your company' : 'A bit about yourself'}
-                placeholderTextColor={c.muted}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-              />
-
-              {!isRecruiter && (
-                <Pressable style={local.resumePicker} onPress={pickResume}>
-                  <Text style={local.resumePickerText}>
-                    {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
-                  </Text>
+            <View style={local.footer}>
+              {wizard && stepIndex > 0 && (
+                <Pressable
+                  style={local.backButton}
+                  onPress={() => setStepIndex((i) => Math.max(0, i - 1))}
+                  disabled={submitting}
+                >
+                  <Text style={local.backButtonText}>Back</Text>
                 </Pressable>
               )}
-
               <Pressable
-                style={[shared.authButton, submitting && shared.authButtonDisabled]}
-                onPress={handleSubmit}
+                style={[local.nextButton, submitting && shared.authButtonDisabled]}
+                onPress={wizard ? goNext : handleSubmit}
                 disabled={submitting}
               >
                 <Text style={shared.authButtonText}>
-                  {submitting ? 'Saving...' : 'Finish setup'}
+                  {submitting
+                    ? 'Saving...'
+                    : !wizard
+                      ? 'Save changes'
+                      : isLastStep
+                        ? 'Finish setup'
+                        : 'Next'}
                 </Text>
               </Pressable>
-            </>
-          )}
-        </ScrollView>
+            </View>
+          </>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -332,6 +413,98 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        page: {
+          flex: 1,
+          paddingHorizontal: 28,
+          paddingTop: 8,
+        },
+
+        topRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 14,
+        },
+
+        progress: {
+          flexDirection: 'row',
+          gap: 6,
+        },
+
+        progressBar: {
+          flex: 1,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: c.border,
+        },
+
+        progressDone: {
+          backgroundColor: c.accent,
+        },
+
+        scroll: {
+          flex: 1,
+        },
+
+        scrollContent: {
+          paddingTop: 22,
+          paddingBottom: 16,
+          gap: 28,
+        },
+
+        section: {
+          gap: 4,
+        },
+
+        stepTitle: {
+          fontSize: 26,
+          fontWeight: '800',
+          letterSpacing: -0.6,
+          color: c.text,
+        },
+
+        stepSubtitle: {
+          fontSize: 15,
+          lineHeight: 21,
+          color: c.textSecondary,
+        },
+
+        stepBody: {
+          marginTop: 14,
+          gap: 12,
+        },
+
+        footer: {
+          flexDirection: 'row',
+          gap: 10,
+          paddingTop: 10,
+          paddingBottom: 12,
+        },
+
+        backButton: {
+          paddingHorizontal: 22,
+          paddingVertical: 14,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: c.borderStrong,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+
+        backButtonText: {
+          fontSize: 15,
+          fontWeight: '700',
+          color: c.text,
+        },
+
+        nextButton: {
+          flex: 1,
+          paddingVertical: 14,
+          borderRadius: 14,
+          backgroundColor: c.accent,
+          alignItems: 'center',
+        },
+
         avatarPicker: {
           alignItems: 'center',
           gap: 8,
