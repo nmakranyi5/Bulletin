@@ -1,10 +1,11 @@
-import { Handshake, UserRound, X } from 'lucide-react-native';
+import { Handshake, Trash2, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { reasonLabel } from '../../../lib/decline-reasons';
 import { epaMismatchNote, experienceMismatchNote } from '../../../lib/hvac';
 import { timerStatus, urgencyOf } from '../../../lib/response-timers';
+import { Avatar } from '../../components/avatar';
 import { TimerChip } from '../../components/timer-chip';
 import { useNow } from '../../hooks/use-now';
 import { MAX_INTERESTS } from '../../constants/app';
@@ -16,6 +17,7 @@ export function InterestsScreen({
   receivedInterests,
   onReceivedPress,
   onWithdraw,
+  onRemoveDeclined,
   interestsRemaining,
   initialSubTab = 'received',
 }: {
@@ -23,6 +25,8 @@ export function InterestsScreen({
   receivedInterests: InterestRow[];
   onReceivedPress: (interest: InterestRow) => void;
   onWithdraw: (interest: InterestRow) => void;
+  // Clears a declined interest from the list.
+  onRemoveDeclined: (interest: InterestRow) => void;
   interestsRemaining: number;
   initialSubTab?: 'sent' | 'received';
 }) {
@@ -81,7 +85,7 @@ export function InterestsScreen({
             contentContainerStyle={shared.interestsList}
             renderItem={({ item }) => (
               <Pressable style={shared.interestRow} onPress={() => onReceivedPress(item)}>
-                <UserRound size={40} color={c.muted} strokeWidth={1.5} />
+                <Avatar uri={item.from_profile?.avatar_url} />
                 <View style={shared.interestRowInfo}>
                   <Text numberOfLines={1} style={shared.interestRowName}>
                     {item.from_profile?.name ?? 'Unknown'}
@@ -133,7 +137,7 @@ export function InterestsScreen({
           contentContainerStyle={shared.interestsList}
           renderItem={({ item }) => (
             <View style={shared.interestRow}>
-              <UserRound size={40} color={c.muted} strokeWidth={1.5} />
+              <Avatar uri={item.to_profile?.avatar_url} />
               <View style={shared.interestRowInfo}>
                 <Text numberOfLines={1} style={shared.interestRowName}>
                   {item.to_profile?.name ?? 'Unknown'}
@@ -174,6 +178,17 @@ export function InterestsScreen({
                   onPress={() => onWithdraw(item)}
                 >
                   <X size={18} color={c.textSecondary} strokeWidth={2.2} />
+                </Pressable>
+              )}
+              {item.status === 'rejected' && (
+                <Pressable
+                  hitSlop={10}
+                  style={local.interestRowAction}
+                  onPress={() => onRemoveDeclined(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove declined interest"
+                >
+                  <Trash2 size={18} color={c.textSecondary} strokeWidth={2.2} />
                 </Pressable>
               )}
             </View>

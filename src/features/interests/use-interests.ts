@@ -36,21 +36,22 @@ export function useInterests(
     const { data: sent, error: sentError } = await supabase
       .from('interests')
       .select(
-        '*, to_profile:profiles!to_user(id, name, username), position:positions(id, title, company, urgency)'
+        '*, to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
       )
       .eq('from_user', session.user.id);
 
     if (sentError) {
       if (!silent) Alert.alert('Error', sentError.message);
     } else {
-      setSentInterests(sent ?? []);
+      // Declined interests the sender has removed stay on record but out of sight.
+      setSentInterests((sent ?? []).filter((i: InterestRow) => !i.sender_hidden));
       setLoaded(true);
     }
 
     const { data: received, error: receivedError } = await supabase
       .from('interests')
       .select(
-        '*, from_profile:profiles!from_user(id, name, username, epa_608_types, trade_start_year), position:positions(id, title, company, epa_608_required, min_experience_years, urgency)'
+        '*, from_profile:profiles!from_user(id, name, username, avatar_url, epa_608_types, trade_start_year), position:positions(id, title, company, epa_608_required, min_experience_years, urgency)'
       )
       .eq('to_user', session.user.id)
       .eq('status', 'pending');
@@ -152,6 +153,32 @@ export function useInterests(
     return true;
   };
 
+  // Removes a declined interest from your list. (It's hidden, not deleted, so the person
+  // who declined doesn't reappear in Discover.)
+  const removeDeclinedInterest = (interest: InterestRow) => {
+    Alert.alert(
+      'Remove from your list?',
+      `${interest.to_profile?.name ?? 'This person'} declined, so this just clears it from your list. They won't show up in Discover again.`,
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.rpc('hide_declined_interest', {
+              p_interest_id: interest.id,
+            });
+            if (error) {
+              Alert.alert('Could not remove', error.message);
+              return;
+            }
+            setSentInterests((prev) => prev.filter((i) => i.id !== interest.id));
+          },
+        },
+      ]
+    );
+  };
+
   const handleReceivedPress = (interest: InterestRow) => {
     const name = interest.from_profile?.name ?? 'Someone';
     const positionText = interest.position?.title
@@ -185,6 +212,7 @@ export function useInterests(
     fetchInterests,
     sendInterest,
     withdrawInterest,
+    removeDeclinedInterest,
     handleReceivedPress,
     sentInterests,
     interestsLoaded: loaded,

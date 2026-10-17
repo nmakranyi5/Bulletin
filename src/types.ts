@@ -8,6 +8,8 @@ export type InterestRow = {
   decline_reason?: string | null;
   decline_note?: string | null;
   declined_at?: string | null;
+  // The sender removed this declined interest from their list (the row is kept).
+  sender_hidden?: boolean;
   from_user: string;
   to_user: string;
   status: string;
@@ -16,10 +18,11 @@ export type InterestRow = {
     id: string;
     name: string;
     username: string;
+    avatar_url?: string | null;
     epa_608_types?: string[] | null;
     trade_start_year?: number | null;
   };
-  to_profile?: { id: string; name: string; username: string };
+  to_profile?: { id: string; name: string; username: string; avatar_url?: string | null };
   position?: {
     id: string;
     title: string;
@@ -37,6 +40,8 @@ export type Match = {
   name: string;
   position: string;
   company: string;
+  // The other person's profile photo, if they have one.
+  avatarUrl: string | null;
   // How quickly replies are expected; from the posting this match came from.
   urgency: Urgency;
 };

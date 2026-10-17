@@ -206,6 +206,7 @@ function MainApp({ session }: { session: Session }) {
             receivedInterests={interests.receivedInterests}
             onReceivedPress={interests.handleReceivedPress}
             onWithdraw={interests.withdrawInterest}
+            onRemoveDeclined={interests.removeDeclinedInterest}
             interestsRemaining={interests.interestsRemaining}
           />
         )}
