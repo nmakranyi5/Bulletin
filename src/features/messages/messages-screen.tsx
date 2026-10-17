@@ -19,12 +19,15 @@ export function MessagesScreen({
   archived,
   meta,
   onMatchPress,
+  onViewProfile,
   onRefresh,
 }: {
   active: Match[];
   archived: Match[];
   meta: Record<string, ConversationMeta>;
   onMatchPress: (match: Match) => void;
+  // Tapping the avatar opens the person's full card.
+  onViewProfile: (match: Match) => void;
   // Reloads matches and previews; also used for pull-to-refresh (resolves when done).
   onRefresh: () => Promise<unknown> | void;
 }) {
@@ -115,7 +118,9 @@ export function MessagesScreen({
             const unread = m?.unread ?? 0;
             return (
               <Pressable style={shared.interestRow} onPress={() => onMatchPress(item)}>
-                <Avatar uri={item.avatarUrl} />
+                <Pressable onPress={() => onViewProfile(item)} hitSlop={6}>
+                  <Avatar uri={item.avatarUrl} />
+                </Pressable>
 
                 <View style={shared.interestRowInfo}>
                   <View style={local.convoTopRow}>

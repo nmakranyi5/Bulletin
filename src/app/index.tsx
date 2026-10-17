@@ -1,6 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,6 +17,7 @@ import { PositionPickerModal } from '../features/discover/position-picker-modal'
 import { useDiscover } from '../features/discover/use-discover';
 import { useSwipeDeck } from '../features/discover/use-swipe-deck';
 import { DeclineModal } from '../features/interests/decline-modal';
+import { InterestRow } from '../types';
 import { InterestsScreen } from '../features/interests/interests-screen';
 import { useDeclineNotices } from '../features/interests/use-decline-notices';
 import { useInterests } from '../features/interests/use-interests';
@@ -24,6 +25,7 @@ import { ChatScreen } from '../features/messages/chat-screen';
 import { CloseChatModal } from '../features/messages/close-chat-modal';
 import { MessagesScreen } from '../features/messages/messages-screen';
 import { useMatches } from '../features/messages/use-matches';
+import { ProfileDetailModal } from '../features/profile/profile-detail-modal';
 import { OnboardingScreen } from '../features/profile/onboarding-screen';
 import { PositionsScreen } from '../features/profile/positions-screen';
 import { ProfileScreen } from '../features/profile/profile-screen';
@@ -85,6 +87,14 @@ function MainApp({ session }: { session: Session }) {
     sub: 'received',
     nonce: 0,
   });
+
+  // Whose full card is open (from Interests or Messages). A received interest also
+  // carries Accept / Decline.
+  const [profileView, setProfileView] = useState<{
+    userId: string;
+    positionId?: string | null;
+    received?: InterestRow;
+  } | null>(null);
 
   const { myProfile, fetchMyProfile } = useMyProfile(session, true);
 
@@ -206,7 +216,18 @@ function MainApp({ session }: { session: Session }) {
             initialSubTab={interestsView.sub}
             sentInterests={interests.visibleSentInterests}
             receivedInterests={interests.receivedInterests}
-            onReceivedPress={interests.handleReceivedPress}
+            onViewProfile={(interest, direction) =>
+              direction === 'received'
+                ? setProfileView({
+                    userId: interest.from_user,
+                    positionId: interest.position?.id ?? interest.position_id,
+                    received: interest,
+                  })
+                : setProfileView({
+                    userId: interest.to_user,
+                    positionId: interest.position?.id ?? interest.position_id,
+                  })
+            }
             onWithdraw={interests.withdrawInterest}
             onRemoveDeclined={interests.removeDeclinedInterest}
             onRefresh={() => Promise.all([interests.fetchInterests(), matches.fetchMatches()])}
@@ -220,6 +241,12 @@ function MainApp({ session }: { session: Session }) {
               userId={session.user.id}
               onClose={() => matches.requestClose(matches.selectedMatch)}
               onDelete={() => matches.deleteArchived(matches.selectedMatch!)}
+              onViewProfile={() =>
+                setProfileView({
+                  userId: matches.selectedMatch!.otherUserId,
+                  positionId: matches.selectedMatch!.positionId,
+                })
+              }
               onBack={() => {
                 matches.setSelectedMatch(null);
                 matches.fetchMatches();
@@ -231,6 +258,9 @@ function MainApp({ session }: { session: Session }) {
               archived={matches.archivedMatches}
               meta={matches.convoMeta}
               onMatchPress={matches.setSelectedMatch}
+              onViewProfile={(m) =>
+                setProfileView({ userId: m.otherUserId, positionId: m.positionId })
+              }
               onRefresh={matches.fetchMatches}
             />
           )
@@ -251,6 +281,39 @@ function MainApp({ session }: { session: Session }) {
           overdueMessagesCount={timers.overdueChatCount}
         />
       )}
+
+      <ProfileDetailModal
+        userId={profileView?.userId ?? null}
+        positionId={profileView?.positionId}
+        me={myProfile}
+        onClose={() => setProfileView(null)}
+        footer={
+          profileView?.received ? (
+            <>
+              <Pressable
+                style={[local.footerButton, local.declineButton]}
+                onPress={() => {
+                  const interest = profileView.received!;
+                  setProfileView(null);
+                  interests.requestDecline(interest);
+                }}
+              >
+                <Text style={local.declineText}>Decline</Text>
+              </Pressable>
+              <Pressable
+                style={[local.footerButton, local.acceptButton]}
+                onPress={() => {
+                  const interest = profileView.received!;
+                  setProfileView(null);
+                  interests.acceptInterest(interest.id);
+                }}
+              >
+                <Text style={local.acceptText}>Accept</Text>
+              </Pressable>
+            </>
+          ) : null
+        }
+      />
 
       <DeclineModal
         visible={!!interests.decliningInterest}
@@ -291,6 +354,34 @@ function useLocalStyles() {
 
         container: {
           flex: 1,
+        },
+
+        footerButton: {
+          flex: 1,
+          paddingVertical: 14,
+          borderRadius: 14,
+          alignItems: 'center',
+        },
+
+        declineButton: {
+          borderWidth: 1,
+          borderColor: c.danger,
+        },
+
+        declineText: {
+          fontSize: 15,
+          fontWeight: '700',
+          color: c.danger,
+        },
+
+        acceptButton: {
+          backgroundColor: c.accent,
+        },
+
+        acceptText: {
+          fontSize: 15,
+          fontWeight: '700',
+          color: c.onAccent,
         },
 
         authLoadingContainer: {

@@ -46,6 +46,7 @@ export type Match = {
     byMe: boolean;
   };
   otherUserId: string;
+  positionId?: string | null;
   name: string;
   position: string;
   company: string;

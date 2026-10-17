@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, UserRound } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, UserRound, X } from 'lucide-react-native';
 import { ReactNode, useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
@@ -13,6 +13,7 @@ export function ExpandableCard({
   avatarUrl,
   info,
   expanded,
+  modal = false,
   onCollapse,
   brief,
   details,
@@ -20,6 +21,8 @@ export function ExpandableCard({
   avatarUrl?: string | null;
   info: ReactNode;
   expanded: boolean;
+  // In the profile popup the header carries a close button and there's no "Show less".
+  modal?: boolean;
   onCollapse?: () => void;
   brief: ReactNode;
   details: ReactNode;
@@ -74,20 +77,29 @@ export function ExpandableCard({
           <UserRound size={48} color={c.muted} strokeWidth={1.5} />
         )}
         <View style={local.compactInfo}>{info}</View>
-        <ChevronUp size={20} color={c.textSecondary} strokeWidth={2.4} />
+        {modal ? (
+          <View style={local.closeButton}>
+            <X size={18} color={c.text} strokeWidth={2.4} />
+          </View>
+        ) : (
+          <ChevronUp size={20} color={c.textSecondary} strokeWidth={2.4} />
+        )}
       </Pressable>
 
       <ScrollView
-        style={local.scroll}
+        // In the popup the card is only as tall as its content (up to the screen).
+        style={modal ? local.scrollFit : local.scroll}
         contentContainerStyle={local.detailsContent}
         showsVerticalScrollIndicator={false}
       >
         {details}
 
-        <Pressable style={local.showLess} onPress={onCollapse}>
-          <Text style={local.showLessText}>Show less</Text>
-          <ChevronUp size={16} color={c.textSecondary} strokeWidth={2.4} />
-        </Pressable>
+        {!modal && (
+          <Pressable style={local.showLess} onPress={onCollapse}>
+            <Text style={local.showLessText}>Show less</Text>
+            <ChevronUp size={16} color={c.textSecondary} strokeWidth={2.4} />
+          </Pressable>
+        )}
       </ScrollView>
     </>
   );
@@ -138,6 +150,11 @@ function useLocalStyles() {
           flex: 1,
         },
 
+        scrollFit: {
+          flexGrow: 0,
+          flexShrink: 1,
+        },
+
         scroll: {
           flex: 1,
         },
@@ -145,6 +162,15 @@ function useLocalStyles() {
         detailsContent: {
           padding: 22,
           paddingBottom: 28,
+        },
+
+        closeButton: {
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: c.surface,
         },
 
         showLess: {

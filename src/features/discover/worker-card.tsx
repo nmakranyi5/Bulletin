@@ -9,10 +9,13 @@ import { ExpandableCard } from './expandable-card';
 export function WorkerCardContent({
   candidate,
   expanded = false,
+  modal = false,
   onCollapse,
 }: {
   candidate: any;
   expanded?: boolean;
+  // Shown in the profile popup instead of Discover: header gets a close button.
+  modal?: boolean;
   onCollapse?: () => void;
 }) {
   const c = useTheme().colors;
@@ -20,7 +23,7 @@ export function WorkerCardContent({
 
   const info = (
     <>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={shared.name}>
+      <Text numberOfLines={modal ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.7} style={[shared.name, modal && { fontSize: 26, lineHeight: 30 }]}>
         {candidate.name}
       </Text>
 
@@ -118,6 +121,7 @@ export function WorkerCardContent({
       avatarUrl={candidate.avatar_url}
       info={info}
       expanded={expanded}
+      modal={modal}
       onCollapse={onCollapse}
       brief={brief}
       details={details}

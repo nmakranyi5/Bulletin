@@ -44,6 +44,7 @@ export function ChatScreen({
   userId,
   onClose,
   onDelete,
+  onViewProfile,
   onBack,
 }: {
   match: Match;
@@ -51,6 +52,8 @@ export function ChatScreen({
   onClose: () => void;
   // Deletes an archived chat from your list.
   onDelete: () => void;
+  // Opens the other person's full card.
+  onViewProfile: () => void;
   onBack: () => void;
 }) {
   const { colors: c, mode } = useTheme();
@@ -337,6 +340,7 @@ export function ChatScreen({
           <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
 
+        <Pressable onPress={onViewProfile} style={local.headerProfile}>
         <Avatar uri={match.avatarUrl} size={38} framed />
 
         <View style={shared.chatHeaderInfo}>
@@ -347,6 +351,7 @@ export function ChatScreen({
             {match.company ? `${match.position} · ${match.company}` : match.position}
           </Text>
         </View>
+        </Pressable>
 
         {archived && (
           <Pressable onPress={onDelete} hitSlop={10} style={shared.chatBackButton}>
@@ -525,6 +530,13 @@ function useLocalStyles() {
       StyleSheet.create({
         chatContainer: {
           flex: 1,
+        },
+
+        headerProfile: {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
         },
 
         chatHeaderMeta: {
