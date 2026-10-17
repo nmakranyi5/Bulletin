@@ -1,4 +1,3 @@
-import { X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
@@ -66,14 +65,19 @@ export function ProfileDetailModal({
         <View style={local.card}>
           {profile ? (
             profile.is_recruiter ? (
-              <RecruiterCardContent recruiter={profile} me={me} expanded onCollapse={onClose} />
+              <RecruiterCardContent recruiter={profile} me={me} expanded modal onCollapse={onClose} />
             ) : (
-              <WorkerCardContent candidate={profile} expanded onCollapse={onClose} />
+              <WorkerCardContent candidate={profile} expanded modal onCollapse={onClose} />
             )
           ) : (
             <View style={local.loading}>
               {failed ? (
-                <Text style={shared.subtitle}>Couldn't load this profile.</Text>
+                <>
+                  <Text style={shared.subtitle}>Couldn't load this profile.</Text>
+                  <Pressable onPress={onClose} style={local.loadingClose}>
+                    <Text style={shared.refreshText}>Close</Text>
+                  </Pressable>
+                </>
               ) : (
                 <ActivityIndicator color={c.muted} />
               )}
@@ -82,10 +86,6 @@ export function ProfileDetailModal({
 
           {footer ? <View style={local.footer}>{footer}</View> : null}
         </View>
-
-        <Pressable style={local.close} onPress={onClose} hitSlop={10} accessibilityLabel="Close">
-          <X size={20} color={c.text} strokeWidth={2.4} />
-        </Pressable>
       </View>
     </Modal>
   );
@@ -103,26 +103,34 @@ function useLocalStyles() {
           alignItems: 'center',
           justifyContent: 'center',
           paddingHorizontal: 16,
-          paddingVertical: 48,
+          paddingVertical: 32,
         },
 
         card: {
           width: '100%',
           maxWidth: 440,
-          maxHeight: '100%',
-          flexShrink: 1,
+          maxHeight: 760,
           height: '100%',
           backgroundColor: c.surface,
           borderRadius: 28,
           overflow: 'hidden',
           borderWidth: 1,
           borderColor: c.border,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.2,
+          shadowRadius: 24,
         },
 
         loading: {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
+        },
+
+        loadingClose: {
+          marginTop: 12,
+          padding: 10,
         },
 
         footer: {
@@ -132,20 +140,6 @@ function useLocalStyles() {
           borderTopWidth: 1,
           borderTopColor: c.border,
           backgroundColor: c.surface,
-        },
-
-        close: {
-          position: 'absolute',
-          top: 10,
-          right: 14,
-          width: 34,
-          height: 34,
-          borderRadius: 17,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: c.surface,
-          borderWidth: 1,
-          borderColor: c.border,
         },
       }),
     [c]

@@ -20,11 +20,14 @@ export function RecruiterCardContent({
   recruiter,
   me,
   expanded = false,
+  modal = false,
   onCollapse,
 }: {
   recruiter: any;
   me?: any;
   expanded?: boolean;
+  // Shown in the profile popup instead of Discover: header gets a close button.
+  modal?: boolean;
   onCollapse?: () => void;
 }) {
   const c = useTheme().colors;
@@ -46,7 +49,7 @@ export function RecruiterCardContent({
 
   const info = (
     <>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={shared.name}>
+      <Text numberOfLines={modal ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.7} style={[shared.name, modal && { fontSize: 26, lineHeight: 30 }]}>
         {recruiter.company_name || recruiter.name}
       </Text>
       {recruiter.company_name ? (
@@ -70,7 +73,7 @@ export function RecruiterCardContent({
 
       <View style={local.positionRow}>
         <BriefcaseBusiness size={20} color={c.text} strokeWidth={2.2} />
-        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={shared.position}>
+        <Text numberOfLines={modal ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.7} style={[shared.position, modal && { fontSize: 22, lineHeight: 26 }]}>
           {primary?.title ?? 'Position'}
         </Text>
       </View>
@@ -196,6 +199,7 @@ export function RecruiterCardContent({
       avatarUrl={recruiter.avatar_url}
       info={info}
       expanded={expanded}
+      modal={modal}
       onCollapse={onCollapse}
       brief={brief}
       details={details}
