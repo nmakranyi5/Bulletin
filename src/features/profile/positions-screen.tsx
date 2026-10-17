@@ -44,6 +44,7 @@ import { useNow } from '../../hooks/use-now';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { ChipSelect } from '../../components/chip-select';
 import { DateTimeField } from '../../components/date-time-field';
+import { LocationField } from '../../components/location-field';
 import { useSharedStyles } from '../../styles/shared';
 import { confirmPositionClose, promptClose, promptExtend, reopenPosition } from './position-close';
 
@@ -72,6 +73,8 @@ export function PositionsScreen({
   const [payExtras, setPayExtras] = useState<string[]>([]);
   const [legacyPay, setLegacyPay] = useState('');
   const [location, setLocation] = useState('');
+  const [locationLat, setLocationLat] = useState<number | null>(null);
+  const [locationLng, setLocationLng] = useState<number | null>(null);
   const [scheduleTypes, setScheduleTypes] = useState<string[]>([]);
   const [epaRequired, setEpaRequired] = useState('');
   const [minYears, setMinYears] = useState('');
@@ -126,6 +129,8 @@ export function PositionsScreen({
     setPayExtras([]);
     setLegacyPay('');
     setLocation('');
+    setLocationLat(null);
+    setLocationLng(null);
     setScheduleTypes([]);
     setEpaRequired('');
     setMinYears('');
@@ -152,6 +157,8 @@ export function PositionsScreen({
     setPayExtras(position.pay_extras ?? []);
     setLegacyPay(position.pay_range ?? '');
     setLocation(position.location ?? '');
+    setLocationLat(typeof position.location_lat === 'number' ? position.location_lat : null);
+    setLocationLng(typeof position.location_lng === 'number' ? position.location_lng : null);
     setScheduleTypes(getSchedules(position));
     setEpaRequired(position.epa_608_required ?? '');
     setMinYears(position.min_experience_years != null ? String(position.min_experience_years) : '');
@@ -243,6 +250,8 @@ export function PositionsScreen({
       pay_extras: payExtras,
       pay_range: hasPay ? null : legacyPay.trim() || null,
       location: location.trim() || null,
+      location_lat: location.trim() ? locationLat : null,
+      location_lng: location.trim() ? locationLng : null,
       schedule_types: scheduleTypes,
       schedule_type: null, // superseded by schedule_types
       epa_608_required: epaRequired || null,
@@ -400,12 +409,14 @@ export function PositionsScreen({
               before it closes so you can extend or confirm.
             </Text>
 
-            <TextInput
-              style={shared.authInput}
+            <LocationField
               placeholder="Location"
-              placeholderTextColor={c.muted}
-              value={location}
-              onChangeText={setLocation}
+              value={{ text: location, lat: locationLat, lng: locationLng }}
+              onChange={(p) => {
+                setLocation(p.text);
+                setLocationLat(p.lat);
+                setLocationLng(p.lng);
+              }}
             />
 
             <ChipSelect

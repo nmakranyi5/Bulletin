@@ -1,21 +1,14 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { useTheme } from "../../../lib/app-theme";
-import { supabase } from "../../../lib/supabase";
-import { RecruiterCardContent } from "../discover/recruiter-card";
-import { WorkerCardContent } from "../discover/worker-card";
-import { fetchRatings } from "./ratings";
-import { useSharedStyles } from "../../styles/shared";
+import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../../../lib/app-theme';
+import { supabase } from '../../../lib/supabase';
+import { RecruiterCardContent } from '../discover/recruiter-card';
+import { WorkerCardContent } from '../discover/worker-card';
+import { fetchRatings } from './ratings';
+import { useSharedStyles } from '../../styles/shared';
 
 const PROFILE_COLUMNS =
-  "id, name, username, avatar_url, description, is_recruiter, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)";
+  'id, name, username, avatar_url, description, is_recruiter, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)';
 
 // The same expanded card you see in Discover, opened from Interests or Messages.
 // `positionId` puts the posting you're talking about first on a recruiter's card.
@@ -47,11 +40,7 @@ export function ProfileDetailModal({
     let alive = true;
     Promise.all([
       fetchRatings([userId]),
-      supabase
-        .from("profiles")
-        .select(PROFILE_COLUMNS)
-        .eq("id", userId)
-        .single(),
+      supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', userId).single(),
     ]).then(([ratings, { data, error }]) => {
       if (!alive) return;
       if (error || !data) {
@@ -60,9 +49,7 @@ export function ProfileDetailModal({
       }
       const positions = ((data as any).positions ?? [])
         .filter((p: any) => p.active || p.id === positionId)
-        .sort((a: any, b: any) =>
-          a.id === positionId ? -1 : b.id === positionId ? 1 : 0,
-        );
+        .sort((a: any, b: any) => (a.id === positionId ? -1 : b.id === positionId ? 1 : 0));
       setProfile({ ...data, positions, rating: ratings[userId] });
     });
 
@@ -72,12 +59,7 @@ export function ProfileDetailModal({
   }, [userId, positionId]);
 
   return (
-    <Modal
-      visible={!!userId}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={!!userId} transparent animationType="fade" onRequestClose={onClose}>
       <View style={local.overlay}>
         <View style={local.card}>
           {profile ? (
@@ -90,20 +72,13 @@ export function ProfileDetailModal({
                 onCollapse={onClose}
               />
             ) : (
-              <WorkerCardContent
-                candidate={profile}
-                expanded
-                modal
-                onCollapse={onClose}
-              />
+              <WorkerCardContent candidate={profile} expanded modal onCollapse={onClose} />
             )
           ) : (
             <View style={local.loading}>
               {failed ? (
                 <>
-                  <Text style={shared.subtitle}>
-                    Couldn't load this profile.
-                  </Text>
+                  <Text style={shared.subtitle}>Couldn't load this profile.</Text>
                   <Pressable onPress={onClose} style={local.loadingClose}>
                     <Text style={shared.refreshText}>Close</Text>
                   </Pressable>
@@ -129,23 +104,23 @@ function useLocalStyles() {
       StyleSheet.create({
         overlay: {
           flex: 1,
-          backgroundColor: "rgba(0,0,0,0.5)",
-          alignItems: "center",
-          justifyContent: "center",
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          alignItems: 'center',
+          justifyContent: 'center',
           paddingHorizontal: 16,
           paddingVertical: 32,
         },
 
         card: {
-          width: "100%",
+          width: '100%',
           maxWidth: 440,
-          maxHeight: "100%",
+          maxHeight: '100%',
           backgroundColor: c.surface,
           borderRadius: 28,
-          overflow: "hidden",
+          overflow: 'hidden',
           borderWidth: 1,
           borderColor: c.border,
-          shadowColor: "#000",
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: 10 },
           shadowOpacity: 0.2,
           shadowRadius: 24,
@@ -153,8 +128,8 @@ function useLocalStyles() {
 
         loading: {
           minHeight: 180,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: 'center',
+          justifyContent: 'center',
         },
 
         loadingClose: {
@@ -163,7 +138,7 @@ function useLocalStyles() {
         },
 
         footer: {
-          flexDirection: "row",
+          flexDirection: 'row',
           gap: 10,
           padding: 14,
           borderTopWidth: 1,
@@ -171,6 +146,6 @@ function useLocalStyles() {
           backgroundColor: c.surface,
         },
       }),
-    [c],
+    [c]
   );
 }
