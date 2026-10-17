@@ -84,7 +84,7 @@ export function useInterests(
     }
   };
 
-  // Declining goes through declineInterest (it needs a reason); accepting is one step.
+  // Declining goes through requestDecline + declineInterest (it needs a reason); accepting is one step.
   const acceptInterest = async (interestId: string) => {
     const { error } = await supabase
       .from('interests')
@@ -181,31 +181,6 @@ export function useInterests(
     );
   };
 
-  const handleReceivedPress = (interest: InterestRow) => {
-    const name = interest.from_profile?.name ?? 'Someone';
-    const positionText = interest.position?.title
-      ? ` about ${interest.position.title}`
-      : '';
-
-    Alert.alert(
-      name,
-      `${name} is interested in connecting${positionText}.`,
-      [
-        {
-          text: 'Decline',
-          style: 'destructive',
-          // Asks for a reason first; see declineInterest.
-          onPress: () => setDecliningInterest(interest),
-        },
-        {
-          text: 'Accept',
-          style: 'default',
-          onPress: () => acceptInterest(interest.id),
-        },
-      ]
-    );
-  };
-
   return {
     visibleSentInterests,
     receivedInterests,
@@ -215,7 +190,8 @@ export function useInterests(
     sendInterest,
     withdrawInterest,
     removeDeclinedInterest,
-    handleReceivedPress,
+    acceptInterest,
+    requestDecline: setDecliningInterest,
     sentInterests,
     interestsLoaded: loaded,
     decliningInterest,

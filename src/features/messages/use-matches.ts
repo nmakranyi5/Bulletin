@@ -83,6 +83,7 @@ export function useMatches(
                 }
               : undefined,
           otherUserId: other?.id ?? '',
+          positionId: row.position?.id ?? null,
           name: other?.name ?? other?.username ?? 'Unknown',
           position: row.position?.title ?? 'General',
           company: row.position?.company ?? '',

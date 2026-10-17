@@ -17,7 +17,7 @@ import { InterestRow } from '../../types';
 export function InterestsScreen({
   sentInterests,
   receivedInterests,
-  onReceivedPress,
+  onViewProfile,
   onWithdraw,
   onRemoveDeclined,
   interestsRemaining,
@@ -26,7 +26,8 @@ export function InterestsScreen({
 }: {
   sentInterests: InterestRow[];
   receivedInterests: InterestRow[];
-  onReceivedPress: (interest: InterestRow) => void;
+  // Opens the other person's full card. `received` shows Accept / Decline there.
+  onViewProfile: (interest: InterestRow, direction: 'sent' | 'received') => void;
   onWithdraw: (interest: InterestRow) => void;
   // Clears a declined interest from the list.
   onRemoveDeclined: (interest: InterestRow) => void;
@@ -93,7 +94,7 @@ export function InterestsScreen({
             refreshControl={refreshControl}
             contentContainerStyle={shared.interestsList}
             renderItem={({ item }) => (
-              <Pressable style={shared.interestRow} onPress={() => onReceivedPress(item)}>
+              <Pressable style={shared.interestRow} onPress={() => onViewProfile(item, 'received')}>
                 <Avatar uri={item.from_profile?.avatar_url} />
                 <View style={shared.interestRowInfo}>
                   <Text numberOfLines={1} style={shared.interestRowName}>
@@ -148,7 +149,7 @@ export function InterestsScreen({
           refreshControl={refreshControl}
           contentContainerStyle={shared.interestsList}
           renderItem={({ item }) => (
-            <View style={shared.interestRow}>
+            <Pressable style={shared.interestRow} onPress={() => onViewProfile(item, 'sent')}>
               <Avatar uri={item.to_profile?.avatar_url} />
               <View style={shared.interestRowInfo}>
                 <Text numberOfLines={1} style={shared.interestRowName}>
@@ -201,7 +202,7 @@ export function InterestsScreen({
                   <Trash2 size={18} color={c.textSecondary} strokeWidth={2.2} />
                 </Pressable>
               )}
-            </View>
+            </Pressable>
           )}
         />
       )}
