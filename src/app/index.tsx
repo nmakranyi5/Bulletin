@@ -219,6 +219,7 @@ function MainApp({ session }: { session: Session }) {
               match={matches.selectedMatch}
               userId={session.user.id}
               onClose={() => matches.requestClose(matches.selectedMatch)}
+              onDelete={() => matches.deleteArchived(matches.selectedMatch!)}
               onBack={() => {
                 matches.setSelectedMatch(null);
                 matches.fetchMatches();

@@ -52,7 +52,7 @@ export function useMatches(
     const { data, error } = await supabase
       .from('interests')
       .select(
-        'id, status, from_user, to_user, closed_reason, closed_note, closed_at, closed_by, from_profile:profiles!from_user(id, name, username, avatar_url), to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
+        'id, status, from_user, to_user, closed_reason, closed_note, closed_at, closed_by, from_chat_hidden, to_chat_hidden, from_profile:profiles!from_user(id, name, username, avatar_url), to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
       )
       .in('status', ['accepted', 'closed'])
       .or(`from_user.eq.${me},to_user.eq.${me}`);
@@ -65,7 +65,10 @@ export function useMatches(
     await fetchConversationMeta((data ?? []).map((row: any) => row.id));
 
     setMatches(
-      (data ?? []).map((row: any) => {
+      (data ?? [])
+      // Archived chats you deleted stay out of your list.
+      .filter((row: any) => !(row.from_user === me ? row.from_chat_hidden : row.to_chat_hidden))
+      .map((row: any) => {
         const other = row.from_user === me ? row.to_profile : row.from_profile;
         return {
           id: row.id,
@@ -117,7 +120,34 @@ export function useMatches(
     return true;
   };
 
+  // Removes an archived chat from your list only; the other person keeps theirs.
+  const deleteArchived = (match: Match) => {
+    Alert.alert(
+      'Delete this chat?',
+      `This removes it from your archive. ${match.name} keeps their copy.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.rpc('hide_archived_chat', {
+              p_interest_id: match.id,
+            });
+            if (error) {
+              Alert.alert('Could not delete', error.message);
+              return;
+            }
+            setSelectedId(null);
+            setMatches((prev) => prev.filter((m) => m.id !== match.id));
+          },
+        },
+      ]
+    );
+  };
+
   return {
+    deleteArchived,
     matches,
     activeMatches,
     archivedMatches,

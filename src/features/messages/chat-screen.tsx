@@ -1,4 +1,4 @@
-import { Archive, ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, X } from 'lucide-react-native';
+import { Archive, ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, Trash2, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -43,11 +43,14 @@ export function ChatScreen({
   match,
   userId,
   onClose,
+  onDelete,
   onBack,
 }: {
   match: Match;
   userId: string;
   onClose: () => void;
+  // Deletes an archived chat from your list.
+  onDelete: () => void;
   onBack: () => void;
 }) {
   const { colors: c, mode } = useTheme();
@@ -345,6 +348,11 @@ export function ChatScreen({
           </Text>
         </View>
 
+        {archived && (
+          <Pressable onPress={onDelete} hitSlop={10} style={shared.chatBackButton}>
+            <Trash2 size={20} color={c.danger} strokeWidth={2.2} />
+          </Pressable>
+        )}
         {!archived && (
           <Pressable onPress={onClose} hitSlop={10} style={shared.chatBackButton}>
             <X size={22} color={c.textSecondary} strokeWidth={2.2} />
