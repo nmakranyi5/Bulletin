@@ -12,6 +12,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { useTheme } from '../../../lib/app-theme';
 import { formatWorkerEpa } from '../../../lib/hvac';
 import { supabase } from '../../../lib/supabase';
+import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { DeleteAccountModal } from './delete-account-modal';
 
@@ -42,27 +43,29 @@ export function ProfileScreen({
   const [showDelete, setShowDelete] = useState(false);
   const { mode, setMode } = useTheme();
 
+  const loadProfile = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(
+        'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types'
+      )
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else if (data) {
+      setProfile(data);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const loadProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(
-          'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types'
-        )
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else if (data) {
-        setProfile(data);
-      }
-
-      setLoading(false);
-    };
-
     loadProfile();
   }, []);
+
+  const refreshControl = useRefreshControl(loadProfile);
 
   const roleLine = profile?.is_recruiter
     ? [profile.recruiter_title, profile.company_name].filter(Boolean).join(' at ')
@@ -77,6 +80,7 @@ export function ProfileScreen({
   return (
     <ScrollView
       style={shared.simpleScreen}
+      refreshControl={refreshControl}
       contentContainerStyle={local.scrollContent}
       showsVerticalScrollIndicator={false}
     >
