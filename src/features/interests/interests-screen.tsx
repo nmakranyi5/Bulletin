@@ -1,5 +1,5 @@
 import { Handshake, Trash2, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { reasonLabel } from '../../../lib/decline-reasons';
@@ -21,7 +21,8 @@ export function InterestsScreen({
   onWithdraw,
   onRemoveDeclined,
   interestsRemaining,
-  initialSubTab = 'received',
+  subTab,
+  onSubTabChange,
   onRefresh,
 }: {
   sentInterests: InterestRow[];
@@ -32,14 +33,15 @@ export function InterestsScreen({
   // Clears a declined interest from the list.
   onRemoveDeclined: (interest: InterestRow) => void;
   interestsRemaining: number;
-  initialSubTab?: 'sent' | 'received';
+  // Which list is showing. Owned by the parent so it survives switching tabs.
+  subTab: 'sent' | 'received';
+  onSubTabChange: (tab: 'sent' | 'received') => void;
   // Pull-to-refresh: reload interests (and matches); resolves when done.
   onRefresh: () => Promise<unknown> | void;
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
-  const [subTab, setSubTab] = useState<'sent' | 'received'>(initialSubTab);
   const now = useNow();
   const refreshControl = useRefreshControl(onRefresh);
 
@@ -55,7 +57,7 @@ export function InterestsScreen({
       <View style={shared.subTabBar}>
         <Pressable
           style={[shared.subTabItem, subTab === 'received' && shared.subTabItemActive]}
-          onPress={() => setSubTab('received')}
+          onPress={() => onSubTabChange('received')}
         >
           <Text
             style={[shared.subTabText, subTab === 'received' && shared.subTabTextActive]}
@@ -66,7 +68,7 @@ export function InterestsScreen({
 
         <Pressable
           style={[shared.subTabItem, subTab === 'sent' && shared.subTabItemActive]}
-          onPress={() => setSubTab('sent')}
+          onPress={() => onSubTabChange('sent')}
         >
           <Text
             style={[shared.subTabText, subTab === 'sent' && shared.subTabTextActive]}

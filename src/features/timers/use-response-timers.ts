@@ -55,7 +55,10 @@ export function useResponseTimers({
       });
     }
     for (const m of matches) {
-      const since = convoMeta[m.id]?.awaitingSince;
+      const meta = convoMeta[m.id];
+      // No messages yet: the recruiter owes the first one, counted from the match.
+      const firstMove = !meta && !!m.firstMoveMine && !!m.matchedAt;
+      const since = firstMove ? m.matchedAt! : meta?.awaitingSince;
       if (!since) continue;
       list.push({
         key: `chat:${m.id}:${since}`,
@@ -64,6 +67,7 @@ export function useResponseTimers({
         name: m.name,
         urgency: m.urgency,
         since,
+        firstMove,
       });
     }
     return list;

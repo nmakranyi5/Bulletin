@@ -1,11 +1,10 @@
 import { Archive, Check, CheckCheck, MessageCircle } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { ConversationMeta, formatListTime } from '../../../lib/chat';
 import { closeOutcome, isDeal } from '../../../lib/close-reasons';
 import { timerStatus } from '../../../lib/response-timers';
-import { supabase } from '../../../lib/supabase';
 import { Avatar } from '../../components/avatar';
 import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { TimerChip } from '../../components/timer-chip';
@@ -15,6 +14,8 @@ import { useSharedStyles } from '../../styles/shared';
 import { Match } from '../../types';
 
 export function MessagesScreen({
+  view,
+  onViewChange,
   active,
   archived,
   meta,
@@ -22,6 +23,9 @@ export function MessagesScreen({
   onViewProfile,
   onRefresh,
 }: {
+  // Which list is showing. Owned by the parent so it survives switching tabs.
+  view: 'active' | 'archived';
+  onViewChange: (view: 'active' | 'archived') => void;
   active: Match[];
   archived: Match[];
   meta: Record<string, ConversationMeta>;
@@ -36,24 +40,12 @@ export function MessagesScreen({
   const local = useLocalStyles();
   const now = useNow();
   const refreshControl = useRefreshControl(onRefresh);
-  const [view, setView] = useState<'active' | 'archived'>('active');
   const isArchive = view === 'archived';
   const matches = isArchive ? archived : active;
 
+  // Previews and unread counts are kept live by useMatches; this just refreshes on open.
   useEffect(() => {
     onRefresh();
-
-    // Keep previews and unread counts live while the list is open.
-    const channel = supabase
-      .channel('messages-list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () =>
-        onRefresh()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   // Conversations with messages first (newest on top), then new matches.
@@ -78,7 +70,7 @@ export function MessagesScreen({
             <Pressable
               key={v}
               style={[shared.subTabItem, view === v && shared.subTabItemActive]}
-              onPress={() => setView(v)}
+              onPress={() => onViewChange(v)}
             >
               <Text style={[shared.subTabText, view === v && shared.subTabTextActive]}>
                 {v === 'active' ? 'Active' : 'Archived'}
@@ -182,6 +174,13 @@ export function MessagesScreen({
                         {item.closed.byMe ? 'by you' : `by ${item.name.split(' ')[0]}`}
                       </Text>
                     </View>
+                  ) : !isArchive && !m && item.matchedAt ? (
+                    // New match, nobody has written yet: the recruiter owes the first message.
+                    <TimerChip
+                      side={item.firstMoveMine ? 'responder' : 'waiting'}
+                      status={timerStatus(item.matchedAt, item.urgency, now)}
+                      prefix={item.firstMoveMine ? 'Say hello' : undefined}
+                    />
                   ) : !isArchive && m?.awaitingSince ? (
                     <TimerChip
                       side="responder"

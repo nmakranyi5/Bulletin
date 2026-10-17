@@ -62,6 +62,8 @@ export function ChatScreen({
   // Archived chats are read-only: no sending, editing, deleting or closing.
   const archived = match.status === 'closed';
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // True once the history has loaded, so an empty chat isn't mistaken for "still loading".
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const now = useNow();
@@ -97,6 +99,7 @@ export function ChatScreen({
       Alert.alert('Error', error.message);
       return;
     }
+    setHistoryLoaded(true);
     setMessages((prev) => [
       ...(data ?? []).map(toChat),
       ...prev.filter((m) => m.status === 'sending' || m.status === 'failed'),
@@ -287,14 +290,29 @@ export function ChatScreen({
   const awaiting = (() => {
     if (archived) return null;
     const last = messages[messages.length - 1];
-    if (!last) return null;
+    if (!last) {
+      // Nobody has written yet: the clock runs from the match, on the recruiter.
+      return historyLoaded && match.matchedAt
+        ? {
+            side: match.firstMoveMine ? ('responder' as const) : ('waiting' as const),
+            since: match.matchedAt,
+            firstMove: true,
+          }
+        : null;
+    }
     let since: string | null = null;
     for (let k = messages.length - 1; k >= 0; k--) {
       const m = messages[k];
       if (m.fromMe !== last.fromMe) break;
       if (!m.deletedAt && m.status !== 'sending' && m.status !== 'failed') since = m.createdAt;
     }
-    return since ? { side: last.fromMe ? ('waiting' as const) : ('responder' as const), since } : null;
+    return since
+      ? {
+          side: last.fromMe ? ('waiting' as const) : ('responder' as const),
+          since,
+          firstMove: false,
+        }
+      : null;
   })();
 
   // Flatten into day separators + grouped bubbles; the status line sits under my latest message.
@@ -387,6 +405,7 @@ export function ChatScreen({
       {awaiting && (
         <ReplyBanner
           side={awaiting.side}
+          firstMove={awaiting.firstMove}
           status={timerStatus(awaiting.since, match.urgency, now)}
           name={match.name}
           urgency={match.urgency}

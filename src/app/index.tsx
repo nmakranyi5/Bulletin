@@ -5,6 +5,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../lib/app-theme';
+import { tourSteps } from '../../lib/tutorial';
+import { MAX_INTERESTS } from '../constants/app';
 import { closeReasonsFor } from '../../lib/close-reasons';
 import { reasonsFor } from '../../lib/decline-reasons';
 import { supabase } from '../../lib/supabase';
@@ -32,6 +34,8 @@ import { PositionsScreen } from '../features/profile/positions-screen';
 import { ProfileScreen } from '../features/profile/profile-screen';
 import { usePositionReminders } from '../features/profile/use-position-reminders';
 import { useMyProfile } from '../features/profile/use-my-profile';
+import { TutorialOverlay } from '../features/tutorial/tutorial-overlay';
+import { markTutorialOffer, useTutorial } from '../features/tutorial/use-tutorial';
 import { useResponseTimers } from '../features/timers/use-response-timers';
 import { useSharedStyles } from '../styles/shared';
 
@@ -65,7 +69,11 @@ export default function Index() {
     return (
       <OnboardingScreen
         session={session}
-        onComplete={() => setOnboarded(true)}
+        onComplete={async () => {
+          // New accounts get offered the tour once, when they land in the app.
+          await markTutorialOffer(session.user.id);
+          setOnboarded(true);
+        }}
         // Leaving setup signs out, which returns to the login screen. The account and
         // its (unfinished) profile are kept, so signing back in resumes setup.
         onBackToLogin={() => supabase.auth.signOut()}
@@ -84,11 +92,13 @@ function MainApp({ session }: { session: Session }) {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [editingProfile, setEditingProfile] = useState(false);
   const [managingPositions, setManagingPositions] = useState(false);
-  // Which Interests sub-tab to open on; the nonce remounts the screen to apply it.
-  const [interestsView, setInterestsView] = useState<{ sub: 'sent' | 'received'; nonce: number }>({
-    sub: 'received',
-    nonce: 0,
-  });
+  // Which sub-tab each screen is on. They live here (not in the screens) so switching to
+  // another tab and back puts you where you were.
+  const [interestsSub, setInterestsSub] = useState<'sent' | 'received'>('received');
+  const [messagesView, setMessagesView] = useState<'active' | 'archived'>('active');
+
+  // The first-run tour: offered once to new accounts, replayable from Profile > Settings.
+  const tutorial = useTutorial(session.user.id);
 
   // Whose full card is open (from Interests or Messages). A received interest also
   // carries Accept / Decline.
@@ -111,7 +121,12 @@ function MainApp({ session }: { session: Session }) {
     },
     !!myProfile?.is_recruiter
   );
-  const matches = useMatches(session, true, () => interests.fetchInterests());
+  const matches = useMatches(
+    session,
+    true,
+    () => interests.fetchInterests(),
+    !!myProfile?.is_recruiter
+  );
   const discover = useDiscover(
     session,
     myProfile,
@@ -132,7 +147,7 @@ function MainApp({ session }: { session: Session }) {
     userId: session.user.id,
     onView: () => {
       matches.setSelectedMatch(null);
-      setInterestsView((v) => ({ sub: 'sent', nonce: v.nonce + 1 }));
+      setInterestsSub('sent');
       setActiveTab('interests');
     },
   });
@@ -153,7 +168,7 @@ function MainApp({ session }: { session: Session }) {
 
   // Reply timers: tracks everything waiting on your answer and alerts when a limit
   // is reached. Never closes or blocks anything.
-  const timers = useResponseTimers({
+  useResponseTimers({
     receivedInterests: interests.receivedInterests,
     matches: matches.activeMatches,
     convoMeta: matches.convoMeta,
@@ -164,7 +179,7 @@ function MainApp({ session }: { session: Session }) {
     },
     onOpenInterests: () => {
       matches.setSelectedMatch(null);
-      setInterestsView((v) => ({ sub: 'received', nonce: v.nonce + 1 }));
+      setInterestsSub('received');
       setActiveTab('interests');
     },
     onOpenChat: (matchId) => {
@@ -174,6 +189,8 @@ function MainApp({ session }: { session: Session }) {
       matches.setSelectedMatch(match);
     },
   });
+
+  const tutorSteps = tourSteps(!!myProfile?.is_recruiter, MAX_INTERESTS);
 
   if (editingProfile) {
     return (
@@ -228,8 +245,8 @@ function MainApp({ session }: { session: Session }) {
 
         {activeTab === 'interests' && (
           <InterestsScreen
-            key={interestsView.nonce}
-            initialSubTab={interestsView.sub}
+            subTab={interestsSub}
+            onSubTabChange={setInterestsSub}
             sentInterests={interests.visibleSentInterests}
             receivedInterests={interests.receivedInterests}
             onViewProfile={(interest, direction) =>
@@ -270,6 +287,8 @@ function MainApp({ session }: { session: Session }) {
             />
           ) : (
             <MessagesScreen
+              view={messagesView}
+              onViewChange={setMessagesView}
               active={matches.activeMatches}
               archived={matches.archivedMatches}
               meta={matches.convoMeta}
@@ -286,6 +305,11 @@ function MainApp({ session }: { session: Session }) {
             session={session}
             onEditProfile={() => setEditingProfile(true)}
             onManagePositions={() => setManagingPositions(true)}
+            onReplayTutorial={() => {
+              matches.setSelectedMatch(null);
+              setActiveTab('discover');
+              tutorial.start();
+            }}
           />
         )}
       </SafeAreaView>
@@ -294,9 +318,28 @@ function MainApp({ session }: { session: Session }) {
           activeTab={activeTab}
           onTabPress={setActiveTab}
           unseenReceivedCount={interests.unseenReceivedCount}
-          overdueMessagesCount={timers.overdueChatCount}
+          unreadMessagesCount={matches.unreadTotal}
         />
       )}
+
+      <TutorialOverlay
+        stage={tutorial.stage}
+        steps={tutorSteps}
+        step={tutorial.step}
+        onStart={tutorial.start}
+        onStep={(i) => {
+          tutorial.setStep(i);
+          const tab = tutorSteps[i]?.tab;
+          if (tab) {
+            matches.setSelectedMatch(null);
+            setActiveTab(tab);
+          }
+        }}
+        onClose={() => {
+          tutorial.close();
+          setActiveTab('discover');
+        }}
+      />
 
       <ProfileDetailModal
         userId={profileView?.userId ?? null}

@@ -101,6 +101,8 @@ export type PendingReply = {
   // Stable per unanswered run, so a fresh unanswered message gets a fresh key.
   key: string;
   kind: 'interest' | 'chat';
+  // A chat with no messages yet: this is the reply to "say hello", not to a message.
+  firstMove?: boolean;
   // The interest id (a chat's id is its interest's id).
   id: string;
   name: string;
@@ -134,6 +136,8 @@ export function alertCopy(
       message:
         item.kind === 'interest'
           ? `${item.name} has been waiting ${waited} for an answer to their interest. This is ${cfg.article} role, so a reply is expected within ${cfg.windowLabel}.`
+          : item.firstMove
+          ? `You matched with ${item.name} ${waited} ago and they're waiting to hear from you. This is ${cfg.article} role, so a first message is expected within ${cfg.windowLabel}.`
           : `${item.name} has been waiting ${waited} for your reply. This is ${cfg.article} role, so a reply is expected within ${cfg.windowLabel}.`,
     };
   }
