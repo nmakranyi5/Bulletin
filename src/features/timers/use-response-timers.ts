@@ -9,10 +9,14 @@ import {
   timerStatus,
   urgencyOf,
 } from '../../../lib/response-timers';
+import { syncServerClock } from '../../../lib/time';
+import { supabase } from '../../../lib/supabase';
 import { useNow } from '../../hooks/use-now';
 import { InterestRow, Match } from '../../types';
 
 const REFRESH_MS = 60_000;
+// Re-measure the clock gap every N refreshes (every 5 minutes).
+const CLOCK_SYNC_EVERY = 5;
 
 // Watches everything waiting on *your* reply (new interests and unanswered chat
 // messages), keeps it fresh, and raises an alert when a reply's time limit is reached.
@@ -70,9 +74,26 @@ export function useResponseTimers({
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
   useEffect(() => {
-    const poll = setInterval(() => refreshRef.current(), REFRESH_MS);
+    // Deadlines are server timestamps, so measure how far this phone's clock is from the
+    // server's (wrong clock, different time zone settings, etc.) and correct for it. If
+    // the server can't be reached, the previous correction (or none) stays in place.
+    const syncClock = () =>
+      syncServerClock(async () => {
+        const { data, error } = await supabase.rpc('server_time');
+        return error ? null : (data as string | null);
+      });
+    syncClock();
+
+    let polls = 0;
+    const poll = setInterval(() => {
+      refreshRef.current();
+      if (++polls % CLOCK_SYNC_EVERY === 0) syncClock();
+    }, REFRESH_MS);
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') refreshRef.current();
+      if (s === 'active') {
+        refreshRef.current();
+        syncClock();
+      }
     });
     return () => {
       clearInterval(poll);

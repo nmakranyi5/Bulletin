@@ -14,6 +14,7 @@ import {
 import { useTheme } from '../../../lib/app-theme';
 import { formatDayLabel, formatTime, isSameDay, MessageStatus } from '../../../lib/chat';
 import { timerStatus } from '../../../lib/response-timers';
+import { parseServerTime } from '../../../lib/time';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
 import { useNow } from '../../hooks/use-now';
@@ -287,7 +288,8 @@ export function ChatScreen({
       !prev ||
       prev.fromMe !== msg.fromMe ||
       !isSameDay(prev.createdAt, msg.createdAt) ||
-      new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() > 5 * 60 * 1000;
+      parseServerTime(msg.createdAt).getTime() - parseServerTime(prev.createdAt).getTime() >
+        5 * 60 * 1000;
     items.push({
       type: 'msg',
       key: msg.id,

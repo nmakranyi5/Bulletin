@@ -1,5 +1,7 @@
 // Chat helpers: time formatting and conversation summaries.
 
+import { parseServerTime, serverNow } from './time';
+
 export type MessageStatus = 'sending' | 'sent' | 'read' | 'failed';
 
 export type ConversationMeta = {
@@ -19,12 +21,12 @@ const sameDay = (a: Date, b: Date) =>
   a.getDate() === b.getDate();
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return parseServerTime(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 export function formatDayLabel(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
+  const d = parseServerTime(iso);
+  const now = new Date(serverNow());
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (sameDay(d, now)) return 'Today';
@@ -39,8 +41,8 @@ export function formatDayLabel(iso: string): string {
 
 // Compact timestamp for the conversation list.
 export function formatListTime(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
+  const d = parseServerTime(iso);
+  const now = new Date(serverNow());
   if (sameDay(d, now)) return formatTime(iso);
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
@@ -49,7 +51,7 @@ export function formatListTime(iso: string): string {
 }
 
 export function isSameDay(a: string, b: string): boolean {
-  return sameDay(new Date(a), new Date(b));
+  return sameDay(parseServerTime(a), parseServerTime(b));
 }
 
 // rows must be ordered newest first.

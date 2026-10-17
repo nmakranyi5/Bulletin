@@ -4,6 +4,8 @@
 // who owes a reply has to give one. Timers never close or change a chat; they only
 // show how much time is left and trigger an alert when the limit is reached.
 
+import { parseServerTime, serverNow } from './time';
+
 export const URGENCY_LEVELS = ['urgent', 'standard', 'flexible'] as const;
 export type Urgency = (typeof URGENCY_LEVELS)[number];
 
@@ -57,10 +59,10 @@ const SOON_FRACTION = 0.25;
 export function timerStatus(
   sinceIso: string,
   urgency: Urgency,
-  now: number = Date.now()
+  now: number = serverNow()
 ): TimerStatus {
   const windowMs = URGENCY[urgency].windowMs;
-  const dueAt = new Date(sinceIso).getTime() + windowMs;
+  const dueAt = parseServerTime(sinceIso).getTime() + windowMs;
   const remainingMs = dueAt - now;
   const state: TimerState =
     remainingMs <= 0 ? 'overdue' : remainingMs <= windowMs * SOON_FRACTION ? 'soon' : 'ok';
@@ -83,7 +85,7 @@ export function formatDuration(ms: number): string {
 
 // Whose side of the conversation we're describing.
 //  - 'responder': you owe the reply ("1h 20m left to reply")
-//  - 'waiting':   you're waiting on them ("Reply expected within 1h 20m")
+//  - 'waiting':   you're waiting on them ("Reply due in 1h 20m")
 export function timerLabel(status: TimerStatus, side: 'responder' | 'waiting'): string {
   if (status.state === 'overdue') {
     return side === 'responder'
@@ -91,7 +93,7 @@ export function timerLabel(status: TimerStatus, side: 'responder' | 'waiting'): 
       : `No reply yet, overdue by ${formatDuration(status.remainingMs)}`;
   }
   const left = formatDuration(status.remainingMs);
-  return side === 'responder' ? `${left} left to reply` : `Reply expected within ${left}`;
+  return side === 'responder' ? `${left} left to reply` : `Reply due in ${left}`;
 }
 
 // A reply someone currently owes.
@@ -125,7 +127,7 @@ export function alertCopy(
 ): { title: string; message: string } {
   if (due.length === 1) {
     const [item] = due;
-    const waited = formatDuration(now - new Date(item.since).getTime());
+    const waited = formatDuration(now - parseServerTime(item.since).getTime());
     const cfg = URGENCY[item.urgency];
     return {
       title: 'Time to reply',
