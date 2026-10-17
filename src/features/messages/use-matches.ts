@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { ConversationMeta, summarizeConversations } from '../../../lib/chat';
+import { urgencyOf } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
 import { Match } from '../../types';
 
@@ -32,20 +33,20 @@ export function useMatches(
     if (!error) setConvoMeta(summarizeConversations(data ?? [], session.user.id));
   };
 
-  const fetchMatches = async () => {
+  const fetchMatches = async (opts?: { silent?: boolean }) => {
     if (!session) return;
 
     const me = session.user.id;
     const { data, error } = await supabase
       .from('interests')
       .select(
-        'id, from_user, to_user, from_profile:profiles!from_user(id, name, username), to_profile:profiles!to_user(id, name, username), position:positions(id, title, company)'
+        'id, from_user, to_user, from_profile:profiles!from_user(id, name, username), to_profile:profiles!to_user(id, name, username), position:positions(id, title, company, urgency)'
       )
       .eq('status', 'accepted')
       .or(`from_user.eq.${me},to_user.eq.${me}`);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      if (!opts?.silent) Alert.alert('Error', error.message);
       return;
     }
 
@@ -60,6 +61,7 @@ export function useMatches(
           name: other?.name ?? other?.username ?? 'Unknown',
           position: row.position?.title ?? 'General',
           company: row.position?.company ?? '',
+          urgency: urgencyOf(row.position),
         };
       })
     );

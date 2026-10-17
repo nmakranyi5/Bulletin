@@ -24,6 +24,7 @@ import {
   parsePay,
   SCHEDULE_TYPES,
 } from '../../../lib/hvac';
+import { URGENCY, URGENCY_LEVELS, Urgency, urgencyOf } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
 import { ChipSelect } from '../../components/chip-select';
 import { useSharedStyles } from '../../styles/shared';
@@ -46,6 +47,7 @@ export function PositionsScreen({
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
   const [defaultCompany, setDefaultCompany] = useState('');
+  const [urgency, setUrgency] = useState<Urgency>('standard');
   const [payType, setPayType] = useState('');
   const [payMin, setPayMin] = useState('');
   const [payMax, setPayMax] = useState('');
@@ -90,6 +92,7 @@ export function PositionsScreen({
   const resetForm = () => {
     setTitle('');
     setCompany('');
+    setUrgency('standard');
     setPayType('');
     setPayMin('');
     setPayMax('');
@@ -114,6 +117,7 @@ export function PositionsScreen({
   const openEditForm = (position: any) => {
     setTitle(position.title ?? '');
     setCompany(position.company ?? '');
+    setUrgency(urgencyOf(position));
     setPayType(position.pay_type ?? '');
     setPayMin(position.pay_min != null ? String(position.pay_min) : '');
     setPayMax(position.pay_max != null ? String(position.pay_max) : '');
@@ -179,6 +183,7 @@ export function PositionsScreen({
       company: company.trim(),
       // Structured pay replaces the old free-text range; keep the old text only
       // while no structured pay has been entered.
+      urgency,
       pay_type: hasPay ? payType : null,
       pay_min: parsedMin,
       pay_max: parsedMax,
@@ -256,6 +261,20 @@ export function PositionsScreen({
               value={company}
               onChangeText={setCompany}
             />
+
+            <ChipSelect
+              label="HOW URGENT IS THIS HIRE?"
+              options={URGENCY_LEVELS.map((u) => URGENCY[u].label)}
+              selected={[URGENCY[urgency].label]}
+              onToggle={(o) => {
+                const next = URGENCY_LEVELS.find((u) => URGENCY[u].label === o);
+                if (next) setUrgency(next);
+              }}
+            />
+            <Text style={shared.chipHint}>
+              {URGENCY[urgency].blurb} You and candidates are each expected to reply within{' '}
+              {URGENCY[urgency].windowLabel}. Timers only remind people; nothing is closed.
+            </Text>
 
             <ChipSelect
               label="PAY TYPE"
@@ -446,7 +465,8 @@ export function PositionsScreen({
                   {item.title}
                 </Text>
                 <Text numberOfLines={1} style={shared.interestRowMeta}>
-                  {item.company}
+                  {item.company} · {URGENCY[urgencyOf(item)].label} (replies within{' '}
+                  {URGENCY[urgencyOf(item)].windowLabel})
                 </Text>
               </View>
               <Pressable onPress={() => handleDelete(item.id)} style={{ padding: 6 }}>

@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { epaMismatchNote, experienceMismatchNote } from '../../../lib/hvac';
+import { timerStatus, urgencyOf } from '../../../lib/response-timers';
+import { TimerChip } from '../../components/timer-chip';
+import { useNow } from '../../hooks/use-now';
 import { MAX_INTERESTS } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
 import { InterestRow } from '../../types';
@@ -24,6 +27,7 @@ export function InterestsScreen({
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const [subTab, setSubTab] = useState<'sent' | 'received'>('received');
+  const now = useNow();
 
   return (
     <View style={shared.simpleScreen}>
@@ -100,6 +104,12 @@ export function InterestsScreen({
                       </Text>
                     ) : null;
                   })()}
+                  {item.created_at ? (
+                    <TimerChip
+                      side="responder"
+                      status={timerStatus(item.created_at, urgencyOf(item.position), now)}
+                    />
+                  ) : null}
                 </View>
               </Pressable>
             )}
@@ -135,6 +145,12 @@ export function InterestsScreen({
                     : 'Not interested'}
                   {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                 </Text>
+                {item.status === 'pending' && item.created_at ? (
+                  <TimerChip
+                    side="waiting"
+                    status={timerStatus(item.created_at, urgencyOf(item.position), now)}
+                  />
+                ) : null}
               </View>
               {item.status === 'pending' && (
                 <Pressable
