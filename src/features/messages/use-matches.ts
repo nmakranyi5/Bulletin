@@ -1,5 +1,5 @@
 import { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { CloseReason } from '../../../lib/close-reasons';
@@ -98,6 +98,31 @@ export function useMatches(
     if (enabled) fetchMatches();
   }, [session, enabled]);
 
+  // Keep previews and unread counts current on every tab (the Messages badge depends on
+  // them), not just while the Messages list is open. Bursts of changes are batched.
+  const refetch = useRef(fetchMatches);
+  refetch.current = fetchMatches;
+  useEffect(() => {
+    if (!enabled || !session) return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const channel = supabase
+      .channel('messages-unread')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => refetch.current({ silent: true }), 400);
+      })
+      .subscribe();
+
+    return () => {
+      clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [session, enabled]);
+
+  // Unread messages across your active chats: what the Messages tab badge shows.
+  const unreadTotal = activeMatches.reduce((n, m) => n + (convoMeta[m.id]?.unread ?? 0), 0);
+
   // Closing always carries a reason (and an optional note) for the other person.
   // Returns true on success so the picker knows to close.
   const closeChat = async (reason: CloseReason, note: string | null): Promise<boolean> => {
@@ -148,6 +173,7 @@ export function useMatches(
   };
 
   return {
+    unreadTotal,
     deleteArchived,
     matches,
     activeMatches,

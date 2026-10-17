@@ -152,7 +152,7 @@ function MainApp({ session }: { session: Session }) {
 
   // Reply timers: tracks everything waiting on your answer and alerts when a limit
   // is reached. Never closes or blocks anything.
-  const timers = useResponseTimers({
+  useResponseTimers({
     receivedInterests: interests.receivedInterests,
     matches: matches.activeMatches,
     convoMeta: matches.convoMeta,
@@ -295,7 +295,7 @@ function MainApp({ session }: { session: Session }) {
           activeTab={activeTab}
           onTabPress={setActiveTab}
           unseenReceivedCount={interests.unseenReceivedCount}
-          overdueMessagesCount={timers.overdueChatCount}
+          unreadMessagesCount={matches.unreadTotal}
         />
       )}
 

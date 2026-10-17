@@ -5,7 +5,6 @@ import { useTheme } from '../../../lib/app-theme';
 import { ConversationMeta, formatListTime } from '../../../lib/chat';
 import { closeOutcome, isDeal } from '../../../lib/close-reasons';
 import { timerStatus } from '../../../lib/response-timers';
-import { supabase } from '../../../lib/supabase';
 import { Avatar } from '../../components/avatar';
 import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { TimerChip } from '../../components/timer-chip';
@@ -44,20 +43,9 @@ export function MessagesScreen({
   const isArchive = view === 'archived';
   const matches = isArchive ? archived : active;
 
+  // Previews and unread counts are kept live by useMatches; this just refreshes on open.
   useEffect(() => {
     onRefresh();
-
-    // Keep previews and unread counts live while the list is open.
-    const channel = supabase
-      .channel('messages-list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () =>
-        onRefresh()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   // Conversations with messages first (newest on top), then new matches.
