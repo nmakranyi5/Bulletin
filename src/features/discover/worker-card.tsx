@@ -1,7 +1,9 @@
-import { MapPin } from 'lucide-react-native';
-import { Text, View } from 'react-native';
+import { FileText, MapPin } from 'lucide-react-native';
+import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { formatTradeStart, formatWorkerEpa } from '../../../lib/hvac';
+import { ResumeViewerModal } from '../../components/resume-viewer-modal';
 import { RatingBadge } from '../../components/rating-badge';
 import { Tag } from '../../components/tag';
 import { useSharedStyles } from '../../styles/shared';
@@ -21,10 +23,16 @@ export function WorkerCardContent({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const [resumeOpen, setResumeOpen] = useState(false);
 
   const info = (
     <>
-      <Text numberOfLines={modal ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.7} style={[shared.name, modal && { fontSize: 26, lineHeight: 30 }]}>
+      <Text
+        numberOfLines={modal ? 2 : 1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={[shared.name, modal && { fontSize: 26, lineHeight: 30 }]}
+      >
         {candidate.name}
       </Text>
 
@@ -115,6 +123,35 @@ export function WorkerCardContent({
       <Text style={[shared.note, { marginTop: 8 }]}>
         {candidate.description || 'No description provided.'}
       </Text>
+
+      {candidate.resume_url ? (
+        <>
+          <Pressable
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              marginTop: 18,
+              paddingVertical: 12,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: c.borderStrong,
+            }}
+            onPress={() => setResumeOpen(true)}
+            accessibilityRole="button"
+          >
+            <FileText size={18} color={c.text} strokeWidth={2.2} />
+            <Text style={{ fontSize: 15, fontWeight: '700', color: c.text }}>View resume</Text>
+          </Pressable>
+          <ResumeViewerModal
+            visible={resumeOpen}
+            url={candidate.resume_url}
+            name={candidate.name}
+            onClose={() => setResumeOpen(false)}
+          />
+        </>
+      ) : null}
     </>
   );
 

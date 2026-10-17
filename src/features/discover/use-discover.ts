@@ -80,7 +80,7 @@ export function useDiscover(
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, description, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules'
+          'id, name, username, avatar_url, description, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, resume_url'
         )
         .eq('is_recruiter', false)
         .not('id', 'in', `(${excludeIds.join(',')})`);

@@ -3,35 +3,37 @@ import { decode } from 'base64-arraybuffer';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, UserRound, X } from 'lucide-react-native';
+import { UserRound } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
+import { StepForm } from '../../components/step-form';
 import { useSharedStyles } from '../../styles/shared';
 import {
   buildRecruiterPayload,
   emptyRecruiter,
+  RECRUITER_STEPS,
   RecruiterFields,
   recruiterFromRow,
+  recruiterStepError,
   RecruiterValues,
 } from './recruiter-fields';
 import {
   buildSeekerPayload,
   emptySeeker,
+  SEEKER_STEPS,
   SeekerFields,
   seekerFromRow,
+  seekerStepError,
   SeekerValues,
 } from './seeker-fields';
 
@@ -61,14 +63,40 @@ export function OnboardingScreen({
   const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  // First-time setup shows one step at a time; editing shows every step together.
+  const wizard = !onCancel;
+  const steps: { key: string; title: string; subtitle: string }[] = [
+    {
+      key: 'basics',
+      title: isRecruiter ? "Let's set up your company" : "Let's get you set up",
+      subtitle: 'Start with the basics.',
+    },
+    ...(isRecruiter ? RECRUITER_STEPS : SEEKER_STEPS),
+    {
+      key: 'about',
+      title: isRecruiter ? 'About your company' : 'About you',
+      subtitle: isRecruiter
+        ? 'A short description candidates will see.'
+        : 'Tell shops who you are. A resume helps too.',
+    },
+  ];
+
+  // What stops you moving on from a step, or null when it is fine to continue.
+  const stepProblem = (key: string): { title: string; message: string } | null => {
+    if (key === 'basics' && (!name.trim() || !username.trim())) {
+      return { title: 'Missing info', message: 'Name and username are required.' };
+    }
+    if (isRecruiter) return recruiterStepError(key as any, recruiter);
+    return seekerStepError(key as any, seeker);
+  };
 
   useEffect(() => {
     const loadExisting = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select(
-          '*'
-        )
+        .select('*')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -124,27 +152,25 @@ export function OnboardingScreen({
     }
   };
 
-  const uploadFile = async (
-    bucket: string,
-    uri: string,
-    fileName: string,
-    contentType: string
-  ) => {
-    const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+  const uploadFile = async (bucket: string, uri: string, fileName: string, contentType: string) => {
+    // On the web the picked file is a blob URL / data URI the browser can fetch; on phones
+    // it is a file on disk that has to be read as base64 first.
+    const body =
+      Platform.OS === 'web'
+        ? await (await fetch(uri)).blob()
+        : decode(
+            await FileSystem.readAsStringAsync(uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            })
+          );
 
     const path = `${session.user.id}/${fileName}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(
-      path,
-      decode(base64),
-      {
-        contentType,
-        upsert: true,
-        cacheControl: '3600',
-      }
-    );
+    const { error } = await supabase.storage.from(bucket).upload(path, body, {
+      contentType,
+      upsert: true,
+      cacheControl: '3600',
+    });
 
     if (error) throw error;
 
@@ -176,12 +202,7 @@ export function OnboardingScreen({
       }
 
       if (!isRecruiter && resumeFile && !resumeFile.uri.startsWith('http')) {
-        resumeUrl = await uploadFile(
-          'resumes',
-          resumeFile.uri,
-          'resume.pdf',
-          'application/pdf'
-        );
+        resumeUrl = await uploadFile('resumes', resumeFile.uri, 'resume.pdf', 'application/pdf');
       }
 
       const { error } = await supabase
@@ -204,125 +225,108 @@ export function OnboardingScreen({
       const message =
         err?.code === '23505'
           ? 'That username is already taken.'
-          : err?.message ?? 'Something went wrong.';
+          : (err?.message ?? 'Something went wrong.');
       Alert.alert('Error', message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <SafeAreaView style={shared.authContainer}>
-      <KeyboardAvoidingView
-        style={shared.authInner}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={{ gap: 12 }}
-          keyboardShouldPersistTaps="handled"
-        >
-          {(onCancel || onBackToLogin) && (
-            <Pressable
-              onPress={onCancel ?? onBackToLogin}
-              disabled={submitting}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={onCancel ? 'Go back' : 'Cancel and return to login'}
-              // Back arrow sits top-left; the setup X sits top-right.
-              style={[shared.chatBackButton, !onCancel && { alignSelf: 'flex-end' }]}
-            >
-              {onCancel ? (
-                <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
-              ) : (
-                <X size={22} color={c.text} strokeWidth={2.2} />
-              )}
+  const renderStep = (key: string) => {
+    if (key === 'basics') {
+      return (
+        <>
+          <Pressable style={local.avatarPicker} onPress={pickAvatar}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={shared.avatarPreview} />
+            ) : (
+              <UserRound size={40} color={c.muted} strokeWidth={1.5} />
+            )}
+            <Text style={local.avatarPickerText}>
+              {avatarUri ? 'Change photo' : isRecruiter ? 'Add company logo' : 'Add profile photo'}
+            </Text>
+          </Pressable>
+
+          <TextInput
+            style={shared.authInput}
+            placeholder={isRecruiter ? 'Your name' : 'Name'}
+            placeholderTextColor={c.muted}
+            value={name}
+            onChangeText={setName}
+          />
+
+          <TextInput
+            style={shared.authInput}
+            placeholder="Username"
+            placeholderTextColor={c.muted}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+        </>
+      );
+    }
+
+    if (key === 'about') {
+      return (
+        <>
+          <TextInput
+            style={[shared.authInput, shared.authTextArea]}
+            placeholder={isRecruiter ? 'About your company' : 'A bit about yourself'}
+            placeholderTextColor={c.muted}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+          />
+
+          {!isRecruiter && (
+            <Pressable style={local.resumePicker} onPress={pickResume}>
+              <Text style={local.resumePickerText}>
+                {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
+              </Text>
             </Pressable>
           )}
+        </>
+      );
+    }
 
-          <Text style={shared.logo}>bulletin.</Text>
-          <Text style={shared.subtitle}>
-            {onCancel ? 'Edit your profile.' : 'Set up your profile.'}
-          </Text>
+    return isRecruiter ? (
+      <RecruiterFields
+        step={key as (typeof RECRUITER_STEPS)[number]['key']}
+        value={recruiter}
+        onChange={(patch) => setRecruiter((prev) => ({ ...prev, ...patch }))}
+      />
+    ) : (
+      <SeekerFields
+        step={key as (typeof SEEKER_STEPS)[number]['key']}
+        value={seeker}
+        onChange={(patch) => setSeeker((prev) => ({ ...prev, ...patch }))}
+      />
+    );
+  };
 
-          {loading ? (
-            <Text style={shared.subtitle}>Loading...</Text>
-          ) : (
-            <>
-              <Pressable style={local.avatarPicker} onPress={pickAvatar}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={shared.avatarPreview} />
-                ) : (
-                  <UserRound size={40} color={c.muted} strokeWidth={1.5} />
-                )}
-                <Text style={local.avatarPickerText}>
-                  {avatarUri
-                    ? 'Change photo'
-                    : isRecruiter
-                    ? 'Add company logo'
-                    : 'Add profile photo'}
-                </Text>
-              </Pressable>
-
-              <TextInput
-                style={shared.authInput}
-                placeholder={isRecruiter ? 'Your name' : 'Name'}
-                placeholderTextColor={c.muted}
-                value={name}
-                onChangeText={setName}
-              />
-
-              <TextInput
-                style={shared.authInput}
-                placeholder="Username"
-                placeholderTextColor={c.muted}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-
-              {isRecruiter ? (
-                <RecruiterFields
-                  value={recruiter}
-                  onChange={(patch) => setRecruiter((prev) => ({ ...prev, ...patch }))}
-                />
-              ) : (
-                <SeekerFields
-                  value={seeker}
-                  onChange={(patch) => setSeeker((prev) => ({ ...prev, ...patch }))}
-                />
-              )}
-
-              <TextInput
-                style={[shared.authInput, shared.authTextArea]}
-                placeholder={isRecruiter ? 'About your company' : 'A bit about yourself'}
-                placeholderTextColor={c.muted}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-              />
-
-              {!isRecruiter && (
-                <Pressable style={local.resumePicker} onPress={pickResume}>
-                  <Text style={local.resumePickerText}>
-                    {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
-                  </Text>
-                </Pressable>
-              )}
-
-              <Pressable
-                style={[shared.authButton, submitting && shared.authButtonDisabled]}
-                onPress={handleSubmit}
-                disabled={submitting}
-              >
-                <Text style={shared.authButtonText}>
-                  {submitting ? 'Saving...' : 'Finish setup'}
-                </Text>
-              </Pressable>
-            </>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+  return (
+    <StepForm
+      steps={steps}
+      stepIndex={stepIndex}
+      onStepChange={setStepIndex}
+      wizard={wizard}
+      loading={loading}
+      renderStep={renderStep}
+      stepProblem={stepProblem}
+      onSubmit={handleSubmit}
+      submitting={submitting}
+      submitLabel="Finish setup"
+      saveLabel="Save changes"
+      editingSubtitle="Edit your profile."
+      exit={
+        onCancel
+          ? { kind: 'back', label: 'Go back', onPress: onCancel }
+          : onBackToLogin
+            ? { kind: 'close', label: 'Cancel and return to login', onPress: onBackToLogin }
+            : undefined
+      }
+    />
   );
 }
 
