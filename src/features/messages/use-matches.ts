@@ -1,5 +1,5 @@
 import { Session } from '@supabase/supabase-js';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { CloseReason } from '../../../lib/close-reasons';
@@ -13,9 +13,15 @@ import { Match } from '../../types';
 export function useMatches(
   session: Session | null,
   enabled: boolean,
-  onClosed: () => void
+  onClosed: () => void,
+  // Recruiters owe the first message in a new match.
+  isRecruiter: boolean
 ) {
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [rawMatches, setMatches] = useState<Match[]>([]);
+  const matches = useMemo(
+    () => rawMatches.map((m) => ({ ...m, firstMoveMine: isRecruiter })),
+    [rawMatches, isRecruiter]
+  );
   const [convoMeta, setConvoMeta] = useState<Record<string, ConversationMeta>>({});
   // Stored as an id and looked up, so an open chat updates when the other person closes it.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -52,7 +58,7 @@ export function useMatches(
     const { data, error } = await supabase
       .from('interests')
       .select(
-        'id, status, from_user, to_user, closed_reason, closed_note, closed_at, closed_by, from_chat_hidden, to_chat_hidden, from_profile:profiles!from_user(id, name, username, avatar_url), to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
+        'id, status, responded_at, from_user, to_user, closed_reason, closed_note, closed_at, closed_by, from_chat_hidden, to_chat_hidden, from_profile:profiles!from_user(id, name, username, avatar_url), to_profile:profiles!to_user(id, name, username, avatar_url), position:positions(id, title, company, urgency)'
       )
       .in('status', ['accepted', 'closed'])
       .or(`from_user.eq.${me},to_user.eq.${me}`);
@@ -84,6 +90,7 @@ export function useMatches(
               : undefined,
           otherUserId: other?.id ?? '',
           positionId: row.position?.id ?? null,
+          matchedAt: row.responded_at ?? null,
           name: other?.name ?? other?.username ?? 'Unknown',
           position: row.position?.title ?? 'General',
           company: row.position?.company ?? '',

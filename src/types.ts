@@ -47,6 +47,11 @@ export type Match = {
   };
   otherUserId: string;
   positionId?: string | null;
+  // When the match was made, if recorded. Starts the clock for the first message.
+  matchedAt?: string | null;
+  // Recruiters are expected to open the conversation, so for them the first message
+  // is theirs to send; for the other person it's theirs to wait on.
+  firstMoveMine?: boolean;
   name: string;
   position: string;
   company: string;

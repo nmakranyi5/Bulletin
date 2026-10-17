@@ -121,7 +121,12 @@ function MainApp({ session }: { session: Session }) {
     },
     !!myProfile?.is_recruiter
   );
-  const matches = useMatches(session, true, () => interests.fetchInterests());
+  const matches = useMatches(
+    session,
+    true,
+    () => interests.fetchInterests(),
+    !!myProfile?.is_recruiter
+  );
   const discover = useDiscover(
     session,
     myProfile,

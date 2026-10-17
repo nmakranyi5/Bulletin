@@ -2,12 +2,7 @@ import { Clock } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
-import {
-  formatDuration,
-  TimerStatus,
-  Urgency,
-  URGENCY,
-} from '../../../lib/response-timers';
+import { formatDuration, TimerStatus, Urgency, URGENCY } from '../../../lib/response-timers';
 
 // Shown under the chat header while a reply is outstanding. If you owe the reply it
 // always shows the countdown; if you're waiting on them it only appears once they're
@@ -17,11 +12,14 @@ export function ReplyBanner({
   status,
   name,
   urgency,
+  firstMove = false,
 }: {
   side: 'responder' | 'waiting';
   status: TimerStatus;
   name: string;
   urgency: Urgency;
+  // Nobody has written yet: it's about saying hello, not answering a message.
+  firstMove?: boolean;
 }) {
   const c = useTheme().colors;
   const local = useLocalStyles();
@@ -33,8 +31,15 @@ export function ReplyBanner({
   const first = name.split(' ')[0];
   const cfg = URGENCY[urgency];
 
-  const text =
-    side === 'responder'
+  const text = firstMove
+    ? side === 'responder'
+      ? status.state === 'overdue'
+        ? `Say hello to ${first} · overdue by ${formatDuration(status.remainingMs)}`
+        : `Say hello to ${first} · ${formatDuration(status.remainingMs)} left`
+      : `${first} hasn't said hello yet · ${formatDuration(
+          status.remainingMs
+        )} past the ${cfg.windowLabel} limit`
+    : side === 'responder'
       ? status.state === 'overdue'
         ? `${first} is waiting for your reply · overdue by ${formatDuration(status.remainingMs)}`
         : `${first} is waiting for your reply · ${formatDuration(status.remainingMs)} left`

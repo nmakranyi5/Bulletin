@@ -174,6 +174,13 @@ export function MessagesScreen({
                         {item.closed.byMe ? 'by you' : `by ${item.name.split(' ')[0]}`}
                       </Text>
                     </View>
+                  ) : !isArchive && !m && item.matchedAt ? (
+                    // New match, nobody has written yet: the recruiter owes the first message.
+                    <TimerChip
+                      side={item.firstMoveMine ? 'responder' : 'waiting'}
+                      status={timerStatus(item.matchedAt, item.urgency, now)}
+                      prefix={item.firstMoveMine ? 'Say hello' : undefined}
+                    />
                   ) : !isArchive && m?.awaitingSince ? (
                     <TimerChip
                       side="responder"
