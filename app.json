@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Bulletin",
+    "name": "bulletin.",
     "slug": "Bulletin",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -41,7 +41,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Bulletin uses your location only to help you drop a pin on the map. It is never shared."
+          "locationWhenInUsePermission": "bulletin. uses your location only to help you drop a pin on the map. It is never shared."
         }
       ]
     ],

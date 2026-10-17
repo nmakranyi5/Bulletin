@@ -48,7 +48,7 @@ export function TutorialOverlay({
             </View>
             <Text style={local.title}>Want a quick tour?</Text>
             <Text style={local.body}>
-              A one-minute walk through each tab and how Bulletin works. You can skip it and replay
+              A one-minute walk through each tab and how bulletin. works. You can skip it and replay
               it later from Profile &gt; Settings.
             </Text>
             <Pressable style={local.primary} onPress={onStart} accessibilityRole="button">

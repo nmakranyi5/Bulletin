@@ -22,7 +22,7 @@ export function tourSteps(isRecruiter: boolean, interestSlots: number): TourStep
   const welcome: TourStep = {
     key: 'welcome',
     tab: 'discover',
-    title: 'Welcome to Bulletin',
+    title: 'Welcome to bulletin.',
     body: isRecruiter
       ? 'Find HVAC techs who fit your open jobs, and actually hear back. Here is how it works.'
       : 'Find HVAC shops that fit you, and actually hear back. Here is how it works.',
