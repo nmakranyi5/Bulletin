@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -152,13 +153,20 @@ export function OnboardingScreen({
   };
 
   const uploadFile = async (bucket: string, uri: string, fileName: string, contentType: string) => {
-    const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    // On the web the picked file is a blob URL / data URI the browser can fetch; on phones
+    // it is a file on disk that has to be read as base64 first.
+    const body =
+      Platform.OS === 'web'
+        ? await (await fetch(uri)).blob()
+        : decode(
+            await FileSystem.readAsStringAsync(uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            })
+          );
 
     const path = `${session.user.id}/${fileName}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(path, decode(base64), {
+    const { error } = await supabase.storage.from(bucket).upload(path, body, {
       contentType,
       upsert: true,
       cacheControl: '3600',
