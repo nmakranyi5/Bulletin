@@ -84,11 +84,10 @@ function MainApp({ session }: { session: Session }) {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [editingProfile, setEditingProfile] = useState(false);
   const [managingPositions, setManagingPositions] = useState(false);
-  // Which Interests sub-tab to open on; the nonce remounts the screen to apply it.
-  const [interestsView, setInterestsView] = useState<{ sub: 'sent' | 'received'; nonce: number }>({
-    sub: 'received',
-    nonce: 0,
-  });
+  // Which sub-tab each screen is on. They live here (not in the screens) so switching to
+  // another tab and back puts you where you were.
+  const [interestsSub, setInterestsSub] = useState<'sent' | 'received'>('received');
+  const [messagesView, setMessagesView] = useState<'active' | 'archived'>('active');
 
   // Whose full card is open (from Interests or Messages). A received interest also
   // carries Accept / Decline.
@@ -132,7 +131,7 @@ function MainApp({ session }: { session: Session }) {
     userId: session.user.id,
     onView: () => {
       matches.setSelectedMatch(null);
-      setInterestsView((v) => ({ sub: 'sent', nonce: v.nonce + 1 }));
+      setInterestsSub('sent');
       setActiveTab('interests');
     },
   });
@@ -164,7 +163,7 @@ function MainApp({ session }: { session: Session }) {
     },
     onOpenInterests: () => {
       matches.setSelectedMatch(null);
-      setInterestsView((v) => ({ sub: 'received', nonce: v.nonce + 1 }));
+      setInterestsSub('received');
       setActiveTab('interests');
     },
     onOpenChat: (matchId) => {
@@ -228,8 +227,8 @@ function MainApp({ session }: { session: Session }) {
 
         {activeTab === 'interests' && (
           <InterestsScreen
-            key={interestsView.nonce}
-            initialSubTab={interestsView.sub}
+            subTab={interestsSub}
+            onSubTabChange={setInterestsSub}
             sentInterests={interests.visibleSentInterests}
             receivedInterests={interests.receivedInterests}
             onViewProfile={(interest, direction) =>
@@ -270,6 +269,8 @@ function MainApp({ session }: { session: Session }) {
             />
           ) : (
             <MessagesScreen
+              view={messagesView}
+              onViewChange={setMessagesView}
               active={matches.activeMatches}
               archived={matches.archivedMatches}
               meta={matches.convoMeta}
