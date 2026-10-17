@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import {
   BriefcaseBusiness,
   ChevronRight,
+  CircleHelp,
   Pencil,
   Settings,
   Trash2,
@@ -23,10 +24,12 @@ export function ProfileScreen({
   session,
   onEditProfile,
   onManagePositions,
+  onReplayTutorial,
 }: {
   session: Session;
   onEditProfile: () => void;
   onManagePositions: () => void;
+  onReplayTutorial: () => void;
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
@@ -159,6 +162,11 @@ export function ProfileScreen({
               ))}
             </View>
 
+            <Pressable style={local.replayRow} onPress={onReplayTutorial}>
+              <CircleHelp size={18} color={c.textSecondary} strokeWidth={2.2} />
+              <Text style={local.replayText}>Replay the tour</Text>
+            </Pressable>
+
             <Pressable style={local.deleteAccountRow} onPress={() => setShowDelete(true)}>
               <Trash2 size={18} color={c.danger} strokeWidth={2.2} />
               <Text style={local.deleteAccountText}>Delete account</Text>
@@ -196,6 +204,20 @@ function useLocalStyles() {
 
         scrollContent: {
           paddingBottom: 24,
+        },
+
+        replayRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          marginTop: 18,
+          paddingVertical: 10,
+        },
+
+        replayText: {
+          fontSize: 15,
+          fontWeight: '600',
+          color: c.text,
         },
 
         deleteAccountRow: {

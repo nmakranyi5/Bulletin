@@ -5,6 +5,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../lib/app-theme';
+import { tourSteps } from '../../lib/tutorial';
+import { MAX_INTERESTS } from '../constants/app';
 import { closeReasonsFor } from '../../lib/close-reasons';
 import { reasonsFor } from '../../lib/decline-reasons';
 import { supabase } from '../../lib/supabase';
@@ -32,6 +34,8 @@ import { PositionsScreen } from '../features/profile/positions-screen';
 import { ProfileScreen } from '../features/profile/profile-screen';
 import { usePositionReminders } from '../features/profile/use-position-reminders';
 import { useMyProfile } from '../features/profile/use-my-profile';
+import { TutorialOverlay } from '../features/tutorial/tutorial-overlay';
+import { markTutorialOffer, useTutorial } from '../features/tutorial/use-tutorial';
 import { useResponseTimers } from '../features/timers/use-response-timers';
 import { useSharedStyles } from '../styles/shared';
 
@@ -65,7 +69,11 @@ export default function Index() {
     return (
       <OnboardingScreen
         session={session}
-        onComplete={() => setOnboarded(true)}
+        onComplete={async () => {
+          // New accounts get offered the tour once, when they land in the app.
+          await markTutorialOffer(session.user.id);
+          setOnboarded(true);
+        }}
         // Leaving setup signs out, which returns to the login screen. The account and
         // its (unfinished) profile are kept, so signing back in resumes setup.
         onBackToLogin={() => supabase.auth.signOut()}
@@ -88,6 +96,9 @@ function MainApp({ session }: { session: Session }) {
   // another tab and back puts you where you were.
   const [interestsSub, setInterestsSub] = useState<'sent' | 'received'>('received');
   const [messagesView, setMessagesView] = useState<'active' | 'archived'>('active');
+
+  // The first-run tour: offered once to new accounts, replayable from Profile > Settings.
+  const tutorial = useTutorial(session.user.id);
 
   // Whose full card is open (from Interests or Messages). A received interest also
   // carries Accept / Decline.
@@ -173,6 +184,8 @@ function MainApp({ session }: { session: Session }) {
       matches.setSelectedMatch(match);
     },
   });
+
+  const tutorSteps = tourSteps(!!myProfile?.is_recruiter, MAX_INTERESTS);
 
   if (editingProfile) {
     return (
@@ -287,6 +300,11 @@ function MainApp({ session }: { session: Session }) {
             session={session}
             onEditProfile={() => setEditingProfile(true)}
             onManagePositions={() => setManagingPositions(true)}
+            onReplayTutorial={() => {
+              matches.setSelectedMatch(null);
+              setActiveTab('discover');
+              tutorial.start();
+            }}
           />
         )}
       </SafeAreaView>
@@ -298,6 +316,25 @@ function MainApp({ session }: { session: Session }) {
           unreadMessagesCount={matches.unreadTotal}
         />
       )}
+
+      <TutorialOverlay
+        stage={tutorial.stage}
+        steps={tutorSteps}
+        step={tutorial.step}
+        onStart={tutorial.start}
+        onStep={(i) => {
+          tutorial.setStep(i);
+          const tab = tutorSteps[i]?.tab;
+          if (tab) {
+            matches.setSelectedMatch(null);
+            setActiveTab(tab);
+          }
+        }}
+        onClose={() => {
+          tutorial.close();
+          setActiveTab('discover');
+        }}
+      />
 
       <ProfileDetailModal
         userId={profileView?.userId ?? null}
