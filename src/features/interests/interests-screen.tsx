@@ -160,6 +160,8 @@ export function InterestsScreen({
                     ? 'Pending'
                     : item.status === 'accepted'
                     ? 'Matched'
+                    : item.status === 'position_closed'
+                    ? 'Position closed'
                     : 'Declined'}
                   {item.position?.title ? ` · ${item.position.title}` : ' · General'}
                 </Text>
@@ -173,6 +175,13 @@ export function InterestsScreen({
                     {item.decline_note ? (
                       <Text style={local.declineNote}>"{item.decline_note}"</Text>
                     ) : null}
+                  </View>
+                )}
+                {item.status === 'position_closed' && (
+                  <View style={local.declineBox}>
+                    <Text style={local.declineReason}>
+                      This position closed, so your interest was returned.
+                    </Text>
                   </View>
                 )}
                 {item.status === 'pending' && item.created_at ? (
@@ -191,7 +200,7 @@ export function InterestsScreen({
                   <X size={18} color={c.textSecondary} strokeWidth={2.2} />
                 </Pressable>
               )}
-              {item.status === 'rejected' && (
+              {(item.status === 'rejected' || item.status === 'position_closed') && (
                 <Pressable
                   hitSlop={10}
                   style={local.interestRowAction}

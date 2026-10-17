@@ -2,7 +2,9 @@ import { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { Alert, LayoutAnimation } from 'react-native';
 
+import { isOpenForCandidates } from '../../../lib/close-date';
 import { supabase } from '../../../lib/supabase';
+import { serverNow } from '../../../lib/time';
 import { fetchRatings } from '../profile/ratings';
 import { MyProfile } from '../profile/use-my-profile';
 
@@ -39,7 +41,7 @@ export function useDiscover(
 
     const { data, error } = await supabase
       .from('positions')
-      .select('id, title')
+      .select('id, title, active, close_at')
       .eq('recruiter_id', session.user.id)
       .eq('active', true);
 
@@ -48,7 +50,7 @@ export function useDiscover(
       return;
     }
 
-    setMyPositions(data ?? []);
+    setMyPositions((data ?? []).filter((p) => isOpenForCandidates(p, serverNow())));
   };
 
   // Attaches each person's response rating so the card can show it.
@@ -62,10 +64,14 @@ export function useDiscover(
 
     setDiscoverLoading(true);
 
+    await supabase.rpc('close_expired_positions');
+
+    // Someone whose position closed on you can show up again (they may have others open).
     const { data: alreadyContacted } = await supabase
       .from('interests')
       .select('to_user')
-      .eq('from_user', session.user.id);
+      .eq('from_user', session.user.id)
+      .neq('status', 'position_closed');
 
     const excludeIds = (alreadyContacted ?? []).map((r) => r.to_user);
     excludeIds.push(session.user.id);
@@ -85,7 +91,7 @@ export function useDiscover(
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, description, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, location, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
+          'id, name, username, avatar_url, description, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, location, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, close_at, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
         )
         .eq('is_recruiter', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);
@@ -96,7 +102,7 @@ export function useDiscover(
         const withOpenPositions = (data ?? [])
           .map((r: any) => ({
             ...r,
-            positions: (r.positions ?? []).filter((p: any) => p.active),
+            positions: (r.positions ?? []).filter((p: any) => isOpenForCandidates(p, serverNow())),
           }))
           .filter((r: any) => r.positions.length > 0);
         setDiscoverCards(await withRatings(withOpenPositions));

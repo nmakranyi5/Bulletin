@@ -35,6 +35,9 @@ export function useInterests(
     const silent = !!opts?.silent;
     if (!session) return;
 
+    // Positions past their close date close now, returning interests still waiting on them.
+    await supabase.rpc('close_expired_positions');
+
     const { data: sent, error: sentError } = await supabase
       .from('interests')
       .select(
@@ -160,7 +163,9 @@ export function useInterests(
   const removeDeclinedInterest = (interest: InterestRow) => {
     Alert.alert(
       'Remove from your list?',
-      `${interest.to_profile?.name ?? 'This person'} declined, so this just clears it from your list. They won't show up in Discover again.`,
+      interest.status === 'position_closed'
+        ? `${interest.position?.title ?? 'This position'} has closed, so this just clears it from your list.`
+        : `${interest.to_profile?.name ?? 'This person'} declined, so this just clears it from your list. They won't show up in Discover again.`,
       [
         { text: 'Keep', style: 'cancel' },
         {
