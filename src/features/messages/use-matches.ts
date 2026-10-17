@@ -50,7 +50,7 @@ export function useMatches(
       return;
     }
 
-    fetchConversationMeta((data ?? []).map((row: any) => row.id));
+    await fetchConversationMeta((data ?? []).map((row: any) => row.id));
 
     setMatches(
       (data ?? []).map((row: any) => {

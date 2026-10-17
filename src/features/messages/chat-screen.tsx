@@ -19,6 +19,7 @@ import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
 import { Avatar } from '../../components/avatar';
 import { useNow } from '../../hooks/use-now';
+import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { Match } from '../../types';
 import { ReplyBanner } from './reply-banner';
 
@@ -61,18 +62,43 @@ export function ChatScreen({
     supabase.rpc('mark_messages_read', { p_interest_id: match.id }).then(() => {});
   };
 
+  const toChat = (row: any): ChatMessage => ({
+    id: row.id,
+    text: row.body,
+    fromMe: row.sender_id === userId,
+    createdAt: row.created_at,
+    readAt: row.read_at ?? null,
+    editedAt: row.edited_at ?? null,
+    deletedAt: row.deleted_at ?? null,
+    status: row.read_at ? 'read' : 'sent',
+  });
+
+  // Loads the whole conversation. Used on open and by pull-to-refresh (e.g. if the live
+  // connection dropped and messages were missed). Messages still being sent stay put.
+  const alive = useRef(true);
+  const loadMessages = async () => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id, sender_id, body, created_at, read_at, edited_at, deleted_at')
+      .eq('interest_id', match.id)
+      .order('created_at', { ascending: true });
+
+    if (!alive.current) return;
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+    setMessages((prev) => [
+      ...(data ?? []).map(toChat),
+      ...prev.filter((m) => m.status === 'sending' || m.status === 'failed'),
+    ]);
+    markRead();
+  };
+
+  const refreshControl = useRefreshControl(loadMessages);
+
   useEffect(() => {
-    let active = true;
-    const toChat = (row: any): ChatMessage => ({
-      id: row.id,
-      text: row.body,
-      fromMe: row.sender_id === userId,
-      createdAt: row.created_at,
-      readAt: row.read_at ?? null,
-      editedAt: row.edited_at ?? null,
-      deletedAt: row.deleted_at ?? null,
-      status: row.read_at ? 'read' : 'sent',
-    });
+    alive.current = true;
     const upsert = (msg: ChatMessage) =>
       setMessages((prev) =>
         prev.some((m) => m.id === msg.id)
@@ -80,23 +106,7 @@ export function ChatScreen({
           : [...prev, msg]
       );
 
-    supabase
-      .from('messages')
-      .select('id, sender_id, body, created_at, read_at, edited_at, deleted_at')
-      .eq('interest_id', match.id)
-      .order('created_at', { ascending: true })
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          Alert.alert('Error', error.message);
-          return;
-        }
-        setMessages((prev) => [
-          ...(data ?? []).map(toChat),
-          ...prev.filter((m) => m.status === 'sending' || m.status === 'failed'),
-        ]);
-        markRead();
-      });
+    loadMessages();
 
     const channel = supabase
       .channel(`messages:${match.id}`)
@@ -128,7 +138,7 @@ export function ChatScreen({
       .subscribe();
 
     return () => {
-      active = false;
+      alive.current = false;
       supabase.removeChannel(channel);
     };
   }, [match.id, userId]);
@@ -347,6 +357,7 @@ export function ChatScreen({
 
       <FlatList
         ref={listRef}
+        refreshControl={refreshControl}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         data={items}
         keyExtractor={(item) => item.key}

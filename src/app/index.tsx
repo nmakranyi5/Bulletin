@@ -207,6 +207,7 @@ function MainApp({ session }: { session: Session }) {
             onReceivedPress={interests.handleReceivedPress}
             onWithdraw={interests.withdrawInterest}
             onRemoveDeclined={interests.removeDeclinedInterest}
+            onRefresh={() => Promise.all([interests.fetchInterests(), matches.fetchMatches()])}
             interestsRemaining={interests.interestsRemaining}
           />
         )}

@@ -5,7 +5,9 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../../../lib/app-theme';
 import { CARD_MAX_WIDTH } from '../../constants/app';
+import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { useIsCompact } from '../../hooks/use-compact';
+import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { RecruiterCardContent } from './recruiter-card';
 import { WorkerCardContent } from './worker-card';
@@ -35,7 +37,8 @@ export function DiscoverScreen({
   buttonSwipe: (direction: number) => void;
   expandedCardId: string | null;
   onCollapse: () => void;
-  onRefresh: () => void;
+  // Reloads the deck. Also drives pull-to-refresh on the empty state.
+  onRefresh: () => Promise<unknown> | void;
   interestsRemaining: number;
   isRecruiter: boolean;
   me: any;
@@ -44,6 +47,7 @@ export function DiscoverScreen({
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const compact = useIsCompact();
+  const refreshControl = useRefreshControl(onRefresh);
   const { width } = useWindowDimensions();
   const local = useLocalStyles(Math.min(width - 36, CARD_MAX_WIDTH), compact);
   return (
@@ -146,6 +150,7 @@ export function DiscoverScreen({
               })}
           </>
         ) : (
+          <RefreshableEmpty refreshControl={refreshControl}>
           <View style={shared.emptyState}>
             <Text style={shared.emptyTitle}>
               {loading ? 'Loading...' : "You're all caught up."}
@@ -168,6 +173,7 @@ export function DiscoverScreen({
               </Text>
             </Pressable>
           </View>
+          </RefreshableEmpty>
         )}
       </View>
 

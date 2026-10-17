@@ -6,8 +6,10 @@ import { reasonLabel } from '../../../lib/decline-reasons';
 import { epaMismatchNote, experienceMismatchNote } from '../../../lib/hvac';
 import { timerStatus, urgencyOf } from '../../../lib/response-timers';
 import { Avatar } from '../../components/avatar';
+import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { TimerChip } from '../../components/timer-chip';
 import { useNow } from '../../hooks/use-now';
+import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { MAX_INTERESTS } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
 import { InterestRow } from '../../types';
@@ -20,6 +22,7 @@ export function InterestsScreen({
   onRemoveDeclined,
   interestsRemaining,
   initialSubTab = 'received',
+  onRefresh,
 }: {
   sentInterests: InterestRow[];
   receivedInterests: InterestRow[];
@@ -29,12 +32,15 @@ export function InterestsScreen({
   onRemoveDeclined: (interest: InterestRow) => void;
   interestsRemaining: number;
   initialSubTab?: 'sent' | 'received';
+  // Pull-to-refresh: reload interests (and matches); resolves when done.
+  onRefresh: () => Promise<unknown> | void;
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const [subTab, setSubTab] = useState<'sent' | 'received'>(initialSubTab);
   const now = useNow();
+  const refreshControl = useRefreshControl(onRefresh);
 
   return (
     <View style={shared.simpleScreen}>
@@ -71,6 +77,7 @@ export function InterestsScreen({
 
       {subTab === 'received' ? (
         receivedInterests.length === 0 ? (
+<RefreshableEmpty refreshControl={refreshControl}>
           <View style={shared.emptyState}>
             <Handshake size={48} color={c.muted} strokeWidth={1.5} />
             <Text style={shared.emptyTitle}>No interests yet</Text>
@@ -78,10 +85,12 @@ export function InterestsScreen({
               People who show interest in you will show up here.
             </Text>
           </View>
+</RefreshableEmpty>
         ) : (
           <FlatList
             data={receivedInterests}
             keyExtractor={(item) => item.id}
+            refreshControl={refreshControl}
             contentContainerStyle={shared.interestsList}
             renderItem={({ item }) => (
               <Pressable style={shared.interestRow} onPress={() => onReceivedPress(item)}>
@@ -123,6 +132,7 @@ export function InterestsScreen({
           />
         )
       ) : sentInterests.length === 0 ? (
+<RefreshableEmpty refreshControl={refreshControl}>
         <View style={shared.emptyState}>
           <Handshake size={48} color={c.muted} strokeWidth={1.5} />
           <Text style={shared.emptyTitle}>No interests yet</Text>
@@ -130,10 +140,12 @@ export function InterestsScreen({
             Swipe right on Discover to start expressing interest.
           </Text>
         </View>
+</RefreshableEmpty>
       ) : (
         <FlatList
           data={sentInterests}
           keyExtractor={(item) => item.id}
+          refreshControl={refreshControl}
           contentContainerStyle={shared.interestsList}
           renderItem={({ item }) => (
             <View style={shared.interestRow}>

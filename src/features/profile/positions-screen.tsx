@@ -26,6 +26,8 @@ import {
 } from '../../../lib/hvac';
 import { URGENCY, URGENCY_LEVELS, Urgency, urgencyOf } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
+import { RefreshableEmpty } from '../../components/refreshable-empty';
+import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { ChipSelect } from '../../components/chip-select';
 import { useSharedStyles } from '../../styles/shared';
 
@@ -62,8 +64,10 @@ export function PositionsScreen({
   const [skillInput, setSkillInput] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const fetchPositions = async () => {
-    setLoading(true);
+  // `silent` keeps the current list on screen (used by pull-to-refresh) instead of
+  // swapping it for a "Loading..." placeholder.
+  const fetchPositions = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
 
     const { data, error } = await supabase
       .from('positions')
@@ -76,6 +80,8 @@ export function PositionsScreen({
 
     setLoading(false);
   };
+
+  const refreshControl = useRefreshControl(() => fetchPositions({ silent: true }));
 
   useEffect(() => {
     fetchPositions();
@@ -434,20 +440,23 @@ export function PositionsScreen({
           <Text style={shared.emptySubtitle}>Loading...</Text>
         </View>
       ) : positions.length === 0 ? (
-        <View style={shared.emptyState}>
-          <BriefcaseBusiness size={48} color={c.muted} strokeWidth={1.5} />
-          <Text style={shared.emptyTitle}>No positions yet</Text>
-          <Text style={shared.emptySubtitle}>
-            Add an open position for candidates to discover.
-          </Text>
-          <Pressable style={shared.refreshButton} onPress={openAddForm}>
-            <Text style={shared.refreshText}>Add Position</Text>
-          </Pressable>
-        </View>
+        <RefreshableEmpty refreshControl={refreshControl}>
+          <View style={shared.emptyState}>
+            <BriefcaseBusiness size={48} color={c.muted} strokeWidth={1.5} />
+            <Text style={shared.emptyTitle}>No positions yet</Text>
+            <Text style={shared.emptySubtitle}>
+              Add an open position for candidates to discover.
+            </Text>
+            <Pressable style={shared.refreshButton} onPress={openAddForm}>
+              <Text style={shared.refreshText}>Add Position</Text>
+            </Pressable>
+          </View>
+        </RefreshableEmpty>
       ) : (
         <FlatList
           data={positions}
           keyExtractor={(item) => item.id}
+          refreshControl={refreshControl}
           contentContainerStyle={shared.interestsList}
           ListHeaderComponent={
             <Pressable

@@ -6,8 +6,10 @@ import { ConversationMeta, formatListTime } from '../../../lib/chat';
 import { timerStatus } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
 import { Avatar } from '../../components/avatar';
+import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { TimerChip } from '../../components/timer-chip';
 import { useNow } from '../../hooks/use-now';
+import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { Match } from '../../types';
 
@@ -20,12 +22,14 @@ export function MessagesScreen({
   matches: Match[];
   meta: Record<string, ConversationMeta>;
   onMatchPress: (match: Match) => void;
-  onRefresh: () => void;
+  // Reloads matches and previews; also used for pull-to-refresh (resolves when done).
+  onRefresh: () => Promise<unknown> | void;
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const now = useNow();
+  const refreshControl = useRefreshControl(onRefresh);
 
   useEffect(() => {
     onRefresh();
@@ -58,6 +62,7 @@ export function MessagesScreen({
       </View>
 
       {matches.length === 0 ? (
+<RefreshableEmpty refreshControl={refreshControl}>
         <View style={shared.emptyState}>
           <MessageCircle size={48} color={c.muted} strokeWidth={1.5} />
           <Text style={shared.emptyTitle}>No messages yet.</Text>
@@ -65,10 +70,12 @@ export function MessagesScreen({
             Once you match with someone, your conversation shows up here.
           </Text>
         </View>
+</RefreshableEmpty>
       ) : (
         <FlatList
           data={sorted}
           keyExtractor={(item) => item.id}
+          refreshControl={refreshControl}
           contentContainerStyle={shared.interestsList}
           renderItem={({ item }) => {
             const m = meta[item.id];
