@@ -15,16 +15,19 @@ import { useTheme } from '../../lib/app-theme';
 import { resumeViewerUrl } from '../../lib/resume';
 import { useResumeUrl } from './use-resume-url';
 
-// Shows someone's PDF resume inside the app. (The web version is resume-viewer-modal.web.tsx.)
+// Shows a PDF or image document (a resume by default) inside the app. (The web version is resume-viewer-modal.web.tsx.)
 export function ResumeViewerModal({
   visible,
   url,
   name,
+  title,
   onClose,
 }: {
   visible: boolean;
   url: string;
   name?: string | null;
+  // Overrides the heading, for documents that aren't a resume.
+  title?: string;
   onClose: () => void;
 }) {
   const c = useTheme().colors;
@@ -39,7 +42,7 @@ export function ResumeViewerModal({
         <SafeAreaView style={local.screen}>
           <View style={local.header}>
             <Text style={local.title} numberOfLines={1}>
-              {name ? `${name}'s resume` : 'Resume'}
+              {title ?? (name ? `${name}'s resume` : 'Resume')}
             </Text>
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
               <X size={22} color={c.text} strokeWidth={2.2} />

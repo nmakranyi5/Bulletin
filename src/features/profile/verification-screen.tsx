@@ -141,7 +141,10 @@ export function VerificationScreen({
 
       setOpenKind(null);
       await load();
-      Alert.alert('Request sent', "A reviewer will take a look. You'll see the result here.");
+      Alert.alert(
+        'Request sent',
+        "It's in review now. You'll see the result here, and your badge appears if it's approved."
+      );
     } catch (err: any) {
       Alert.alert('Could not send', err?.message ?? 'Something went wrong.');
     } finally {
@@ -175,6 +178,15 @@ export function VerificationScreen({
           people see the badge, never your documents or numbers.
         </Text>
 
+        {!loading && requests.some((r) => r.status === 'pending') && (
+          <View style={local.banner}>
+            <Clock size={16} color={c.amber} strokeWidth={2.4} />
+            <Text style={local.bannerText}>
+              Your request is in review. We'll show a badge when it's approved.
+            </Text>
+          </View>
+        )}
+
         {loading ? (
           <Text style={shared.subtitle}>Loading...</Text>
         ) : (
@@ -203,10 +215,15 @@ export function VerificationScreen({
                     </Text>
                   </View>
                 ) : pending ? (
-                  <View style={local.statusRow}>
-                    <Clock size={16} color={c.amber} strokeWidth={2.4} />
-                    <Text style={[local.status, { color: c.amber }]}>Waiting for review</Text>
-                  </View>
+                  <>
+                    <View style={local.statusRow}>
+                      <Clock size={16} color={c.amber} strokeWidth={2.4} />
+                      <Text style={[local.status, { color: c.amber }]}>In review</Text>
+                    </View>
+                    <Text style={local.ask}>
+                      {`Sent ${new Date(last!.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. A reviewer is checking it. Your badge appears when it's approved, and if there's a problem you'll see why here. Nothing more to do for now.`}
+                    </Text>
+                  </>
                 ) : (
                   <>
                     <Text style={local.ask}>{info.ask}</Text>
@@ -313,6 +330,25 @@ function useLocalStyles() {
           padding: 22,
           gap: 14,
           paddingBottom: 40,
+        },
+
+        banner: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          padding: 14,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: c.amber,
+          backgroundColor: c.surface,
+        },
+
+        bannerText: {
+          flex: 1,
+          fontSize: 14,
+          fontWeight: '600',
+          lineHeight: 20,
+          color: c.text,
         },
 
         privacy: {

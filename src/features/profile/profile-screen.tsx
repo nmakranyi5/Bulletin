@@ -57,6 +57,8 @@ export function ProfileScreen({
     is_reviewer: boolean;
   } | null>(null);
   const [pendingReviews, setPendingReviews] = useState(0);
+  // You've sent a verification request that's still being reviewed.
+  const [myRequestInReview, setMyRequestInReview] = useState(false);
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [showPhone, setShowPhone] = useState(false);
   const [rating, setRating] = useState<Rating | undefined>();
@@ -81,6 +83,11 @@ export function ProfileScreen({
     }
 
     fetchRatings([session.user.id]).then((r) => setRating(r[session.user.id]));
+    supabase
+      .from('verification_requests')
+      .select('id')
+      .eq('status', 'pending')
+      .then(({ data: rows }) => setMyRequestInReview((rows ?? []).length > 0));
     fetchVerifications([session.user.id]).then((v) => setVerifications(v[session.user.id] ?? []));
     if (data?.is_reviewer) {
       supabase
@@ -157,6 +164,11 @@ export function ProfileScreen({
         <Pressable style={local.accountActionRow} onPress={onVerification}>
           <BadgeCheck size={20} color={c.textSecondary} strokeWidth={2} />
           <Text style={local.accountActionText}>Get verified</Text>
+          {myRequestInReview && (
+            <View style={local.inReviewPill}>
+              <Text style={local.inReviewText}>In review</Text>
+            </View>
+          )}
           <ChevronRight size={18} color={c.muted} strokeWidth={2} />
         </Pressable>
 
@@ -263,6 +275,20 @@ function useLocalStyles() {
 
         scrollContent: {
           paddingBottom: 24,
+        },
+
+        inReviewPill: {
+          paddingHorizontal: 9,
+          paddingVertical: 3,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: c.amber,
+        },
+
+        inReviewText: {
+          fontSize: 11,
+          fontWeight: '800',
+          color: c.amber,
         },
 
         reviewCount: {

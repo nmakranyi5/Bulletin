@@ -4,16 +4,19 @@ import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTheme } from '../../lib/app-theme';
 import { useResumeUrl } from './use-resume-url';
 
-// Shows someone's PDF resume on the web, using the browser's own PDF viewer.
+// Shows a PDF or image document (a resume by default) on the web, using the browser's own PDF viewer.
 export function ResumeViewerModal({
   visible,
   url,
   name,
+  title,
   onClose,
 }: {
   visible: boolean;
   url: string;
   name?: string | null;
+  // Overrides the heading, for documents that aren't a resume.
+  title?: string;
   onClose: () => void;
 }) {
   const c = useTheme().colors;
@@ -26,7 +29,7 @@ export function ResumeViewerModal({
         <View style={local.card}>
           <View style={local.header}>
             <Text style={local.title} numberOfLines={1}>
-              {name ? `${name}'s resume` : 'Resume'}
+              {title ?? (name ? `${name}'s resume` : 'Resume')}
             </Text>
             <Pressable
               onPress={() => Linking.openURL(link.url ?? url)}

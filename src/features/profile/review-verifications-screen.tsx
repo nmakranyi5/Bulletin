@@ -50,7 +50,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [rejecting, setRejecting] = useState<Pending | null>(null);
-  const [viewing, setViewing] = useState<{ url: string; name: string } | null>(null);
+  const [viewing, setViewing] = useState<{ url: string; title: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = async () => {
@@ -197,7 +197,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                   return isImagePath(path) ? (
                     <Pressable
                       key={path}
-                      onPress={() => setViewing({ url, name: r.name ?? 'Document' })}
+                      onPress={() => setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })}
                     >
                       <Image source={{ uri: url }} style={local.image} resizeMode="contain" />
                     </Pressable>
@@ -205,7 +205,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                     <Pressable
                       key={path}
                       style={local.docButton}
-                      onPress={() => setViewing({ url, name: r.name ?? 'Document' })}
+                      onPress={() => setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })}
                     >
                       <FileText size={16} color={c.text} strokeWidth={2.2} />
                       <Text style={local.docText}>Open document</Text>
@@ -264,7 +264,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
         <ResumeViewerModal
           visible
           url={viewing.url}
-          name={viewing.name}
+          title={viewing.title}
           onClose={() => setViewing(null)}
         />
       )}
