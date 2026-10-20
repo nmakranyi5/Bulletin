@@ -19,6 +19,7 @@ import { supabase } from '../../../lib/supabase';
 import { RatingBadge } from '../../components/rating-badge';
 import { VerificationBadges } from '../../components/verification-badges';
 import { VerifiedBadge } from '../../components/verified-badge';
+import { kindsFor } from '../../../lib/verification';
 import { Verification, fetchVerifications } from './verifications';
 import { PhoneVerifyModal } from './phone-verify-modal';
 import { fetchRatings } from './ratings';
@@ -59,7 +60,7 @@ export function ProfileScreen({
   const [pendingReviews, setPendingReviews] = useState(0);
   // You've sent a verification request that's still being reviewed.
   const [myRequestInReview, setMyRequestInReview] = useState(false);
-  const [verifications, setVerifications] = useState<Verification[]>([]);
+  const [verifications, setVerifications] = useState<Verification[] | null>(null);
   const [showPhone, setShowPhone] = useState(false);
   const [rating, setRating] = useState<Rating | undefined>();
   const [loading, setLoading] = useState(true);
@@ -102,6 +103,13 @@ export function ProfileScreen({
   }, []);
 
   const refreshControl = useRefreshControl(loadProfile);
+
+  // Nothing left to verify: every check offered for your role is approved and current.
+  // (Hidden until the badges have loaded so it doesn't flash in and out.)
+  const fullyVerified =
+    !!profile &&
+    verifications !== null &&
+    kindsFor(profile.is_recruiter).every((k) => verifications.some((v) => v.kind === k));
 
   const roleLine = profile?.is_recruiter
     ? [profile.recruiter_title, profile.company_name].filter(Boolean).join(' at ')
@@ -161,16 +169,18 @@ export function ProfileScreen({
           </Pressable>
         )}
 
-        <Pressable style={local.accountActionRow} onPress={onVerification}>
-          <BadgeCheck size={20} color={c.textSecondary} strokeWidth={2} />
-          <Text style={local.accountActionText}>Get verified</Text>
-          {myRequestInReview && (
-            <View style={local.inReviewPill}>
-              <Text style={local.inReviewText}>In review</Text>
-            </View>
-          )}
-          <ChevronRight size={18} color={c.muted} strokeWidth={2} />
-        </Pressable>
+        {!loading && verifications !== null && !fullyVerified && (
+          <Pressable style={local.accountActionRow} onPress={onVerification}>
+            <BadgeCheck size={20} color={c.textSecondary} strokeWidth={2} />
+            <Text style={local.accountActionText}>Get verified</Text>
+            {myRequestInReview && (
+              <View style={local.inReviewPill}>
+                <Text style={local.inReviewText}>In review</Text>
+              </View>
+            )}
+            <ChevronRight size={18} color={c.muted} strokeWidth={2} />
+          </Pressable>
+        )}
 
         {profile?.is_reviewer && (
           <Pressable style={local.accountActionRow} onPress={onReviewVerifications}>
