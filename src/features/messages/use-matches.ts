@@ -156,7 +156,9 @@ export function useMatches(
       clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [session, enabled]);
+    // Keyed on the user, not the session object: that changes on every token refresh and
+    // would tear down and rebuild the live connection each time.
+  }, [session?.user.id, enabled]);
 
   // Unread messages across your active chats: what the Messages tab badge shows.
   const unreadTotal = activeMatches.reduce((n, m) => n + (convoMeta[m.id]?.unread ?? 0), 0);
