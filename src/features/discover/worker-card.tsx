@@ -5,6 +5,7 @@ import { useTheme } from '../../../lib/app-theme';
 import { formatTradeStart, formatWorkerEpa } from '../../../lib/hvac';
 import { ResumeViewerModal } from '../../components/resume-viewer-modal';
 import { RatingBadge } from '../../components/rating-badge';
+import { VerifiedBadge } from '../../components/verified-badge';
 import { Tag } from '../../components/tag';
 import { useSharedStyles } from '../../styles/shared';
 import { ExpandableCard } from './expandable-card';
@@ -42,6 +43,7 @@ export function WorkerCardContent({
         </Text>
       </View>
       <RatingBadge rating={candidate.rating} />
+      <VerifiedBadge verifiedAt={candidate.phone_verified_at} />
     </>
   );
 

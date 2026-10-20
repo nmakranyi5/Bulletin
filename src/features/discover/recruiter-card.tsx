@@ -13,6 +13,7 @@ import {
 import { closesOn } from '../../../lib/close-date';
 import { URGENCY, urgencyOf } from '../../../lib/response-timers';
 import { RatingBadge } from '../../components/rating-badge';
+import { VerifiedBadge } from '../../components/verified-badge';
 import { Tag } from '../../components/tag';
 import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
@@ -67,6 +68,7 @@ export function RecruiterCardContent({
         </Text>
       </View>
       <RatingBadge rating={recruiter.rating} />
+      <VerifiedBadge verifiedAt={recruiter.phone_verified_at} />
     </>
   );
 

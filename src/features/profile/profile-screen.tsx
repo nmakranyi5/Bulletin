@@ -5,6 +5,7 @@ import {
   CircleHelp,
   Pencil,
   Settings,
+  ShieldCheck,
   Trash2,
   UserRound,
 } from 'lucide-react-native';
@@ -15,6 +16,8 @@ import { formatWorkerEpa } from '../../../lib/hvac';
 import { Rating } from '../../../lib/rating';
 import { supabase } from '../../../lib/supabase';
 import { RatingBadge } from '../../components/rating-badge';
+import { VerifiedBadge } from '../../components/verified-badge';
+import { PhoneVerifyModal } from './phone-verify-modal';
 import { fetchRatings } from './ratings';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
@@ -43,7 +46,9 @@ export function ProfileScreen({
     recruiter_title: string | null;
     trade_role: string | null;
     epa_608_types: string[] | null;
+    phone_verified_at: string | null;
   } | null>(null);
+  const [showPhone, setShowPhone] = useState(false);
   const [rating, setRating] = useState<Rating | undefined>();
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -54,7 +59,7 @@ export function ProfileScreen({
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types'
+        'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types, phone_verified_at'
       )
       .eq('id', session.user.id)
       .maybeSingle();
@@ -118,6 +123,7 @@ export function ProfileScreen({
             </Text>
             {roleLine ? <Text style={local.profileRoleLine}>{roleLine}</Text> : null}
             <RatingBadge rating={rating} />
+            <VerifiedBadge verifiedAt={profile?.phone_verified_at} />
           </>
         )}
       </View>
@@ -127,6 +133,14 @@ export function ProfileScreen({
           <Pressable style={local.accountActionRow} onPress={onManagePositions}>
             <BriefcaseBusiness size={20} color={c.textSecondary} strokeWidth={2} />
             <Text style={local.accountActionText}>Manage Positions</Text>
+            <ChevronRight size={18} color={c.muted} strokeWidth={2} />
+          </Pressable>
+        )}
+
+        {!loading && !profile?.phone_verified_at && (
+          <Pressable style={local.accountActionRow} onPress={() => setShowPhone(true)}>
+            <ShieldCheck size={20} color={c.textSecondary} strokeWidth={2} />
+            <Text style={local.accountActionText}>Verify your phone</Text>
             <ChevronRight size={18} color={c.muted} strokeWidth={2} />
           </Pressable>
         )}
@@ -178,6 +192,15 @@ export function ProfileScreen({
       <Pressable style={local.signOutButton} onPress={handleSignOut}>
         <Text style={local.signOutText}>Sign Out</Text>
       </Pressable>
+
+      <PhoneVerifyModal
+        visible={showPhone}
+        onClose={() => setShowPhone(false)}
+        onVerified={() => {
+          setShowPhone(false);
+          loadProfile();
+        }}
+      />
 
       <DeleteAccountModal
         visible={showDelete}
