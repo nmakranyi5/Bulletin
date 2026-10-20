@@ -36,11 +36,9 @@ export function useAnnounceOnce<T extends { id: string }>({
         }
         setSeenReady(true);
       })
-      .catch(() => {
-        if (cancelled) return;
-        seen.current = null;
-        setSeenReady(true);
-      });
+      // If the saved list can't be read, announce nothing this time rather than treating it as
+      // a first run (which would mark everything as already seen and overwrite the saved list).
+      .catch(() => {});
     return () => {
       cancelled = true;
     };

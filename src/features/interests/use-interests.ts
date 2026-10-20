@@ -1,5 +1,5 @@
 import { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { DeclineReason } from '../../../lib/decline-reasons';
@@ -32,9 +32,14 @@ export function useInterests(
   const unseenReceivedCount = receivedInterests.length;
 
   // `silent` is for background refreshes: don't pop an error alert every minute offline.
+  // Only the newest fetch is applied: sending several interests at once starts overlapping
+  // fetches, and an older one finishing last must not overwrite the newer result.
+  const fetchSeq = useRef(0);
+
   const fetchInterests = async (opts?: { silent?: boolean }) => {
     const silent = !!opts?.silent;
     if (!session) return;
+    const seq = ++fetchSeq.current;
 
     // Positions past their close date close now, returning interests still waiting on them.
     await supabase.rpc('close_expired_positions');
@@ -46,6 +51,7 @@ export function useInterests(
       )
       .eq('from_user', session.user.id);
 
+    if (seq !== fetchSeq.current) return;
     if (sentError) {
       if (!silent) Alert.alert('Error', sentError.message);
     } else {
@@ -62,6 +68,7 @@ export function useInterests(
       .eq('to_user', session.user.id)
       .eq('status', 'pending');
 
+    if (seq !== fetchSeq.current) return;
     if (receivedError) {
       if (!silent) Alert.alert('Error', receivedError.message);
     } else setReceivedInterests(received ?? []);
@@ -90,13 +97,24 @@ export function useInterests(
 
   // Declining goes through requestDecline + declineInterest (it needs a reason); accepting is one step.
   const acceptInterest = async (interestId: string) => {
-    const { error } = await supabase
+    // Only a still-waiting interest addressed to you can be accepted. If it was taken back
+    // (or already answered) while this screen was open, nothing changes and nothing matches.
+    const { data, error } = await supabase
       .from('interests')
       .update({ status: 'accepted' })
-      .eq('id', interestId);
+      .eq('id', interestId)
+      .eq('status', 'pending')
+      .eq('to_user', session?.user.id ?? '')
+      .select('id');
 
     if (error) {
       Alert.alert('Error', error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      Alert.alert('No longer available', 'This interest was taken back or already answered.');
+      setReceivedInterests((prev) => prev.filter((r) => r.id !== interestId));
+      fetchInterests();
       return;
     }
 
@@ -128,6 +146,9 @@ export function useInterests(
             }
             if (!data || data.length === 0) {
               Alert.alert('Could not remove', 'This interest was already answered.');
+              // Nothing was taken back, so no slot was freed: just refresh the list.
+              fetchInterests();
+              return;
             }
 
             fetchInterests();

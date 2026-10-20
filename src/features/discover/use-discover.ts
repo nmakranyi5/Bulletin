@@ -75,15 +75,36 @@ export function useDiscover(
 
     await supabase.rpc('close_expired_positions');
 
-    // Someone whose position closed on you can show up again (they may have others open).
-    const { data: alreadyContacted } = await supabase
-      .from('interests')
-      .select('to_user')
-      .eq('from_user', session.user.id)
-      .neq('status', 'position_closed');
+    // Skip everyone you already have history with, in either direction: people you've sent
+    // an interest to, and people who sent one to you (they're in your Interests, and swiping
+    // them here would create a second, reversed interest). Someone whose position closed can
+    // show up again (they may have others open).
+    const [sentTo, receivedFrom] = await Promise.all([
+      supabase
+        .from('interests')
+        .select('to_user')
+        .eq('from_user', session.user.id)
+        .neq('status', 'position_closed'),
+      supabase
+        .from('interests')
+        .select('from_user')
+        .eq('to_user', session.user.id)
+        .neq('status', 'position_closed'),
+    ]);
 
-    const excludeIds = (alreadyContacted ?? []).map((r) => r.to_user);
-    excludeIds.push(session.user.id);
+    // If this can't be read, don't build a deck: without it everyone you've already
+    // contacted would reappear. Keep the cards already on screen.
+    if (sentTo.error || receivedFrom.error) {
+      Alert.alert('Error', (sentTo.error ?? receivedFrom.error)!.message);
+      setDiscoverLoading(false);
+      return;
+    }
+
+    const excludeIds = [
+      ...(sentTo.data ?? []).map((r: any) => r.to_user),
+      ...(receivedFrom.data ?? []).map((r: any) => r.from_user),
+      session.user.id,
+    ];
 
     if (myProfile.is_recruiter) {
       const { data, error } = await supabase
