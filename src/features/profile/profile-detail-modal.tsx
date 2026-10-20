@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase';
 import { RecruiterCardContent } from '../discover/recruiter-card';
 import { WorkerCardContent } from '../discover/worker-card';
 import { fetchRatings } from './ratings';
+import { fetchVerifications } from './verifications';
 import { useSharedStyles } from '../../styles/shared';
 
 const PROFILE_COLUMNS =
@@ -40,8 +41,9 @@ export function ProfileDetailModal({
     let alive = true;
     Promise.all([
       fetchRatings([userId]),
+      fetchVerifications([userId]),
       supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', userId).single(),
-    ]).then(([ratings, { data, error }]) => {
+    ]).then(([ratings, verifications, { data, error }]) => {
       if (!alive) return;
       if (error || !data) {
         setFailed(true);
@@ -50,7 +52,7 @@ export function ProfileDetailModal({
       const positions = ((data as any).positions ?? [])
         .filter((p: any) => p.active || p.id === positionId)
         .sort((a: any, b: any) => (a.id === positionId ? -1 : b.id === positionId ? 1 : 0));
-      setProfile({ ...data, positions, rating: ratings[userId] });
+      setProfile({ ...data, positions, rating: ratings[userId], verifications: verifications[userId] });
     });
 
     return () => {

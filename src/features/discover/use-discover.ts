@@ -6,6 +6,7 @@ import { isOpenForCandidates } from '../../../lib/close-date';
 import { supabase } from '../../../lib/supabase';
 import { serverNow } from '../../../lib/time';
 import { fetchRatings } from '../profile/ratings';
+import { fetchVerifications } from '../profile/verifications';
 import { MyProfile } from '../profile/use-my-profile';
 
 export function useDiscover(
@@ -55,8 +56,12 @@ export function useDiscover(
 
   // Attaches each person's response rating so the card can show it.
   const withRatings = async (cards: any[]) => {
-    const ratings = await fetchRatings(cards.map((c) => c.id));
-    return cards.map((c) => ({ ...c, rating: ratings[c.id] }));
+    const ids = cards.map((c) => c.id);
+    const [ratings, verifications] = await Promise.all([
+      fetchRatings(ids),
+      fetchVerifications(ids),
+    ]);
+    return cards.map((c) => ({ ...c, rating: ratings[c.id], verifications: verifications[c.id] }));
   };
 
   const fetchDiscoverCards = async () => {
@@ -151,7 +156,7 @@ export function useDiscover(
     if (interested > 0 && swipedCard) {
       const relevantPositions = myProfile?.is_recruiter
         ? myPositions
-        : swipedCard.positions ?? [];
+        : (swipedCard.positions ?? []);
 
       if (relevantPositions.length === 0) {
         sendInterest(swipedCard.id, null);
