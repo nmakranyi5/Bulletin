@@ -1,4 +1,4 @@
-import { Check, Send } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';

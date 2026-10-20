@@ -193,11 +193,19 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
 
                 {(r.evidence_paths ?? []).map((path) => {
                   const url = urls[path];
-                  if (!url) return null;
+                  if (!url) {
+                    return (
+                      <Text key={path} style={local.missingFile}>
+                        Couldn't load an attached file. Pull down to retry before deciding.
+                      </Text>
+                    );
+                  }
                   return isImagePath(path) ? (
                     <Pressable
                       key={path}
-                      onPress={() => setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })}
+                      onPress={() =>
+                        setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })
+                      }
                     >
                       <Image source={{ uri: url }} style={local.image} resizeMode="contain" />
                     </Pressable>
@@ -205,7 +213,9 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                     <Pressable
                       key={path}
                       style={local.docButton}
-                      onPress={() => setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })}
+                      onPress={() =>
+                        setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })
+                      }
                     >
                       <FileText size={16} color={c.text} strokeWidth={2.2} />
                       <Text style={local.docText}>Open document</Text>
@@ -348,6 +358,12 @@ function useLocalStyles() {
           fontSize: 14,
           fontWeight: '700',
           color: c.text,
+        },
+
+        missingFile: {
+          fontSize: 13,
+          fontWeight: '600',
+          color: c.danger,
         },
 
         checklist: {

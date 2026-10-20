@@ -1,4 +1,3 @@
-import { Check } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   Alert,

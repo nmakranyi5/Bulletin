@@ -37,8 +37,10 @@ export function useDiscover(
     setExpandedCardId(null);
   };
 
-  const fetchMyPositions = async () => {
-    if (!session) return;
+  // Your open positions, fresh from the database (closing or reopening one elsewhere changes
+  // which can be offered). Returns null if they couldn't be loaded.
+  const fetchMyPositions = async (): Promise<any[] | null> => {
+    if (!session) return null;
 
     const { data, error } = await supabase
       .from('positions')
@@ -48,10 +50,12 @@ export function useDiscover(
 
     if (error) {
       Alert.alert('Error', error.message);
-      return;
+      return null;
     }
 
-    setMyPositions((data ?? []).filter((p) => isOpenForCandidates(p, serverNow())));
+    const open = (data ?? []).filter((p) => isOpenForCandidates(p, serverNow()));
+    setMyPositions(open);
+    return open;
   };
 
   // Attaches each person's response rating so the card can show it.
@@ -148,15 +152,27 @@ export function useDiscover(
    * JS-side state update.
    * This is only called through runOnJS from gesture animations.
    */
-  const removeTopCard = (interested: number) => {
+  const removeTopCard = async (interested: number) => {
     const swipedCard = discoverCards[0];
 
     setDiscoverCards((prev) => prev.slice(1));
 
     if (interested > 0 && swipedCard) {
-      const relevantPositions = myProfile?.is_recruiter
-        ? myPositions
-        : (swipedCard.positions ?? []);
+      let relevantPositions: any[];
+      if (myProfile?.is_recruiter) {
+        // Re-read your positions so one you've just closed isn't offered.
+        relevantPositions = (await fetchMyPositions()) ?? myPositions;
+      } else {
+        const listed = swipedCard.positions ?? [];
+        relevantPositions = listed.filter((p: any) => isOpenForCandidates(p, serverNow()));
+        if (listed.length > 0 && relevantPositions.length === 0) {
+          Alert.alert(
+            'Position closed',
+            `${swipedCard.company_name || swipedCard.name} is no longer hiring for that role.`
+          );
+          return;
+        }
+      }
 
       if (relevantPositions.length === 0) {
         sendInterest(swipedCard.id, null);
