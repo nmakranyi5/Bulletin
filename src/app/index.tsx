@@ -31,6 +31,8 @@ import { useMatches } from '../features/messages/use-matches';
 import { ProfileDetailModal } from '../features/profile/profile-detail-modal';
 import { OnboardingScreen } from '../features/profile/onboarding-screen';
 import { PositionsScreen } from '../features/profile/positions-screen';
+import { ReviewVerificationsScreen } from '../features/profile/review-verifications-screen';
+import { VerificationScreen } from '../features/profile/verification-screen';
 import { ProfileScreen } from '../features/profile/profile-screen';
 import { usePositionReminders } from '../features/profile/use-position-reminders';
 import { useMyProfile } from '../features/profile/use-my-profile';
@@ -92,6 +94,8 @@ function MainApp({ session }: { session: Session }) {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [editingProfile, setEditingProfile] = useState(false);
   const [managingPositions, setManagingPositions] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   // Which sub-tab each screen is on. They live here (not in the screens) so switching to
   // another tab and back puts you where you were.
   const [interestsSub, setInterestsSub] = useState<'sent' | 'received'>('received');
@@ -205,6 +209,20 @@ function MainApp({ session }: { session: Session }) {
     );
   }
 
+  if (verifying) {
+    return (
+      <VerificationScreen
+        session={session}
+        isRecruiter={!!myProfile?.is_recruiter}
+        onBack={() => setVerifying(false)}
+      />
+    );
+  }
+
+  if (reviewing) {
+    return <ReviewVerificationsScreen onBack={() => setReviewing(false)} />;
+  }
+
   if (managingPositions) {
     return <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />;
   }
@@ -305,6 +323,8 @@ function MainApp({ session }: { session: Session }) {
             session={session}
             onEditProfile={() => setEditingProfile(true)}
             onManagePositions={() => setManagingPositions(true)}
+            onVerification={() => setVerifying(true)}
+            onReviewVerifications={() => setReviewing(true)}
             onReplayTutorial={() => {
               matches.setSelectedMatch(null);
               setActiveTab('discover');

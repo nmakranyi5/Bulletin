@@ -5,10 +5,11 @@ import { supabase } from '../../../lib/supabase';
 import { RecruiterCardContent } from '../discover/recruiter-card';
 import { WorkerCardContent } from '../discover/worker-card';
 import { fetchRatings } from './ratings';
+import { fetchVerifications } from './verifications';
 import { useSharedStyles } from '../../styles/shared';
 
 const PROFILE_COLUMNS =
-  'id, name, username, avatar_url, description, is_recruiter, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, resume_url, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)';
+  'id, name, username, avatar_url, phone_verified_at, description, is_recruiter, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, resume_url, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)';
 
 // The same expanded card you see in Discover, opened from Interests or Messages.
 // `positionId` puts the posting you're talking about first on a recruiter's card.
@@ -40,8 +41,9 @@ export function ProfileDetailModal({
     let alive = true;
     Promise.all([
       fetchRatings([userId]),
+      fetchVerifications([userId]),
       supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', userId).single(),
-    ]).then(([ratings, { data, error }]) => {
+    ]).then(([ratings, verifications, { data, error }]) => {
       if (!alive) return;
       if (error || !data) {
         setFailed(true);
@@ -50,7 +52,7 @@ export function ProfileDetailModal({
       const positions = ((data as any).positions ?? [])
         .filter((p: any) => p.active || p.id === positionId)
         .sort((a: any, b: any) => (a.id === positionId ? -1 : b.id === positionId ? 1 : 0));
-      setProfile({ ...data, positions, rating: ratings[userId] });
+      setProfile({ ...data, positions, rating: ratings[userId], verifications: verifications[userId] });
     });
 
     return () => {

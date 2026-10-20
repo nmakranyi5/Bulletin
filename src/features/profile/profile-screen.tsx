@@ -1,10 +1,12 @@
 import { Session } from '@supabase/supabase-js';
 import {
   BriefcaseBusiness,
+  BadgeCheck,
   ChevronRight,
   CircleHelp,
   Pencil,
   Settings,
+  ShieldCheck,
   Trash2,
   UserRound,
 } from 'lucide-react-native';
@@ -15,6 +17,10 @@ import { formatWorkerEpa } from '../../../lib/hvac';
 import { Rating } from '../../../lib/rating';
 import { supabase } from '../../../lib/supabase';
 import { RatingBadge } from '../../components/rating-badge';
+import { VerificationBadges } from '../../components/verification-badges';
+import { VerifiedBadge } from '../../components/verified-badge';
+import { Verification, fetchVerifications } from './verifications';
+import { PhoneVerifyModal } from './phone-verify-modal';
 import { fetchRatings } from './ratings';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
@@ -25,11 +31,15 @@ export function ProfileScreen({
   onEditProfile,
   onManagePositions,
   onReplayTutorial,
+  onVerification,
+  onReviewVerifications,
 }: {
   session: Session;
   onEditProfile: () => void;
   onManagePositions: () => void;
   onReplayTutorial: () => void;
+  onVerification: () => void;
+  onReviewVerifications: () => void;
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
@@ -43,7 +53,14 @@ export function ProfileScreen({
     recruiter_title: string | null;
     trade_role: string | null;
     epa_608_types: string[] | null;
+    phone_verified_at: string | null;
+    is_reviewer: boolean;
   } | null>(null);
+  const [pendingReviews, setPendingReviews] = useState(0);
+  // You've sent a verification request that's still being reviewed.
+  const [myRequestInReview, setMyRequestInReview] = useState(false);
+  const [verifications, setVerifications] = useState<Verification[]>([]);
+  const [showPhone, setShowPhone] = useState(false);
   const [rating, setRating] = useState<Rating | undefined>();
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -54,7 +71,7 @@ export function ProfileScreen({
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types'
+        'name, username, avatar_url, is_recruiter, company_name, recruiter_title, trade_role, epa_608_types, phone_verified_at, is_reviewer'
       )
       .eq('id', session.user.id)
       .maybeSingle();
@@ -66,6 +83,17 @@ export function ProfileScreen({
     }
 
     fetchRatings([session.user.id]).then((r) => setRating(r[session.user.id]));
+    supabase
+      .from('verification_requests')
+      .select('id')
+      .eq('status', 'pending')
+      .then(({ data: rows }) => setMyRequestInReview((rows ?? []).length > 0));
+    fetchVerifications([session.user.id]).then((v) => setVerifications(v[session.user.id] ?? []));
+    if (data?.is_reviewer) {
+      supabase
+        .rpc('list_pending_verifications')
+        .then(({ data: rows }) => setPendingReviews((rows ?? []).length));
+    }
     setLoading(false);
   };
 
@@ -118,6 +146,8 @@ export function ProfileScreen({
             </Text>
             {roleLine ? <Text style={local.profileRoleLine}>{roleLine}</Text> : null}
             <RatingBadge rating={rating} />
+            <VerifiedBadge verifiedAt={profile?.phone_verified_at} />
+            <VerificationBadges items={verifications} />
           </>
         )}
       </View>
@@ -127,6 +157,38 @@ export function ProfileScreen({
           <Pressable style={local.accountActionRow} onPress={onManagePositions}>
             <BriefcaseBusiness size={20} color={c.textSecondary} strokeWidth={2} />
             <Text style={local.accountActionText}>Manage Positions</Text>
+            <ChevronRight size={18} color={c.muted} strokeWidth={2} />
+          </Pressable>
+        )}
+
+        <Pressable style={local.accountActionRow} onPress={onVerification}>
+          <BadgeCheck size={20} color={c.textSecondary} strokeWidth={2} />
+          <Text style={local.accountActionText}>Get verified</Text>
+          {myRequestInReview && (
+            <View style={local.inReviewPill}>
+              <Text style={local.inReviewText}>In review</Text>
+            </View>
+          )}
+          <ChevronRight size={18} color={c.muted} strokeWidth={2} />
+        </Pressable>
+
+        {profile?.is_reviewer && (
+          <Pressable style={local.accountActionRow} onPress={onReviewVerifications}>
+            <ShieldCheck size={20} color={c.textSecondary} strokeWidth={2} />
+            <Text style={local.accountActionText}>Review verifications</Text>
+            {pendingReviews > 0 && (
+              <View style={local.reviewCount}>
+                <Text style={local.reviewCountText}>{pendingReviews}</Text>
+              </View>
+            )}
+            <ChevronRight size={18} color={c.muted} strokeWidth={2} />
+          </Pressable>
+        )}
+
+        {!loading && !profile?.phone_verified_at && (
+          <Pressable style={local.accountActionRow} onPress={() => setShowPhone(true)}>
+            <ShieldCheck size={20} color={c.textSecondary} strokeWidth={2} />
+            <Text style={local.accountActionText}>Verify your phone</Text>
             <ChevronRight size={18} color={c.muted} strokeWidth={2} />
           </Pressable>
         )}
@@ -179,6 +241,15 @@ export function ProfileScreen({
         <Text style={local.signOutText}>Sign Out</Text>
       </Pressable>
 
+      <PhoneVerifyModal
+        visible={showPhone}
+        onClose={() => setShowPhone(false)}
+        onVerified={() => {
+          setShowPhone(false);
+          loadProfile();
+        }}
+      />
+
       <DeleteAccountModal
         visible={showDelete}
         userId={session.user.id}
@@ -204,6 +275,36 @@ function useLocalStyles() {
 
         scrollContent: {
           paddingBottom: 24,
+        },
+
+        inReviewPill: {
+          paddingHorizontal: 9,
+          paddingVertical: 3,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: c.amber,
+        },
+
+        inReviewText: {
+          fontSize: 11,
+          fontWeight: '800',
+          color: c.amber,
+        },
+
+        reviewCount: {
+          minWidth: 22,
+          height: 22,
+          paddingHorizontal: 6,
+          borderRadius: 11,
+          backgroundColor: c.danger,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+
+        reviewCountText: {
+          fontSize: 12,
+          fontWeight: '800',
+          color: c.white,
         },
 
         replayRow: {

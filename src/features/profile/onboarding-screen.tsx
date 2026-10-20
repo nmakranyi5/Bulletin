@@ -1,14 +1,11 @@
 import { Session } from '@supabase/supabase-js';
-import { decode } from 'base64-arraybuffer';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { UserRound } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -17,6 +14,7 @@ import {
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { StepForm } from '../../components/step-form';
+import { uploadFileToBucket } from './upload';
 import { useSharedStyles } from '../../styles/shared';
 import {
   buildRecruiterPayload,
@@ -153,26 +151,8 @@ export function OnboardingScreen({
   };
 
   const uploadFile = async (bucket: string, uri: string, fileName: string, contentType: string) => {
-    // On the web the picked file is a blob URL / data URI the browser can fetch; on phones
-    // it is a file on disk that has to be read as base64 first.
-    const body =
-      Platform.OS === 'web'
-        ? await (await fetch(uri)).blob()
-        : decode(
-            await FileSystem.readAsStringAsync(uri, {
-              encoding: FileSystem.EncodingType.Base64,
-            })
-          );
-
     const path = `${session.user.id}/${fileName}`;
-
-    const { error } = await supabase.storage.from(bucket).upload(path, body, {
-      contentType,
-      upsert: true,
-      cacheControl: '3600',
-    });
-
-    if (error) throw error;
+    await uploadFileToBucket(bucket, path, uri, contentType, { upsert: true });
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
 

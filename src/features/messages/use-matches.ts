@@ -35,12 +35,32 @@ export function useMatches(
     .filter((m) => m.status === 'closed')
     .sort((a, b) => ((a.closed?.at ?? '') < (b.closed?.at ?? '') ? 1 : -1));
 
-  const fetchConversationMeta = async (matchIds: string[]) => {
-    if (!session || matchIds.length === 0) {
-      setConvoMeta({});
-      return;
+  // Returns the summaries, or null if they couldn't be loaded (so callers don't mistake a
+  // failed load for "no messages" and invent first-message timers).
+  const loadConversationMeta = async (
+    matchIds: string[]
+  ): Promise<Record<string, ConversationMeta> | null> => {
+    if (!session) return null;
+    if (matchIds.length === 0) return {};
+
+    // Preferred: summarised in the database, correct at any size.
+    const rpc = await supabase.rpc('conversation_summaries');
+    if (!rpc.error) {
+      const out: Record<string, ConversationMeta> = {};
+      (rpc.data ?? []).forEach((r: any) => {
+        out[r.interest_id] = {
+          lastText: r.last_text,
+          lastAt: r.last_at,
+          lastFromMe: !!r.last_from_me,
+          lastRead: !!r.last_read,
+          unread: Number(r.unread ?? 0),
+          awaitingSince: r.awaiting_since ?? null,
+        };
+      });
+      return out;
     }
 
+    // Fallback (migration not applied yet): the newest messages across your chats.
     const { data, error } = await supabase
       .from('messages')
       .select('interest_id, sender_id, body, created_at, read_at, deleted_at')
@@ -48,11 +68,15 @@ export function useMatches(
       .order('created_at', { ascending: false })
       .limit(500);
 
-    if (!error) setConvoMeta(summarizeConversations(data ?? [], session.user.id));
+    return error ? null : summarizeConversations(data ?? [], session.user.id);
   };
+
+  // Only the newest response is applied, so a slow earlier fetch can't overwrite a later one.
+  const fetchSeq = useRef(0);
 
   const fetchMatches = async (opts?: { silent?: boolean }) => {
     if (!session) return;
+    const seq = ++fetchSeq.current;
 
     const me = session.user.id;
     const { data, error } = await supabase
@@ -68,36 +92,43 @@ export function useMatches(
       return;
     }
 
-    await fetchConversationMeta((data ?? []).map((row: any) => row.id));
+    const meta = await loadConversationMeta((data ?? []).map((row: any) => row.id));
+    if (seq !== fetchSeq.current) return;
+    // Without summaries every chat would look empty, so keep what's on screen and try again.
+    if (meta === null) {
+      if (!opts?.silent) Alert.alert('Error', "Couldn't load your messages. Pull down to retry.");
+      return;
+    }
+    setConvoMeta(meta);
 
     setMatches(
       (data ?? [])
-      // Archived chats you deleted stay out of your list.
-      .filter((row: any) => !(row.from_user === me ? row.from_chat_hidden : row.to_chat_hidden))
-      .map((row: any) => {
-        const other = row.from_user === me ? row.to_profile : row.from_profile;
-        return {
-          id: row.id,
-          status: row.status === 'closed' ? ('closed' as const) : ('accepted' as const),
-          closed:
-            row.status === 'closed'
-              ? {
-                  reason: row.closed_reason ?? null,
-                  note: row.closed_note ?? null,
-                  at: row.closed_at ?? null,
-                  byMe: row.closed_by === me,
-                }
-              : undefined,
-          otherUserId: other?.id ?? '',
-          positionId: row.position?.id ?? null,
-          matchedAt: row.responded_at ?? null,
-          name: other?.name ?? other?.username ?? 'Unknown',
-          position: row.position?.title ?? 'General',
-          company: row.position?.company ?? '',
-          avatarUrl: other?.avatar_url ?? null,
-          urgency: urgencyOf(row.position),
-        };
-      })
+        // Archived chats you deleted stay out of your list.
+        .filter((row: any) => !(row.from_user === me ? row.from_chat_hidden : row.to_chat_hidden))
+        .map((row: any) => {
+          const other = row.from_user === me ? row.to_profile : row.from_profile;
+          return {
+            id: row.id,
+            status: row.status === 'closed' ? ('closed' as const) : ('accepted' as const),
+            closed:
+              row.status === 'closed'
+                ? {
+                    reason: row.closed_reason ?? null,
+                    note: row.closed_note ?? null,
+                    at: row.closed_at ?? null,
+                    byMe: row.closed_by === me,
+                  }
+                : undefined,
+            otherUserId: other?.id ?? '',
+            positionId: row.position?.id ?? null,
+            matchedAt: row.responded_at ?? null,
+            name: other?.name ?? other?.username ?? 'Unknown',
+            position: row.position?.title ?? 'General',
+            company: row.position?.company ?? '',
+            avatarUrl: other?.avatar_url ?? null,
+            urgency: urgencyOf(row.position),
+          };
+        })
     );
   };
 
@@ -125,7 +156,9 @@ export function useMatches(
       clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [session, enabled]);
+    // Keyed on the user, not the session object: that changes on every token refresh and
+    // would tear down and rebuild the live connection each time.
+  }, [session?.user.id, enabled]);
 
   // Unread messages across your active chats: what the Messages tab badge shows.
   const unreadTotal = activeMatches.reduce((n, m) => n + (convoMeta[m.id]?.unread ?? 0), 0);

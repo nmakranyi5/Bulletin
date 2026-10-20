@@ -1,13 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
@@ -50,6 +42,17 @@ export function DeleteAccountModal({
     await Promise.allSettled([
       supabase.storage.from('avatars').remove([`${userId}/avatar.jpg`]),
       supabase.storage.from('resumes').remove([`${userId}/resume.pdf`]),
+      // Any verification documents still waiting for review.
+      supabase.storage
+        .from('verification-docs')
+        .list(userId)
+        .then(({ data }) =>
+          data?.length
+            ? supabase.storage
+                .from('verification-docs')
+                .remove(data.map((f) => `${userId}/${f.name}`))
+            : undefined
+        ),
     ]);
 
     const { error } = await supabase.rpc('delete_my_account');
@@ -73,9 +76,8 @@ export function DeleteAccountModal({
           <Text style={local.title}>Delete your account?</Text>
           <Text style={local.body}>
             This permanently deletes your profile
-            {isRecruiter ? ', your job postings' : ' and resume'}, your interests, and all of
-            your conversations. People you matched with will lose those chats too. This can't
-            be undone.
+            {isRecruiter ? ', your job postings' : ' and resume'}, your interests, and all of your
+            conversations. People you matched with will lose those chats too. This can't be undone.
           </Text>
 
           <Text style={[shared.sectionLabel, { marginTop: 16 }]}>

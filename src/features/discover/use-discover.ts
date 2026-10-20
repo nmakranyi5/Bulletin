@@ -6,6 +6,7 @@ import { isOpenForCandidates } from '../../../lib/close-date';
 import { supabase } from '../../../lib/supabase';
 import { serverNow } from '../../../lib/time';
 import { fetchRatings } from '../profile/ratings';
+import { fetchVerifications } from '../profile/verifications';
 import { MyProfile } from '../profile/use-my-profile';
 
 export function useDiscover(
@@ -36,8 +37,10 @@ export function useDiscover(
     setExpandedCardId(null);
   };
 
-  const fetchMyPositions = async () => {
-    if (!session) return;
+  // Your open positions, fresh from the database (closing or reopening one elsewhere changes
+  // which can be offered). Returns null if they couldn't be loaded.
+  const fetchMyPositions = async (): Promise<any[] | null> => {
+    if (!session) return null;
 
     const { data, error } = await supabase
       .from('positions')
@@ -47,16 +50,22 @@ export function useDiscover(
 
     if (error) {
       Alert.alert('Error', error.message);
-      return;
+      return null;
     }
 
-    setMyPositions((data ?? []).filter((p) => isOpenForCandidates(p, serverNow())));
+    const open = (data ?? []).filter((p) => isOpenForCandidates(p, serverNow()));
+    setMyPositions(open);
+    return open;
   };
 
   // Attaches each person's response rating so the card can show it.
   const withRatings = async (cards: any[]) => {
-    const ratings = await fetchRatings(cards.map((c) => c.id));
-    return cards.map((c) => ({ ...c, rating: ratings[c.id] }));
+    const ids = cards.map((c) => c.id);
+    const [ratings, verifications] = await Promise.all([
+      fetchRatings(ids),
+      fetchVerifications(ids),
+    ]);
+    return cards.map((c) => ({ ...c, rating: ratings[c.id], verifications: verifications[c.id] }));
   };
 
   const fetchDiscoverCards = async () => {
@@ -66,21 +75,42 @@ export function useDiscover(
 
     await supabase.rpc('close_expired_positions');
 
-    // Someone whose position closed on you can show up again (they may have others open).
-    const { data: alreadyContacted } = await supabase
-      .from('interests')
-      .select('to_user')
-      .eq('from_user', session.user.id)
-      .neq('status', 'position_closed');
+    // Skip everyone you already have history with, in either direction: people you've sent
+    // an interest to, and people who sent one to you (they're in your Interests, and swiping
+    // them here would create a second, reversed interest). Someone whose position closed can
+    // show up again (they may have others open).
+    const [sentTo, receivedFrom] = await Promise.all([
+      supabase
+        .from('interests')
+        .select('to_user')
+        .eq('from_user', session.user.id)
+        .neq('status', 'position_closed'),
+      supabase
+        .from('interests')
+        .select('from_user')
+        .eq('to_user', session.user.id)
+        .neq('status', 'position_closed'),
+    ]);
 
-    const excludeIds = (alreadyContacted ?? []).map((r) => r.to_user);
-    excludeIds.push(session.user.id);
+    // If this can't be read, don't build a deck: without it everyone you've already
+    // contacted would reappear. Keep the cards already on screen.
+    if (sentTo.error || receivedFrom.error) {
+      Alert.alert('Error', (sentTo.error ?? receivedFrom.error)!.message);
+      setDiscoverLoading(false);
+      return;
+    }
+
+    const excludeIds = [
+      ...(sentTo.data ?? []).map((r: any) => r.to_user),
+      ...(receivedFrom.data ?? []).map((r: any) => r.from_user),
+      session.user.id,
+    ];
 
     if (myProfile.is_recruiter) {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, description, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, resume_url'
+          'id, name, username, avatar_url, phone_verified_at, description, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, resume_url'
         )
         .eq('is_recruiter', false)
         .not('id', 'in', `(${excludeIds.join(',')})`);
@@ -91,7 +121,7 @@ export function useDiscover(
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, name, username, avatar_url, description, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, location, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, close_at, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
+          'id, name, username, avatar_url, phone_verified_at, description, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, location, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, close_at, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
         )
         .eq('is_recruiter', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);
@@ -143,15 +173,27 @@ export function useDiscover(
    * JS-side state update.
    * This is only called through runOnJS from gesture animations.
    */
-  const removeTopCard = (interested: number) => {
+  const removeTopCard = async (interested: number) => {
     const swipedCard = discoverCards[0];
 
     setDiscoverCards((prev) => prev.slice(1));
 
     if (interested > 0 && swipedCard) {
-      const relevantPositions = myProfile?.is_recruiter
-        ? myPositions
-        : swipedCard.positions ?? [];
+      let relevantPositions: any[];
+      if (myProfile?.is_recruiter) {
+        // Re-read your positions so one you've just closed isn't offered.
+        relevantPositions = (await fetchMyPositions()) ?? myPositions;
+      } else {
+        const listed = swipedCard.positions ?? [];
+        relevantPositions = listed.filter((p: any) => isOpenForCandidates(p, serverNow()));
+        if (listed.length > 0 && relevantPositions.length === 0) {
+          Alert.alert(
+            'Position closed',
+            `${swipedCard.company_name || swipedCard.name} is no longer hiring for that role.`
+          );
+          return;
+        }
+      }
 
       if (relevantPositions.length === 0) {
         sendInterest(swipedCard.id, null);
