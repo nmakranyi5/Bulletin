@@ -18,18 +18,21 @@ export function makeSharedStyles(c: Colors) {
       color: c.textSecondary,
     },
 
+    // The card's top band: the photo, then the name and badges beneath it. They're stacked
+    // (not overlaid), so a rating or verification badge can never run into the photo.
     profileSection: {
       height: '45%',
       backgroundColor: c.border,
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 22,
+      paddingBottom: 18,
+      gap: 10,
+      overflow: 'hidden',
     },
 
     profileInfo: {
-      position: 'absolute',
-      left: 22,
-      right: 22,
-      bottom: 18,
+      alignSelf: 'stretch',
     },
 
     cardAvatarPreview: {

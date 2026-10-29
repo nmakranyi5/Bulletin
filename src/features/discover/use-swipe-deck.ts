@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Alert, useWindowDimensions } from 'react-native';
+import { Alert } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import {
   interpolate,
@@ -11,6 +11,7 @@ import {
 } from 'react-native-reanimated';
 
 import { SWIPE_VELOCITY, swipeMetrics } from '../../constants/app';
+import { useAppWidth } from '../../hooks/use-app-width';
 
 // Drag/swipe animation for the discover deck. `onSwiped` runs on the JS thread once
 // the card has flown off screen (direction > 0 means interested).
@@ -20,7 +21,7 @@ export function useSwipeDeck(
   onSwiped: (direction: number) => void,
   onTap: () => void
 ) {
-  const { width } = useWindowDimensions();
+  const width = useAppWidth();
   const { threshold: SWIPE_THRESHOLD, distance: SWIPE_DISTANCE } = swipeMetrics(width);
   const translateX = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
