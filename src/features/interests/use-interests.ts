@@ -71,7 +71,11 @@ export function useInterests(
     if (seq !== fetchSeq.current) return;
     if (receivedError) {
       if (!silent) Alert.alert('Error', receivedError.message);
-    } else setReceivedInterests(received ?? []);
+    } else {
+      // Interests from someone who never finished setting up (no name) aren't actionable and
+      // would show up as "Unknown", so they're left out until that person finishes.
+      setReceivedInterests((received ?? []).filter((r: InterestRow) => !!r.from_profile?.name));
+    }
   };
 
   useEffect(() => {
