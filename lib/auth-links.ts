@@ -1,8 +1,14 @@
 import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-// Where Supabase email links (confirm signup, reset password) send the user back to.
-export const authRedirectUrl = () => Linking.createURL('/');
+// Where Supabase email links (confirm signup, reset password) send the user back to. On the
+// web that's the page you're on (it may live under a sub-path, e.g. on GitHub Pages); on
+// phones it's the app's own link.
+export const authRedirectUrl = () =>
+  Platform.OS === 'web' && typeof window !== 'undefined'
+    ? window.location.origin + window.location.pathname
+    : Linking.createURL('/');
 
 type AuthLinkResult = { handled: boolean; type?: string; error?: string };
 
