@@ -1,8 +1,6 @@
 // The first-run tour: what each step says. Kept free of React so the copy and its
 // structure can be tested on its own (see src/features/tutorial for the screens).
 
-import { URGENCY, URGENCY_LEVELS } from './response-timers';
-
 export type TourTab = 'discover' | 'interests' | 'messages' | 'profile';
 
 export type TourStep = {
@@ -13,10 +11,6 @@ export type TourStep = {
   body: string;
   points: string[];
 };
-
-// "2 hours, 24 hours or 3 days", straight from the urgency settings so it can't drift.
-const replyWindows = URGENCY_LEVELS.map((u) => URGENCY[u].windowLabel);
-const REPLY_WINDOWS = `${replyWindows.slice(0, -1).join(', ')} or ${replyWindows[replyWindows.length - 1]}`;
 
 export function tourSteps(isRecruiter: boolean, interestSlots: number): TourStep[] {
   const welcome: TourStep = {
@@ -71,7 +65,7 @@ export function tourSteps(isRecruiter: boolean, interestSlots: number): TourStep
     title: 'Messages: your chats',
     body: 'Accepted interests land here. The red number on the tab is your unread messages.',
     points: [
-      `Everyone is expected to reply within ${REPLY_WINDOWS}, set by how urgent the job is.`,
+      'You and your match agree on a reply time, from your profile settings (1 to 5 days). Urgent jobs start faster, and either of you can ask to change it in the chat.',
       'Tap the X in a chat to close it. Say why: a deal, or not moving forward.',
       'Closed chats move to Archived, and you can still read them.',
     ],

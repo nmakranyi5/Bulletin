@@ -1,3 +1,4 @@
+import type { WindowChange } from '../lib/reply-window';
 import type { Urgency } from '../lib/response-timers';
 
 export type InterestRow = {
@@ -52,6 +53,9 @@ export type Match = {
   // Recruiters are expected to open the conversation, so for them the first message
   // is theirs to send; for the other person it's theirs to wait on.
   firstMoveMine?: boolean;
+  // The reply time you and this person agreed on, as it changed over time (oldest first). Empty
+  // for chats made before agreed times existed; those use the posting's urgency window.
+  windows?: WindowChange[];
   name: string;
   position: string;
   company: string;

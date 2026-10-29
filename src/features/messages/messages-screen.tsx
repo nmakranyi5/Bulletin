@@ -4,7 +4,8 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { ConversationMeta, formatListTime, whoseTurn } from '../../../lib/chat';
 import { closeOutcome, isDeal } from '../../../lib/close-reasons';
-import { timerStatus } from '../../../lib/response-timers';
+import { windowMsAt } from '../../../lib/reply-window';
+import { timerStatusFor } from '../../../lib/response-timers';
 import { Avatar } from '../../components/avatar';
 import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { TimerChip } from '../../components/timer-chip';
@@ -182,13 +183,21 @@ export function MessagesScreen({
                       {!m && item.matchedAt ? (
                         <TimerChip
                           side={item.firstMoveMine ? 'responder' : 'waiting'}
-                          status={timerStatus(item.matchedAt, item.urgency, now)}
+                          status={timerStatusFor(
+                            item.matchedAt,
+                            windowMsAt(item.windows, item.matchedAt, item.urgency),
+                            now
+                          )}
                           prefix={item.firstMoveMine ? 'Say hello' : undefined}
                         />
                       ) : m?.awaitingSince ? (
                         <TimerChip
                           side="responder"
-                          status={timerStatus(m.awaitingSince, item.urgency, now)}
+                          status={timerStatusFor(
+                            m.awaitingSince,
+                            windowMsAt(item.windows, m.awaitingSince, item.urgency),
+                            now
+                          )}
                         />
                       ) : null}
                     </View>

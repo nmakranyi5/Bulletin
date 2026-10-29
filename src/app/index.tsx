@@ -28,6 +28,7 @@ import { ChatScreen } from '../features/messages/chat-screen';
 import { CloseChatModal } from '../features/messages/close-chat-modal';
 import { MessagesScreen } from '../features/messages/messages-screen';
 import { useMatches } from '../features/messages/use-matches';
+import { useReplyWindowNotices } from '../features/messages/use-reply-window-notices';
 import { ProfileDetailModal } from '../features/profile/profile-detail-modal';
 import { OnboardingScreen } from '../features/profile/onboarding-screen';
 import { PositionsScreen } from '../features/profile/positions-screen';
@@ -161,6 +162,20 @@ function MainApp({ session }: { session: Session }) {
     sentInterests: interests.sentInterests,
     loaded: interests.interestsLoaded,
     userId: session.user.id,
+  });
+
+  // Tells you when someone asks to change a chat's reply time, and how your own requests turned out.
+  useReplyWindowNotices({
+    requests: matches.replyRequests,
+    matches: matches.matches,
+    loaded: matches.matchesLoaded,
+    userId: session.user.id,
+    onOpenChat: (matchId) => {
+      const match = matches.matches.find((m) => m.id === matchId);
+      if (!match) return;
+      setActiveTab('messages');
+      matches.setSelectedMatch(match);
+    },
   });
 
   // Reminds recruiters to extend or confirm a position as its close date approaches.
@@ -308,6 +323,18 @@ function MainApp({ session }: { session: Session }) {
                   positionId: matches.selectedMatch!.positionId,
                 })
               }
+              replyRequest={matches.replyRequests.find(
+                (r) => r.interestId === matches.selectedMatch!.id && r.status === 'pending'
+              )}
+              onRequestWindow={(hours) =>
+                matches.requestReplyWindow(matches.selectedMatch!, hours)
+              }
+              onRespondWindow={(accept) => {
+                const req = matches.replyRequests.find(
+                  (r) => r.interestId === matches.selectedMatch!.id && r.status === 'pending'
+                );
+                if (req) matches.respondReplyWindow(req, accept);
+              }}
               onBack={() => {
                 matches.setSelectedMatch(null);
                 matches.fetchMatches();
