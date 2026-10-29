@@ -1,6 +1,6 @@
 import { FileText, MapPin } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, Text, View, Platform } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { formatTradeStart, formatWorkerEpa } from '../../../lib/hvac';
 import { ResumeViewerModal } from '../../components/resume-viewer-modal';
@@ -27,14 +27,10 @@ export function WorkerCardContent({
   const shared = useSharedStyles();
   const [resumeOpen, setResumeOpen] = useState(false);
 
-  // Shrink-to-fit text only exists on phones; on the web a long title wraps to two lines
-  // instead of being cut off.
-  const titleLines = modal || Platform.OS === 'web' ? 2 : 1;
-
   const info = (
     <>
       <Text
-        numberOfLines={titleLines}
+        numberOfLines={modal ? 2 : 1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
         style={[shared.name, modal && { fontSize: 26, lineHeight: 30 }]}

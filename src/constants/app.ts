@@ -1,10 +1,6 @@
 export const SWIPE_VELOCITY = 400;
 export const MAX_INTERESTS = 10;
 
-// On wide screens (the web) the app is shown as a phone-sized column in the middle, so
-// nothing stretches. Everything that sizes itself from the screen width uses this cap.
-export const APP_MAX_WIDTH = 520;
-
 // Cards never get wider than this (tablets, landscape, split view).
 export const CARD_MAX_WIDTH = 460;
 // Windows shorter than this (iPhone SE class) get the compact card layout.
