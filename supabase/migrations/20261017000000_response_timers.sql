@@ -6,6 +6,10 @@
 alter table public.positions
   add column if not exists urgency text not null default 'standard';
 
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.positions
+  drop constraint if exists positions_urgency_valid;
+
 alter table public.positions
   add constraint positions_urgency_valid
     check (urgency in ('urgent', 'standard', 'flexible'));

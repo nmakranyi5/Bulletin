@@ -12,6 +12,14 @@ alter table public.profiles
   add column if not exists has_drivers_license boolean not null default false,
   add column if not exists open_schedules text[] not null default '{}';
 
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.profiles
+  drop constraint if exists profiles_recruiter_title_valid,
+  drop constraint if exists profiles_company_size_valid,
+  drop constraint if exists profiles_work_types_valid,
+  drop constraint if exists profiles_company_founded_year_valid,
+  drop constraint if exists profiles_open_schedules_valid;
+
 alter table public.profiles
   add constraint profiles_recruiter_title_valid
     check (recruiter_title is null or recruiter_title in ('Owner','Service manager','Hiring manager','HR / Recruiter')),

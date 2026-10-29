@@ -6,6 +6,11 @@ alter table public.interests
   add column if not exists closed_at timestamptz,
   add column if not exists closed_by uuid references auth.users(id) on delete set null;
 
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.interests
+  drop constraint if exists interests_closed_reason_valid,
+  drop constraint if exists interests_closed_note_length;
+
 alter table public.interests
   add constraint interests_closed_reason_valid
     check (closed_reason is null or closed_reason in (

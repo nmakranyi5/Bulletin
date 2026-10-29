@@ -4,6 +4,11 @@ alter table public.interests
   add column if not exists decline_note text,
   add column if not exists declined_at timestamptz;
 
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.interests
+  drop constraint if exists interests_decline_reason_valid,
+  drop constraint if exists interests_decline_note_length;
+
 alter table public.interests
   add constraint interests_decline_reason_valid
     check (decline_reason is null or decline_reason in (
