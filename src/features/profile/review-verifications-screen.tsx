@@ -319,7 +319,7 @@ function useLocalStyles() {
         role: {
           fontSize: 12,
           fontWeight: '700',
-          color: c.muted,
+          color: c.textSecondary,
         },
 
         name: {

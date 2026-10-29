@@ -113,6 +113,8 @@ export function useDiscover(
           'id, name, username, avatar_url, phone_verified_at, description, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, resume_url'
         )
         .eq('is_recruiter', false)
+        // Only people who finished setup (the rest have no name yet).
+        .eq('onboarded', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);
 
       if (error) Alert.alert('Error', error.message);
@@ -124,6 +126,7 @@ export function useDiscover(
           'id, name, username, avatar_url, phone_verified_at, description, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, location, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, close_at, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)'
         )
         .eq('is_recruiter', true)
+        .eq('onboarded', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);
 
       if (error) {

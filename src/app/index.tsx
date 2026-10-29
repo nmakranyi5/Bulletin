@@ -211,20 +211,30 @@ function MainApp({ session }: { session: Session }) {
 
   if (verifying) {
     return (
-      <VerificationScreen
-        session={session}
-        isRecruiter={!!myProfile?.is_recruiter}
-        onBack={() => setVerifying(false)}
-      />
+      <View style={local.root}>
+        <VerificationScreen
+          session={session}
+          isRecruiter={!!myProfile?.is_recruiter}
+          onBack={() => setVerifying(false)}
+        />
+      </View>
     );
   }
 
   if (reviewing) {
-    return <ReviewVerificationsScreen onBack={() => setReviewing(false)} />;
+    return (
+      <View style={local.root}>
+        <ReviewVerificationsScreen onBack={() => setReviewing(false)} />
+      </View>
+    );
   }
 
   if (managingPositions) {
-    return <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />;
+    return (
+      <View style={local.root}>
+        <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />
+      </View>
+    );
   }
 
   if (myProfile === null) {

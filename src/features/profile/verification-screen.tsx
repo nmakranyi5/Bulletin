@@ -354,7 +354,7 @@ function useLocalStyles() {
         privacy: {
           fontSize: 13,
           lineHeight: 19,
-          color: c.muted,
+          color: c.textSecondary,
         },
 
         card: {
