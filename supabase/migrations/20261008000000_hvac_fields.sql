@@ -7,6 +7,12 @@ alter table public.profiles
   add column if not exists trade_start_year integer,
   add column if not exists trade_role text;
 
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.profiles
+  drop constraint if exists profiles_epa_608_types_valid,
+  drop constraint if exists profiles_trade_role_valid,
+  drop constraint if exists profiles_trade_start_year_valid;
+
 alter table public.profiles
   add constraint profiles_epa_608_types_valid
     check (epa_608_types <@ array['I','II','III']),
@@ -19,6 +25,12 @@ alter table public.positions
   add column if not exists epa_608_required text,
   add column if not exists schedule_type text,
   add column if not exists min_experience_years integer;
+
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.positions
+  drop constraint if exists positions_epa_608_required_valid,
+  drop constraint if exists positions_schedule_type_valid,
+  drop constraint if exists positions_min_experience_years_valid;
 
 alter table public.positions
   add constraint positions_epa_608_required_valid

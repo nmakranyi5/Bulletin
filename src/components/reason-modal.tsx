@@ -30,6 +30,9 @@ export function ReasonModal<K extends string>({
   options,
   submitLabel,
   positiveSubmitLabel,
+  noNote = false,
+  chooseLabel = 'Choose a reason',
+  neutral = false,
   onCancel,
   onSubmit,
 }: {
@@ -40,6 +43,12 @@ export function ReasonModal<K extends string>({
   submitLabel: string;
   // Button text when a positive option is selected.
   positiveSubmitLabel?: string;
+  // Hide the optional note box (for choices that don't need one).
+  noNote?: boolean;
+  // Button text before anything is picked.
+  chooseLabel?: string;
+  // Use the app's normal button color instead of the red one (for choices that aren't destructive).
+  neutral?: boolean;
   onCancel: () => void;
   // Resolves true when the action went through.
   onSubmit: (reason: K, note: string | null) => Promise<boolean>;
@@ -116,38 +125,43 @@ export function ReasonModal<K extends string>({
               })}
             </View>
 
-            <Text style={[shared.sectionLabel, { marginTop: 16 }]}>ADD A NOTE (OPTIONAL)</Text>
-            <TextInput
-              style={[shared.authInput, local.note]}
-              value={note}
-              onChangeText={(t) => setNote(t.slice(0, DECLINE_NOTE_MAX))}
-              placeholder="A kind word or a bit more detail helps."
-              placeholderTextColor={c.muted}
-              multiline
-              maxLength={DECLINE_NOTE_MAX}
-              editable={!sending}
-            />
-            <Text style={local.counter}>
-              {note.length}/{DECLINE_NOTE_MAX}
-            </Text>
+            {!noNote && (
+              <>
+                <Text style={[shared.sectionLabel, { marginTop: 16 }]}>ADD A NOTE (OPTIONAL)</Text>
+                <TextInput
+                  style={[shared.authInput, local.note]}
+                  value={note}
+                  onChangeText={(t) => setNote(t.slice(0, DECLINE_NOTE_MAX))}
+                  placeholder="A kind word or a bit more detail helps."
+                  placeholderTextColor={c.muted}
+                  multiline
+                  maxLength={DECLINE_NOTE_MAX}
+                  editable={!sending}
+                />
+                <Text style={local.counter}>
+                  {note.length}/{DECLINE_NOTE_MAX}
+                </Text>
+              </>
+            )}
 
             <Pressable
               style={[
                 local.sendButton,
+                neutral && local.sendButtonNeutral,
                 positiveSelected && local.sendButtonPositive,
                 (!reason || sending) && local.sendButtonDisabled,
               ]}
               onPress={submit}
               disabled={!reason || sending}
             >
-              <Text style={local.sendText}>
+              <Text style={[local.sendText, neutral && local.sendTextNeutral]}>
                 {sending
                   ? 'Sending...'
                   : !reason
-                  ? 'Choose a reason'
-                  : positiveSelected && positiveSubmitLabel
-                  ? positiveSubmitLabel
-                  : submitLabel}
+                    ? chooseLabel
+                    : positiveSelected && positiveSubmitLabel
+                      ? positiveSubmitLabel
+                      : submitLabel}
               </Text>
             </Pressable>
 
@@ -247,6 +261,10 @@ function useLocalStyles() {
           backgroundColor: c.green,
         },
 
+        sendButtonNeutral: {
+          backgroundColor: c.accent,
+        },
+
         sendButtonPositive: {
           backgroundColor: c.green,
         },
@@ -292,6 +310,10 @@ function useLocalStyles() {
 
         sendButtonDisabled: {
           opacity: 0.4,
+        },
+
+        sendTextNeutral: {
+          color: c.onAccent,
         },
 
         sendText: {

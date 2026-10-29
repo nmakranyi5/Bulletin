@@ -11,13 +11,14 @@ export function ReplyBanner({
   side,
   status,
   name,
-  urgency,
+  windowLabel,
   firstMove = false,
 }: {
   side: 'responder' | 'waiting';
   status: TimerStatus;
   name: string;
-  urgency: Urgency;
+  // The reply time in force, e.g. "3 days".
+  windowLabel: string;
   // Nobody has written yet: it's about saying hello, not answering a message.
   firstMove?: boolean;
 }) {
@@ -29,7 +30,6 @@ export function ReplyBanner({
   const tone =
     status.state === 'overdue' ? c.danger : status.state === 'soon' ? c.amber : c.textSecondary;
   const first = name.split(' ')[0];
-  const cfg = URGENCY[urgency];
 
   const text = firstMove
     ? side === 'responder'
@@ -38,14 +38,14 @@ export function ReplyBanner({
         : `Say hello to ${first} · ${formatDuration(status.remainingMs)} left`
       : `${first} hasn't said hello yet · ${formatDuration(
           status.remainingMs
-        )} past the ${cfg.windowLabel} limit`
+        )} past the ${windowLabel} reply time`
     : side === 'responder'
       ? status.state === 'overdue'
         ? `${first} is waiting for your reply · overdue by ${formatDuration(status.remainingMs)}`
         : `${first} is waiting for your reply · ${formatDuration(status.remainingMs)} left`
       : `${first} hasn't replied in ${formatDuration(
           status.remainingMs
-        )} past the ${cfg.windowLabel} limit for this ${cfg.label.toLowerCase()} role`;
+        )} past the ${windowLabel} reply time`;
 
   return (
     <View style={[local.banner, { borderColor: status.state === 'ok' ? c.border : tone }]}>

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { CloseReason } from '../../../lib/close-reasons';
+import { ReplyRequest, WindowChange, parseReplyRequest } from '../../../lib/reply-window';
 
 import { ConversationMeta, summarizeConversations } from '../../../lib/chat';
 import { urgencyOf } from '../../../lib/response-timers';
@@ -17,10 +18,20 @@ export function useMatches(
   // Recruiters owe the first message in a new match.
   isRecruiter: boolean
 ) {
+  // Agreed reply times (per chat, over time) and the requests to change them.
+  const [windowsByChat, setWindowsByChat] = useState<Record<string, WindowChange[]>>({});
+  const [replyRequests, setReplyRequests] = useState<ReplyRequest[]>([]);
+  // True once the chats have loaded at least once.
+  const [matchesLoaded, setMatchesLoaded] = useState(false);
   const [rawMatches, setMatches] = useState<Match[]>([]);
   const matches = useMemo(
-    () => rawMatches.map((m) => ({ ...m, firstMoveMine: isRecruiter })),
-    [rawMatches, isRecruiter]
+    () =>
+      rawMatches.map((m) => ({
+        ...m,
+        firstMoveMine: isRecruiter,
+        windows: windowsByChat[m.id] ?? [],
+      })),
+    [rawMatches, isRecruiter, windowsByChat]
   );
   const [convoMeta, setConvoMeta] = useState<Record<string, ConversationMeta>>({});
   // Stored as an id and looked up, so an open chat updates when the other person closes it.
@@ -100,6 +111,23 @@ export function useMatches(
       return;
     }
     setConvoMeta(meta);
+
+    // Agreed reply times and open requests. If these can't be read (or the migration isn't applied
+    // yet) chats just use the posting's urgency window, so this never blocks the list.
+    const [windowRows, requestRows] = await Promise.all([
+      supabase.rpc('chat_reply_windows'),
+      supabase.rpc('my_reply_requests'),
+    ]);
+    if (seq !== fetchSeq.current) return;
+    if (!windowRows.error) {
+      const byChat: Record<string, WindowChange[]> = {};
+      (windowRows.data ?? []).forEach((r: any) => {
+        (byChat[r.interest_id] ??= []).push({ from: r.effective_from, hours: Number(r.hours) });
+      });
+      setWindowsByChat(byChat);
+    }
+    if (!requestRows.error) setReplyRequests((requestRows.data ?? []).map(parseReplyRequest));
+    setMatchesLoaded(true);
 
     setMatches(
       (data ?? [])
@@ -212,7 +240,34 @@ export function useMatches(
     );
   };
 
+  // Ask to change a chat's reply time (the other person has to accept).
+  const requestReplyWindow = async (match: Match, hours: number): Promise<boolean> => {
+    const { error } = await supabase.rpc('request_reply_window', {
+      p_interest_id: match.id,
+      p_hours: hours,
+    });
+    if (error) {
+      Alert.alert('Could not send request', error.message);
+      return false;
+    }
+    await fetchMatches({ silent: true });
+    return true;
+  };
+
+  const respondReplyWindow = async (request: ReplyRequest, accept: boolean): Promise<void> => {
+    const { error } = await supabase.rpc('respond_reply_window', {
+      p_request_id: request.id,
+      p_accept: accept,
+    });
+    if (error) Alert.alert('Could not answer', error.message);
+    await fetchMatches({ silent: true });
+  };
+
   return {
+    matchesLoaded,
+    replyRequests,
+    requestReplyWindow,
+    respondReplyWindow,
     unreadTotal,
     deleteArchived,
     matches,

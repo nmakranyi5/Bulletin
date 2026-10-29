@@ -1,4 +1,14 @@
-import { Archive, ArrowLeft, Ban, Check, CheckCheck, Pencil, Send, Trash2, X } from 'lucide-react-native';
+import {
+  Archive,
+  ArrowLeft,
+  Ban,
+  Check,
+  CheckCheck,
+  Pencil,
+  Send,
+  Trash2,
+  X,
+} from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -14,7 +24,8 @@ import {
 import { useTheme } from '../../../lib/app-theme';
 import { closeOutcome, isDeal } from '../../../lib/close-reasons';
 import { formatDayLabel, formatTime, isSameDay, MessageStatus } from '../../../lib/chat';
-import { timerStatus } from '../../../lib/response-timers';
+import { ReplyRequest, formatHours, windowMsAt } from '../../../lib/reply-window';
+import { timerStatusFor } from '../../../lib/response-timers';
 import { parseServerTime } from '../../../lib/time';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
@@ -24,6 +35,8 @@ import { useNow } from '../../hooks/use-now';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { Match } from '../../types';
 import { ReplyBanner } from './reply-banner';
+import { ReplyWindowBar } from './reply-window-bar';
+import { ReplyWindowModal } from './reply-window-modal';
 
 export type ChatMessage = {
   id: string;
@@ -46,6 +59,9 @@ export function ChatScreen({
   onClose,
   onDelete,
   onViewProfile,
+  replyRequest,
+  onRequestWindow,
+  onRespondWindow,
   onBack,
 }: {
   match: Match;
@@ -55,6 +71,11 @@ export function ChatScreen({
   onDelete: () => void;
   // Opens the other person's full card.
   onViewProfile: () => void;
+  // The open request to change this chat's reply time, if any.
+  replyRequest?: ReplyRequest;
+  // Ask for a different reply time; resolves true when sent.
+  onRequestWindow: (hours: number) => Promise<boolean>;
+  onRespondWindow: (accept: boolean) => void;
   onBack: () => void;
 }) {
   const { colors: c, mode } = useTheme();
@@ -65,6 +86,7 @@ export function ChatScreen({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // True once the history has loaded, so an empty chat isn't mistaken for "still loading".
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [changingWindow, setChangingWindow] = useState(false);
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const now = useNow();
@@ -237,7 +259,13 @@ export function ChatScreen({
 
   // Long-press on one of your own sent messages.
   const openMessageMenu = (msg: ChatMessage) => {
-    if (archived || !msg.fromMe || msg.deletedAt || (msg.status !== 'sent' && msg.status !== 'read')) return;
+    if (
+      archived ||
+      !msg.fromMe ||
+      msg.deletedAt ||
+      (msg.status !== 'sent' && msg.status !== 'read')
+    )
+      return;
 
     Alert.alert('Message', undefined, [
       {
@@ -285,6 +313,9 @@ export function ChatScreen({
     );
     sendBody(msg.text, msg.id);
   };
+
+  // The reply time in force right now.
+  const currentWindowHours = Math.round(windowMsAt(match.windows, now, match.urgency) / 3_600_000);
 
   // Who owes a reply right now? Look at the unanswered run at the end of the chat: its
   // oldest live message started the clock. Sending/failed messages don't count yet.
@@ -343,10 +374,10 @@ export function ChatScreen({
     m.status === 'sending'
       ? 'Sending...'
       : m.status === 'failed'
-      ? 'Not sent. Tap to retry'
-      : m.status === 'read' && m.readAt
-      ? `Read ${formatTime(m.readAt)}`
-      : 'Sent';
+        ? 'Not sent. Tap to retry'
+        : m.status === 'read' && m.readAt
+          ? `Read ${formatTime(m.readAt)}`
+          : 'Sent';
 
   return (
     <KeyboardAvoidingView
@@ -360,21 +391,21 @@ export function ChatScreen({
         </Pressable>
 
         <Pressable onPress={onViewProfile} style={local.headerProfile}>
-        <Avatar uri={match.avatarUrl} size={38} framed />
+          <Avatar uri={match.avatarUrl} size={38} framed />
 
-        <View style={shared.chatHeaderInfo}>
-          <View style={local.nameRow}>
-            <Text numberOfLines={1} style={[shared.chatHeaderName, local.nameText]}>
-              {match.name}
+          <View style={shared.chatHeaderInfo}>
+            <View style={local.nameRow}>
+              <Text numberOfLines={1} style={[shared.chatHeaderName, local.nameText]}>
+                {match.name}
+              </Text>
+              {!archived && historyLoaded && (
+                <TurnPill turn={awaiting?.side === 'responder' ? 'you' : 'them'} />
+              )}
+            </View>
+            <Text numberOfLines={1} style={local.chatHeaderMeta}>
+              {match.company ? `${match.position} · ${match.company}` : match.position}
             </Text>
-            {!archived && historyLoaded && (
-              <TurnPill turn={awaiting?.side === 'responder' ? 'you' : 'them'} />
-            )}
           </View>
-          <Text numberOfLines={1} style={local.chatHeaderMeta}>
-            {match.company ? `${match.position} · ${match.company}` : match.position}
-          </Text>
-        </View>
         </Pressable>
 
         {archived && (
@@ -390,7 +421,9 @@ export function ChatScreen({
       </View>
 
       {archived && (
-        <View style={[local.archiveBanner, isDeal(match.closed?.reason) && local.archiveBannerDeal]}>
+        <View
+          style={[local.archiveBanner, isDeal(match.closed?.reason) && local.archiveBannerDeal]}
+        >
           <Archive
             size={16}
             color={isDeal(match.closed?.reason) ? c.green : c.textSecondary}
@@ -408,15 +441,45 @@ export function ChatScreen({
         </View>
       )}
 
+      {!archived && (
+        <ReplyWindowBar
+          hours={currentWindowHours}
+          name={match.name}
+          request={replyRequest}
+          userId={userId}
+          onChange={() => setChangingWindow(true)}
+          onRespond={onRespondWindow}
+        />
+      )}
+
       {awaiting && (
         <ReplyBanner
           side={awaiting.side}
           firstMove={awaiting.firstMove}
-          status={timerStatus(awaiting.since, match.urgency, now)}
+          status={timerStatusFor(
+            awaiting.since,
+            windowMsAt(match.windows, awaiting.since, match.urgency),
+            now
+          )}
           name={match.name}
-          urgency={match.urgency}
+          windowLabel={formatHours(
+            windowMsAt(match.windows, awaiting.since, match.urgency) / 3_600_000
+          )}
         />
       )}
+
+      <ReplyWindowModal
+        visible={changingWindow}
+        name={match.name.split(' ')[0]}
+        urgent={match.urgency === 'urgent'}
+        currentHours={currentWindowHours}
+        onCancel={() => setChangingWindow(false)}
+        onSubmit={async (hours) => {
+          const sent = await onRequestWindow(hours);
+          if (sent) setChangingWindow(false);
+          return sent;
+        }}
+      />
 
       <FlatList
         ref={listRef}
@@ -450,8 +513,8 @@ export function ChatScreen({
                         { alignSelf: msg.fromMe ? 'flex-end' : 'flex-start' },
                       ]
                     : msg.fromMe
-                    ? local.chatBubbleMine
-                    : local.chatBubbleTheirs,
+                      ? local.chatBubbleMine
+                      : local.chatBubbleTheirs,
                   msg.status === 'sending' && { opacity: 0.6 },
                   msg.status === 'failed' && local.chatBubbleFailed,
                   msg.id === editingId && local.chatBubbleEditing,
@@ -470,7 +533,9 @@ export function ChatScreen({
                   </Text>
                 )}
                 <View style={local.chatMetaRow}>
-                  <Text style={[local.chatTime, msg.fromMe && !msg.deletedAt && local.chatTimeMine]}>
+                  <Text
+                    style={[local.chatTime, msg.fromMe && !msg.deletedAt && local.chatTimeMine]}
+                  >
                     {msg.editedAt && !msg.deletedAt ? 'Edited · ' : ''}
                     {formatTime(msg.createdAt)}
                   </Text>
@@ -489,9 +554,7 @@ export function ChatScreen({
               </Pressable>
 
               {msg.fromMe && !msg.deletedAt && (showStatus || msg.status === 'failed') && (
-                <Text
-                  style={[local.chatStatus, msg.status === 'failed' && local.chatStatusFailed]}
-                >
+                <Text style={[local.chatStatus, msg.status === 'failed' && local.chatStatusFailed]}>
                   {statusLabel(msg)}
                 </Text>
               )}
@@ -520,28 +583,28 @@ export function ChatScreen({
           <Text style={local.archivedFooterText}>This chat is archived and read-only.</Text>
         </View>
       ) : (
-      <View style={local.chatInputRow}>
-        <TextInput
-          style={local.chatInput}
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Message..."
-          placeholderTextColor={c.muted}
-          multiline
-        />
+        <View style={local.chatInputRow}>
+          <TextInput
+            style={local.chatInput}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Message..."
+            placeholderTextColor={c.muted}
+            multiline
+          />
 
-        <Pressable
-          style={[local.chatSendButton, !draft.trim() && local.chatSendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!draft.trim()}
-        >
-          {editingId ? (
-            <Check size={18} color={c.onAccent} strokeWidth={2.8} />
-          ) : (
-            <Send size={18} color={c.onAccent} strokeWidth={2.4} />
-          )}
-        </Pressable>
-      </View>
+          <Pressable
+            style={[local.chatSendButton, !draft.trim() && local.chatSendButtonDisabled]}
+            onPress={handleSend}
+            disabled={!draft.trim()}
+          >
+            {editingId ? (
+              <Check size={18} color={c.onAccent} strokeWidth={2.8} />
+            ) : (
+              <Send size={18} color={c.onAccent} strokeWidth={2.4} />
+            )}
+          </Pressable>
+        </View>
       )}
     </KeyboardAvoidingView>
   );

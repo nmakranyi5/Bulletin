@@ -5,7 +5,9 @@ import { UserRound } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
+import { DEFAULT_REPLY_DAYS, REPLY_DAY_OPTIONS, isReplyDays } from '../../../lib/reply-window';
 import { supabase } from '../../../lib/supabase';
+import { ChipSelect } from '../../components/chip-select';
 import { StepForm } from '../../components/step-form';
 import { uploadFileToBucket } from './upload';
 import { useSharedStyles } from '../../styles/shared';
@@ -50,6 +52,8 @@ export function OnboardingScreen({
   const [seeker, setSeeker] = useState<SeekerValues>(emptySeeker);
   const [recruiter, setRecruiter] = useState<RecruiterValues>(emptyRecruiter);
   const [description, setDescription] = useState('');
+  // How many days you usually take to reply; it feeds the reply time agreed with each match.
+  const [replyDays, setReplyDays] = useState<number>(DEFAULT_REPLY_DAYS);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -70,6 +74,11 @@ export function OnboardingScreen({
       subtitle: wizard ? 'Start with the basics.' : 'Your photo, name and username.',
     },
     ...(isRecruiter ? RECRUITER_STEPS : SEEKER_STEPS),
+    {
+      key: 'replies',
+      title: 'How fast do you reply?',
+      subtitle: 'The more you reply on time, the higher your rating.',
+    },
     {
       key: 'about',
       title: isRecruiter ? 'About your company' : 'About you',
@@ -103,6 +112,7 @@ export function OnboardingScreen({
         setSeeker(seekerFromRow(data));
         setRecruiter(recruiterFromRow(data));
         setDescription(data.description ?? '');
+        if (isReplyDays(data.reply_days)) setReplyDays(data.reply_days);
         if (data.avatar_url) setAvatarUri(data.avatar_url);
         if (data.resume_url) {
           setResumeFile({ uri: data.resume_url, name: 'resume.pdf' });
@@ -183,18 +193,24 @@ export function OnboardingScreen({
         resumeUrl = await uploadFile('resumes', resumeFile.uri, 'resume.pdf', 'application/pdf');
       }
 
-      const { error } = await supabase
+      const fields = {
+        name: name.trim(),
+        username: username.trim(),
+        ...built.payload,
+        description: description.trim(),
+        ...(avatarUrl && { avatar_url: avatarUrl }),
+        ...(resumeUrl && { resume_url: resumeUrl }),
+        onboarded: true,
+      };
+      let { error } = await supabase
         .from('profiles')
-        .update({
-          name: name.trim(),
-          username: username.trim(),
-          ...built.payload,
-          description: description.trim(),
-          ...(avatarUrl && { avatar_url: avatarUrl }),
-          ...(resumeUrl && { resume_url: resumeUrl }),
-          onboarded: true,
-        })
+        .update({ ...fields, reply_days: replyDays })
         .eq('id', session.user.id);
+
+      // Until the reply-time migration has been run there is no reply_days column; save the rest.
+      if (error && /reply_days/.test(error.message)) {
+        ({ error } = await supabase.from('profiles').update(fields).eq('id', session.user.id));
+      }
 
       if (error) throw error;
 
@@ -241,6 +257,24 @@ export function OnboardingScreen({
             onChangeText={setUsername}
             autoCapitalize="none"
           />
+        </>
+      );
+    }
+
+    if (key === 'replies') {
+      return (
+        <>
+          <ChipSelect
+            label="I USUALLY REPLY WITHIN"
+            options={REPLY_DAY_OPTIONS.map((d) => `${d} day${d === 1 ? '' : 's'}`)}
+            selected={[`${replyDays} day${replyDays === 1 ? '' : 's'}`]}
+            onToggle={(o) => setReplyDays(parseInt(o, 10))}
+          />
+          <Text style={shared.chipHint}>
+            When you match with someone, the reply time for that chat is the midpoint of both your
+            settings, rounded up to a whole day. You can ask to change it in any chat, and urgent
+            roles start at their own faster time. Pick what you can really keep.
+          </Text>
         </>
       );
     }

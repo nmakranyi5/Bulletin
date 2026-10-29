@@ -6,11 +6,13 @@ import {
   alertCopy,
   newlyOverdue,
   PendingReply,
-  timerStatus,
+  timerStatusFor,
   urgencyOf,
+  windowOf,
 } from '../../../lib/response-timers';
 import { syncServerClock } from '../../../lib/time';
 import { supabase } from '../../../lib/supabase';
+import { windowMsAt } from '../../../lib/reply-window';
 import { useNow } from '../../hooks/use-now';
 import { InterestRow, Match } from '../../types';
 
@@ -68,6 +70,9 @@ export function useResponseTimers({
         urgency: m.urgency,
         since,
         firstMove,
+        // The agreed reply time in force when the wait began (chats made before agreed times
+        // existed keep the posting's urgency window).
+        windowMs: m.windows?.length ? windowMsAt(m.windows, since, m.urgency) : undefined,
       });
     }
     return list;
@@ -147,7 +152,7 @@ export function useResponseTimers({
   // Number of chats where you owe an overdue reply (for the Messages tab badge).
   const overdueChatCount = useMemo(
     () =>
-      items.filter((i) => i.kind === 'chat' && timerStatus(i.since, i.urgency, now).state === 'overdue')
+      items.filter((i) => i.kind === 'chat' && timerStatusFor(i.since, windowOf(i), now).state === 'overdue')
         .length,
     [items, now]
   );

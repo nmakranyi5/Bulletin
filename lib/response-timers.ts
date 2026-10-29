@@ -61,7 +61,15 @@ export function timerStatus(
   urgency: Urgency,
   now: number = serverNow()
 ): TimerStatus {
-  const windowMs = URGENCY[urgency].windowMs;
+  return timerStatusFor(sinceIso, URGENCY[urgency].windowMs, now);
+}
+
+// The same, for an explicit window (a chat's agreed reply time).
+export function timerStatusFor(
+  sinceIso: string,
+  windowMs: number,
+  now: number = serverNow()
+): TimerStatus {
   const dueAt = parseServerTime(sinceIso).getTime() + windowMs;
   const remainingMs = dueAt - now;
   const state: TimerState =
@@ -108,10 +116,24 @@ export type PendingReply = {
   name: string;
   urgency: Urgency;
   since: string;
+  // The chat's agreed reply time, when there is one (it replaces the urgency window).
+  windowMs?: number;
 };
 
+// The reply window for an item: the chat's agreed time if it has one, else its urgency window.
+export function windowOf(item: PendingReply): number {
+  return item.windowMs ?? URGENCY[item.urgency].windowMs;
+}
+
+// "2 hours", "1 day", "3 days"
+export function formatHours(hours: number): string {
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
+
 export function overdueReplies(items: PendingReply[], now: number): PendingReply[] {
-  return items.filter((i) => timerStatus(i.since, i.urgency, now).state === 'overdue');
+  return items.filter((i) => timerStatusFor(i.since, windowOf(i), now).state === 'overdue');
 }
 
 // Overdue replies we haven't alerted about yet.
@@ -131,14 +153,19 @@ export function alertCopy(
     const [item] = due;
     const waited = formatDuration(now - parseServerTime(item.since).getTime());
     const cfg = URGENCY[item.urgency];
+    // A chat's reply time was agreed by both people; an interest follows the posting's urgency.
+    const rule =
+      item.kind === 'chat' && item.windowMs !== undefined
+        ? `You both agreed to reply within ${formatHours(item.windowMs / 3_600_000)}`
+        : `This is ${cfg.article} role, so ${item.firstMove ? 'a first message' : 'a reply'} is expected within ${cfg.windowLabel}`;
     return {
       title: 'Time to reply',
       message:
         item.kind === 'interest'
-          ? `${item.name} has been waiting ${waited} for an answer to their interest. This is ${cfg.article} role, so a reply is expected within ${cfg.windowLabel}.`
+          ? `${item.name} has been waiting ${waited} for an answer to their interest. ${rule}.`
           : item.firstMove
-          ? `You matched with ${item.name} ${waited} ago and they're waiting to hear from you. This is ${cfg.article} role, so a first message is expected within ${cfg.windowLabel}.`
-          : `${item.name} has been waiting ${waited} for your reply. This is ${cfg.article} role, so a reply is expected within ${cfg.windowLabel}.`,
+          ? `You matched with ${item.name} ${waited} ago and they're waiting to hear from you. ${rule}.`
+          : `${item.name} has been waiting ${waited} for your reply. ${rule}.`,
     };
   }
   const names = due.slice(0, 3).map((d) => d.name).join(', ');

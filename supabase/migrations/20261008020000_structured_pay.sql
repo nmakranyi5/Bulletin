@@ -6,6 +6,13 @@ alter table public.positions
   add column if not exists pay_max numeric(10,2),
   add column if not exists pay_extras text[] not null default '{}';
 
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.positions
+  drop constraint if exists positions_pay_type_valid,
+  drop constraint if exists positions_pay_amounts_valid,
+  drop constraint if exists positions_pay_has_type,
+  drop constraint if exists positions_pay_extras_valid;
+
 alter table public.positions
   add constraint positions_pay_type_valid
     check (pay_type is null or pay_type in ('Hourly','Salary')),

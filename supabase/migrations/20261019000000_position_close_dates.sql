@@ -11,6 +11,10 @@ alter table public.positions
 
 -- A third way an interest can end: its position closed before anyone answered.
 alter table public.interests drop constraint if exists interests_status_check;
+-- (Safe to run again: any earlier copy of these checks is replaced.)
+alter table public.interests
+  drop constraint if exists interests_status_check;
+
 alter table public.interests
   add constraint interests_status_check
     check (status in ('pending', 'accepted', 'rejected', 'closed', 'position_closed'));
