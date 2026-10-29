@@ -81,6 +81,12 @@ const ThemeContext = createContext<ThemeContextValue>({
   setMode: () => {},
 });
 
+// Keeps native UI (alerts, keyboard, status bar) in step with the app. React Native for the web
+// doesn't have this, so there it's skipped (the web page is themed by the app itself).
+function syncNativeScheme(mode: ThemeMode) {
+  if (typeof Appearance.setColorScheme === 'function') Appearance.setColorScheme(mode);
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme();
   const [mode, setModeState] = useState<ThemeMode>(system === 'dark' ? 'dark' : 'light');
@@ -91,7 +97,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       .then((saved) => {
         if (saved === 'light' || saved === 'dark') {
           setModeState(saved);
-          Appearance.setColorScheme(saved);
+          syncNativeScheme(saved);
         }
       })
       .catch(() => {});
@@ -104,7 +110,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setMode: (next) => {
         setModeState(next);
         // Keeps native UI (alerts, keyboard, status bar) in step with the app.
-        Appearance.setColorScheme(next);
+        syncNativeScheme(next);
         AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
       },
     }),
