@@ -1,11 +1,10 @@
 import { Check, Handshake, X } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../../../lib/app-theme';
 import { CARD_MAX_WIDTH } from '../../constants/app';
-import { useAppWidth } from '../../hooks/use-app-width';
 import { RefreshableEmpty } from '../../components/refreshable-empty';
 import { useIsCompact } from '../../hooks/use-compact';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
@@ -49,7 +48,7 @@ export function DiscoverScreen({
   const shared = useSharedStyles();
   const compact = useIsCompact();
   const refreshControl = useRefreshControl(onRefresh);
-  const width = useAppWidth();
+  const { width } = useWindowDimensions();
   const local = useLocalStyles(Math.min(width - 36, CARD_MAX_WIDTH), compact);
   return (
     <>

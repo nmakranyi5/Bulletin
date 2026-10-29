@@ -1,6 +1,6 @@
 import { BriefcaseBusiness, MapPin, ShieldCheck } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { StyleSheet, Text, View, Platform } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import {
   epaMismatchNote,
@@ -51,18 +51,9 @@ export function RecruiterCardContent({
     experienceMismatchNote(primary?.min_experience_years, me?.trade_start_year),
   ].filter(Boolean) as string[];
 
-  // Shrink-to-fit text only exists on phones; on the web a long title wraps to two lines
-  // instead of being cut off.
-  const titleLines = modal || Platform.OS === 'web' ? 2 : 1;
-
   const info = (
     <>
-      <Text
-        numberOfLines={titleLines}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
-        style={[shared.name, modal && { fontSize: 26, lineHeight: 30 }]}
-      >
+      <Text numberOfLines={modal ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.7} style={[shared.name, modal && { fontSize: 26, lineHeight: 30 }]}>
         {recruiter.company_name || recruiter.name}
       </Text>
       {recruiter.company_name ? (
@@ -89,12 +80,7 @@ export function RecruiterCardContent({
 
       <View style={local.positionRow}>
         <BriefcaseBusiness size={20} color={c.text} strokeWidth={2.2} />
-        <Text
-          numberOfLines={titleLines}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          style={[shared.position, modal && { fontSize: 22, lineHeight: 26 }]}
-        >
+        <Text numberOfLines={modal ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.7} style={[shared.position, modal && { fontSize: 22, lineHeight: 26 }]}>
           {primary?.title ?? 'Position'}
         </Text>
       </View>
@@ -161,7 +147,9 @@ export function RecruiterCardContent({
         <Text style={shared.mismatchText}>Heads up: {mismatches.join(' · ')}</Text>
       )}
 
-      {primary?.description ? <Text style={shared.note}>"{primary.description}"</Text> : null}
+      {primary?.description ? (
+        <Text style={shared.note}>"{primary.description}"</Text>
+      ) : null}
 
       {positions.length > 1 && (
         <>
