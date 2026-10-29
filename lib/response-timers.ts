@@ -157,7 +157,7 @@ export function alertCopy(
     const rule =
       item.kind === 'chat' && item.windowMs !== undefined
         ? `You both agreed to reply within ${formatHours(item.windowMs / 3_600_000)}`
-        : `This is ${cfg.article} role, so a reply is expected within ${cfg.windowLabel}`;
+        : `This is ${cfg.article} role, so ${item.firstMove ? 'a first message' : 'a reply'} is expected within ${cfg.windowLabel}`;
     return {
       title: 'Time to reply',
       message:
