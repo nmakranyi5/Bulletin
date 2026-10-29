@@ -1,6 +1,6 @@
 import { Handshake, MessageCircle, Search, UserRound } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/app-theme';
 import { APP_MAX_WIDTH } from '../constants/app';
@@ -31,7 +31,7 @@ export function TabBar({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[local.bar, Platform.OS === 'web' && local.barWebFullWidth]}>
+    <View style={local.bar}>
       <View style={[local.tabBar, { paddingBottom: insets.bottom || 12 }]}>
         {TABS.map(({ key, label, Icon }) => {
           const isActive = key === activeTab;
@@ -74,20 +74,12 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
-        // The bar's background and top line; on the web it runs edge to edge while the tabs
-        // themselves stay in the app's column.
+        // The bar's background and top line.
         bar: {
           borderTopWidth: 1,
           borderTopColor: c.border,
           backgroundColor: c.surface,
         },
-
-        // Breaks out of the centred app column to the full window width (a standard CSS
-        // full-bleed trick; web only).
-        barWebFullWidth: {
-          width: '100vw',
-          marginLeft: 'calc(50% - 50vw)',
-        } as any,
 
         tabBar: {
           flexDirection: 'row',
