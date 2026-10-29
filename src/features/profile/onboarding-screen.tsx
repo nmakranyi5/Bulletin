@@ -3,14 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { UserRound } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-} from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { StepForm } from '../../components/step-form';
@@ -68,8 +61,13 @@ export function OnboardingScreen({
   const steps: { key: string; title: string; subtitle: string }[] = [
     {
       key: 'basics',
-      title: isRecruiter ? "Let's set up your company" : "Let's get you set up",
-      subtitle: 'Start with the basics.',
+      // (Editing an existing profile isn't "getting set up".)
+      title: wizard
+        ? isRecruiter
+          ? "Let's set up your company"
+          : "Let's get you set up"
+        : 'The basics',
+      subtitle: wizard ? 'Start with the basics.' : 'Your photo, name and username.',
     },
     ...(isRecruiter ? RECRUITER_STEPS : SEEKER_STEPS),
     {

@@ -73,9 +73,9 @@ export function StepForm({
         style={local.page}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={local.topRow}>
-          <Text style={shared.logo}>bulletin.</Text>
-          {exit && (
+        <View style={[local.topRow, exit?.kind === 'back' && local.topRowBack]}>
+          {/* A back arrow sits at the top left, before the logo; a close X sits at the top right. */}
+          {exit?.kind === 'back' && (
             <Pressable
               onPress={exit.onPress}
               disabled={submitting}
@@ -84,11 +84,20 @@ export function StepForm({
               accessibilityLabel={exit.label}
               style={shared.chatBackButton}
             >
-              {exit.kind === 'back' ? (
-                <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
-              ) : (
-                <X size={22} color={c.text} strokeWidth={2.2} />
-              )}
+              <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
+            </Pressable>
+          )}
+          <Text style={shared.logo}>bulletin.</Text>
+          {exit?.kind === 'close' && (
+            <Pressable
+              onPress={exit.onPress}
+              disabled={submitting}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={exit.label}
+              style={shared.chatBackButton}
+            >
+              <X size={22} color={c.text} strokeWidth={2.2} />
             </Pressable>
           )}
         </View>
@@ -172,6 +181,11 @@ function useLocalStyles() {
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: 14,
+        },
+
+        topRowBack: {
+          justifyContent: 'flex-start',
+          gap: 14,
         },
 
         progress: {
