@@ -10,8 +10,7 @@ import { MAX_INTERESTS } from '../constants/app';
 import { closeReasonsFor } from '../../lib/close-reasons';
 import { reasonsFor } from '../../lib/decline-reasons';
 import { supabase } from '../../lib/supabase';
-import { PageColumn } from '../components/page-column';
-import { SideNav, TabBar, TabKey } from '../components/tab-bar';
+import { TabBar, TabKey } from '../components/tab-bar';
 import { AuthScreen } from '../features/auth/auth-screen';
 import { ResetPasswordScreen } from '../features/auth/reset-password-screen';
 import { useAuthSession } from '../features/auth/use-auth-session';
@@ -40,7 +39,6 @@ import { useMyProfile } from '../features/profile/use-my-profile';
 import { TutorialOverlay } from '../features/tutorial/tutorial-overlay';
 import { markTutorialOffer, useTutorial } from '../features/tutorial/use-tutorial';
 import { useResponseTimers } from '../features/timers/use-response-timers';
-import { useWideLayout } from '../hooks/use-wide-layout';
 import { useSharedStyles } from '../styles/shared';
 
 // App shell. `Index` decides which auth state we're in; once someone is signed in and
@@ -55,45 +53,33 @@ export default function Index() {
 
   if (authLoading || (session && onboarded === null)) {
     return (
-      <PageColumn>
-        <View style={local.authLoadingContainer}>
-          <Text style={shared.subtitle}>Loading...</Text>
-        </View>
-      </PageColumn>
+      <View style={local.authLoadingContainer}>
+        <Text style={shared.subtitle}>Loading...</Text>
+      </View>
     );
   }
 
   if (!session) {
-    return (
-      <PageColumn>
-        <AuthScreen setRecovering={setRecovering} />
-      </PageColumn>
-    );
+    return <AuthScreen setRecovering={setRecovering} />;
   }
 
   if (recovering) {
-    return (
-      <PageColumn>
-        <ResetPasswordScreen onDone={() => setRecovering(false)} />
-      </PageColumn>
-    );
+    return <ResetPasswordScreen onDone={() => setRecovering(false)} />;
   }
 
   if (!onboarded) {
     return (
-      <PageColumn>
-        <OnboardingScreen
-          session={session}
-          onComplete={async () => {
-            // New accounts get offered the tour once, when they land in the app.
-            await markTutorialOffer(session.user.id);
-            setOnboarded(true);
-          }}
-          // Leaving setup signs out, which returns to the login screen. The account and
-          // its (unfinished) profile are kept, so signing back in resumes setup.
-          onBackToLogin={() => supabase.auth.signOut()}
-        />
-      </PageColumn>
+      <OnboardingScreen
+        session={session}
+        onComplete={async () => {
+          // New accounts get offered the tour once, when they land in the app.
+          await markTutorialOffer(session.user.id);
+          setOnboarded(true);
+        }}
+        // Leaving setup signs out, which returns to the login screen. The account and
+        // its (unfinished) profile are kept, so signing back in resumes setup.
+        onBackToLogin={() => supabase.auth.signOut()}
+      />
     );
   }
 
@@ -190,7 +176,7 @@ function MainApp({ session }: { session: Session }) {
     receivedInterests: interests.receivedInterests,
     matches: matches.activeMatches,
     convoMeta: matches.convoMeta,
-    openChatId: activeTab === 'messages' ? (matches.selectedMatch?.id ?? null) : null,
+    openChatId: activeTab === 'messages' ? matches.selectedMatch?.id ?? null : null,
     refresh: () => {
       interests.fetchInterests({ silent: true });
       matches.fetchMatches({ silent: true });
@@ -208,284 +194,152 @@ function MainApp({ session }: { session: Session }) {
     },
   });
 
-  const wide = useWideLayout();
   const tutorSteps = tourSteps(!!myProfile?.is_recruiter, MAX_INTERESTS);
 
   if (editingProfile) {
     return (
-      <PageColumn>
-        <OnboardingScreen
-          session={session}
-          onComplete={() => {
-            setEditingProfile(false);
-            fetchMyProfile();
-          }}
-          onCancel={() => setEditingProfile(false)}
-        />
-      </PageColumn>
+      <OnboardingScreen
+        session={session}
+        onComplete={() => {
+          setEditingProfile(false);
+          fetchMyProfile();
+        }}
+        onCancel={() => setEditingProfile(false)}
+      />
     );
   }
 
   if (verifying) {
     return (
-      <PageColumn>
-        <VerificationScreen
-          session={session}
-          isRecruiter={!!myProfile?.is_recruiter}
-          onBack={() => setVerifying(false)}
-        />
-      </PageColumn>
+      <VerificationScreen
+        session={session}
+        isRecruiter={!!myProfile?.is_recruiter}
+        onBack={() => setVerifying(false)}
+      />
     );
   }
 
   if (reviewing) {
-    return (
-      <PageColumn>
-        <ReviewVerificationsScreen onBack={() => setReviewing(false)} />
-      </PageColumn>
-    );
+    return <ReviewVerificationsScreen onBack={() => setReviewing(false)} />;
   }
 
   if (managingPositions) {
-    return (
-      <PageColumn>
-        <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />
-      </PageColumn>
-    );
+    return <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />;
   }
 
   if (myProfile === null) {
     return (
-      <PageColumn>
-        <View style={local.authLoadingContainer}>
-          <Text style={shared.subtitle}>Loading...</Text>
-        </View>
-      </PageColumn>
+      <View style={local.authLoadingContainer}>
+        <Text style={shared.subtitle}>Loading...</Text>
+      </View>
     );
   }
 
   return (
     <GestureHandlerRootView style={local.root}>
-      {wide ? (
-        // Wide web window: sidebar on the left, the page in a centred column beside it.
-        <View style={local.wideRow}>
-          <SideNav
-            activeTab={activeTab}
-            onTabPress={setActiveTab}
-            unseenReceivedCount={interests.unseenReceivedCount}
-            unreadMessagesCount={matches.unreadTotal}
+      {/* The tab bar handles the bottom inset; chat hides it, so then we do. */}
+      <SafeAreaView
+        style={local.container}
+        edges={matches.selectedMatch ? ['top', 'bottom'] : ['top']}
+      >
+        {activeTab === 'discover' && (
+          <DiscoverScreen
+            cards={discover.discoverCards}
+            topCard={discover.topCard}
+            cardStyle={swipe.cardStyle}
+            passStyle={swipe.passStyle}
+            interestedStyle={swipe.interestedStyle}
+            gesture={swipe.gesture}
+            buttonSwipe={swipe.buttonSwipe}
+            expandedCardId={discover.expandedCardId}
+            onCollapse={discover.collapseCard}
+            onRefresh={discover.fetchDiscoverCards}
+            interestsRemaining={interests.interestsRemaining}
+            isRecruiter={!!myProfile?.is_recruiter}
+            me={myProfile}
+            loading={discover.discoverLoading}
           />
-          <View style={local.wideMain}>
-            <View style={local.wideColumn}>
-              <SafeAreaView
-                style={local.container}
-                // The bottom bar handles the bottom inset; chat hides it, so then we do. (The sidebar
-                // has no bottom bar, so the page handles it.)
-                edges={matches.selectedMatch || wide ? ['top', 'bottom'] : ['top']}
-              >
-                {activeTab === 'discover' && (
-                  <DiscoverScreen
-                    cards={discover.discoverCards}
-                    topCard={discover.topCard}
-                    cardStyle={swipe.cardStyle}
-                    passStyle={swipe.passStyle}
-                    interestedStyle={swipe.interestedStyle}
-                    gesture={swipe.gesture}
-                    buttonSwipe={swipe.buttonSwipe}
-                    expandedCardId={discover.expandedCardId}
-                    onCollapse={discover.collapseCard}
-                    onRefresh={discover.fetchDiscoverCards}
-                    interestsRemaining={interests.interestsRemaining}
-                    isRecruiter={!!myProfile?.is_recruiter}
-                    me={myProfile}
-                    loading={discover.discoverLoading}
-                  />
-                )}
+        )}
 
-                {activeTab === 'interests' && (
-                  <InterestsScreen
-                    subTab={interestsSub}
-                    onSubTabChange={setInterestsSub}
-                    sentInterests={interests.visibleSentInterests}
-                    receivedInterests={interests.receivedInterests}
-                    onViewProfile={(interest, direction) =>
-                      direction === 'received'
-                        ? setProfileView({
-                            userId: interest.from_user,
-                            positionId: interest.position?.id ?? interest.position_id,
-                            received: interest,
-                          })
-                        : setProfileView({
-                            userId: interest.to_user,
-                            positionId: interest.position?.id ?? interest.position_id,
-                          })
-                    }
-                    onWithdraw={interests.withdrawInterest}
-                    onRemoveDeclined={interests.removeDeclinedInterest}
-                    onRefresh={() =>
-                      Promise.all([interests.fetchInterests(), matches.fetchMatches()])
-                    }
-                    interestsRemaining={interests.interestsRemaining}
-                  />
-                )}
-                {activeTab === 'messages' &&
-                  (matches.selectedMatch ? (
-                    <ChatScreen
-                      match={matches.selectedMatch}
-                      userId={session.user.id}
-                      onClose={() => matches.requestClose(matches.selectedMatch)}
-                      onDelete={() => matches.deleteArchived(matches.selectedMatch!)}
-                      onViewProfile={() =>
-                        setProfileView({
-                          userId: matches.selectedMatch!.otherUserId,
-                          positionId: matches.selectedMatch!.positionId,
-                        })
-                      }
-                      onBack={() => {
-                        matches.setSelectedMatch(null);
-                        matches.fetchMatches();
-                      }}
-                    />
-                  ) : (
-                    <MessagesScreen
-                      view={messagesView}
-                      onViewChange={setMessagesView}
-                      active={matches.activeMatches}
-                      archived={matches.archivedMatches}
-                      meta={matches.convoMeta}
-                      onMatchPress={matches.setSelectedMatch}
-                      onViewProfile={(m) =>
-                        setProfileView({ userId: m.otherUserId, positionId: m.positionId })
-                      }
-                      onRefresh={matches.fetchMatches}
-                    />
-                  ))}
-                {activeTab === 'profile' && (
-                  <ProfileScreen
-                    session={session}
-                    onEditProfile={() => setEditingProfile(true)}
-                    onManagePositions={() => setManagingPositions(true)}
-                    onVerification={() => setVerifying(true)}
-                    onReviewVerifications={() => setReviewing(true)}
-                    onReplayTutorial={() => {
-                      matches.setSelectedMatch(null);
-                      setActiveTab('discover');
-                      tutorial.start();
-                    }}
-                  />
-                )}
-              </SafeAreaView>
-            </View>
-          </View>
-        </View>
-      ) : (
-        <PageColumn>
-          <SafeAreaView
-            style={local.container}
-            // The bottom bar handles the bottom inset; chat hides it, so then we do. (The sidebar
-            // has no bottom bar, so the page handles it.)
-            edges={matches.selectedMatch || wide ? ['top', 'bottom'] : ['top']}
-          >
-            {activeTab === 'discover' && (
-              <DiscoverScreen
-                cards={discover.discoverCards}
-                topCard={discover.topCard}
-                cardStyle={swipe.cardStyle}
-                passStyle={swipe.passStyle}
-                interestedStyle={swipe.interestedStyle}
-                gesture={swipe.gesture}
-                buttonSwipe={swipe.buttonSwipe}
-                expandedCardId={discover.expandedCardId}
-                onCollapse={discover.collapseCard}
-                onRefresh={discover.fetchDiscoverCards}
-                interestsRemaining={interests.interestsRemaining}
-                isRecruiter={!!myProfile?.is_recruiter}
-                me={myProfile}
-                loading={discover.discoverLoading}
-              />
-            )}
-
-            {activeTab === 'interests' && (
-              <InterestsScreen
-                subTab={interestsSub}
-                onSubTabChange={setInterestsSub}
-                sentInterests={interests.visibleSentInterests}
-                receivedInterests={interests.receivedInterests}
-                onViewProfile={(interest, direction) =>
-                  direction === 'received'
-                    ? setProfileView({
-                        userId: interest.from_user,
-                        positionId: interest.position?.id ?? interest.position_id,
-                        received: interest,
-                      })
-                    : setProfileView({
-                        userId: interest.to_user,
-                        positionId: interest.position?.id ?? interest.position_id,
-                      })
-                }
-                onWithdraw={interests.withdrawInterest}
-                onRemoveDeclined={interests.removeDeclinedInterest}
-                onRefresh={() => Promise.all([interests.fetchInterests(), matches.fetchMatches()])}
-                interestsRemaining={interests.interestsRemaining}
-              />
-            )}
-            {activeTab === 'messages' &&
-              (matches.selectedMatch ? (
-                <ChatScreen
-                  match={matches.selectedMatch}
-                  userId={session.user.id}
-                  onClose={() => matches.requestClose(matches.selectedMatch)}
-                  onDelete={() => matches.deleteArchived(matches.selectedMatch!)}
-                  onViewProfile={() =>
-                    setProfileView({
-                      userId: matches.selectedMatch!.otherUserId,
-                      positionId: matches.selectedMatch!.positionId,
-                    })
-                  }
-                  onBack={() => {
-                    matches.setSelectedMatch(null);
-                    matches.fetchMatches();
-                  }}
-                />
-              ) : (
-                <MessagesScreen
-                  view={messagesView}
-                  onViewChange={setMessagesView}
-                  active={matches.activeMatches}
-                  archived={matches.archivedMatches}
-                  meta={matches.convoMeta}
-                  onMatchPress={matches.setSelectedMatch}
-                  onViewProfile={(m) =>
-                    setProfileView({ userId: m.otherUserId, positionId: m.positionId })
-                  }
-                  onRefresh={matches.fetchMatches}
-                />
-              ))}
-            {activeTab === 'profile' && (
-              <ProfileScreen
-                session={session}
-                onEditProfile={() => setEditingProfile(true)}
-                onManagePositions={() => setManagingPositions(true)}
-                onVerification={() => setVerifying(true)}
-                onReviewVerifications={() => setReviewing(true)}
-                onReplayTutorial={() => {
-                  matches.setSelectedMatch(null);
-                  setActiveTab('discover');
-                  tutorial.start();
-                }}
-              />
-            )}
-          </SafeAreaView>
-
-          {!matches.selectedMatch && (
-            <TabBar
-              activeTab={activeTab}
-              onTabPress={setActiveTab}
-              unseenReceivedCount={interests.unseenReceivedCount}
-              unreadMessagesCount={matches.unreadTotal}
+        {activeTab === 'interests' && (
+          <InterestsScreen
+            subTab={interestsSub}
+            onSubTabChange={setInterestsSub}
+            sentInterests={interests.visibleSentInterests}
+            receivedInterests={interests.receivedInterests}
+            onViewProfile={(interest, direction) =>
+              direction === 'received'
+                ? setProfileView({
+                    userId: interest.from_user,
+                    positionId: interest.position?.id ?? interest.position_id,
+                    received: interest,
+                  })
+                : setProfileView({
+                    userId: interest.to_user,
+                    positionId: interest.position?.id ?? interest.position_id,
+                  })
+            }
+            onWithdraw={interests.withdrawInterest}
+            onRemoveDeclined={interests.removeDeclinedInterest}
+            onRefresh={() => Promise.all([interests.fetchInterests(), matches.fetchMatches()])}
+            interestsRemaining={interests.interestsRemaining}
+          />
+        )}
+        {activeTab === 'messages' && (
+          matches.selectedMatch ? (
+            <ChatScreen
+              match={matches.selectedMatch}
+              userId={session.user.id}
+              onClose={() => matches.requestClose(matches.selectedMatch)}
+              onDelete={() => matches.deleteArchived(matches.selectedMatch!)}
+              onViewProfile={() =>
+                setProfileView({
+                  userId: matches.selectedMatch!.otherUserId,
+                  positionId: matches.selectedMatch!.positionId,
+                })
+              }
+              onBack={() => {
+                matches.setSelectedMatch(null);
+                matches.fetchMatches();
+              }}
             />
-          )}
-        </PageColumn>
+          ) : (
+            <MessagesScreen
+              view={messagesView}
+              onViewChange={setMessagesView}
+              active={matches.activeMatches}
+              archived={matches.archivedMatches}
+              meta={matches.convoMeta}
+              onMatchPress={matches.setSelectedMatch}
+              onViewProfile={(m) =>
+                setProfileView({ userId: m.otherUserId, positionId: m.positionId })
+              }
+              onRefresh={matches.fetchMatches}
+            />
+          )
+        )}
+        {activeTab === 'profile' && (
+          <ProfileScreen
+            session={session}
+            onEditProfile={() => setEditingProfile(true)}
+            onManagePositions={() => setManagingPositions(true)}
+            onVerification={() => setVerifying(true)}
+            onReviewVerifications={() => setReviewing(true)}
+            onReplayTutorial={() => {
+              matches.setSelectedMatch(null);
+              setActiveTab('discover');
+              tutorial.start();
+            }}
+          />
+        )}
+      </SafeAreaView>
+      {!matches.selectedMatch && (
+        <TabBar
+          activeTab={activeTab}
+          onTabPress={setActiveTab}
+          unseenReceivedCount={interests.unseenReceivedCount}
+          unreadMessagesCount={matches.unreadTotal}
+        />
       )}
 
       <TutorialOverlay
@@ -607,22 +461,6 @@ function useLocalStyles() {
           fontSize: 15,
           fontWeight: '700',
           color: c.onAccent,
-        },
-
-        wideRow: {
-          flex: 1,
-          flexDirection: 'row',
-        },
-
-        wideMain: {
-          flex: 1,
-          alignItems: 'center',
-        },
-
-        wideColumn: {
-          flex: 1,
-          width: '100%',
-          maxWidth: 560,
         },
 
         authLoadingContainer: {
