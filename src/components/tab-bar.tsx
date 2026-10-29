@@ -1,8 +1,9 @@
 import { Handshake, MessageCircle, Search, UserRound } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/app-theme';
+import { APP_MAX_WIDTH } from '../constants/app';
 
 export type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
 
@@ -12,7 +13,6 @@ export const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
   { key: 'messages', label: 'Messages', Icon: MessageCircle },
   { key: 'profile', label: 'Profile', Icon: UserRound },
 ];
-
 
 export function TabBar({
   activeTab,
@@ -31,48 +31,39 @@ export function TabBar({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[local.tabBar, { paddingBottom: insets.bottom || 12 }]}>
-      {TABS.map(({ key, label, Icon }) => {
-        const isActive = key === activeTab;
+    <View style={[local.bar, Platform.OS === 'web' && local.barWebFullWidth]}>
+      <View style={[local.tabBar, { paddingBottom: insets.bottom || 12 }]}>
+        {TABS.map(({ key, label, Icon }) => {
+          const isActive = key === activeTab;
 
-        return (
-          <Pressable
-            key={key}
-            style={local.tabItem}
-            onPress={() => onTabPress(key)}
-          >
-          <View>
-            <Icon
-              size={24}
-              color={isActive ? c.text : c.muted}
-              strokeWidth={isActive ? 2.4 : 2}
-            />
-            {key === 'messages' && unreadMessagesCount > 0 && (
-              <View style={local.badge}>
-                <Text style={local.badgeText}>
-                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
-                </Text>
+          return (
+            <Pressable key={key} style={local.tabItem} onPress={() => onTabPress(key)}>
+              <View>
+                <Icon
+                  size={24}
+                  color={isActive ? c.text : c.muted}
+                  strokeWidth={isActive ? 2.4 : 2}
+                />
+                {key === 'messages' && unreadMessagesCount > 0 && (
+                  <View style={local.badge}>
+                    <Text style={local.badgeText}>
+                      {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                    </Text>
+                  </View>
+                )}
+                {key === 'interests' && unseenReceivedCount > 0 && (
+                  <View style={local.badge}>
+                    <Text style={local.badgeText}>
+                      {unseenReceivedCount > 9 ? '9+' : unseenReceivedCount}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
-            {key === 'interests' && unseenReceivedCount > 0 && (
-              <View style={local.badge}>
-                <Text style={local.badgeText}>
-                  {unseenReceivedCount > 9 ? '9+' : unseenReceivedCount}
-                </Text>
-              </View>
-            )}
-          </View>
-            <Text
-              style={[
-                local.tabLabel,
-                isActive && local.tabLabelActive,
-              ]}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <Text style={[local.tabLabel, isActive && local.tabLabelActive]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -83,11 +74,26 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
-        tabBar: {
-          flexDirection: 'row',
+        // The bar's background and top line; on the web it runs edge to edge while the tabs
+        // themselves stay in the app's column.
+        bar: {
           borderTopWidth: 1,
           borderTopColor: c.border,
           backgroundColor: c.surface,
+        },
+
+        // Breaks out of the centred app column to the full window width (a standard CSS
+        // full-bleed trick; web only).
+        barWebFullWidth: {
+          width: '100vw',
+          marginLeft: 'calc(50% - 50vw)',
+        } as any,
+
+        tabBar: {
+          flexDirection: 'row',
+          width: '100%',
+          maxWidth: APP_MAX_WIDTH,
+          alignSelf: 'center',
           paddingTop: 10,
         },
 
