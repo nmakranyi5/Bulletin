@@ -1,8 +1,9 @@
 import { Session } from '@supabase/supabase-js';
-import { useMemo, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsDesktop } from '../hooks/use-desktop';
 
 import { useTheme } from '../../lib/app-theme';
 import { tourSteps } from '../../lib/tutorial';
@@ -92,6 +93,7 @@ export default function Index() {
 function MainApp({ session }: { session: Session }) {
   const shared = useSharedStyles();
   const local = useLocalStyles();
+  const desktop = useIsDesktop();
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [editingProfile, setEditingProfile] = useState(false);
   const [managingPositions, setManagingPositions] = useState(false);
@@ -191,7 +193,7 @@ function MainApp({ session }: { session: Session }) {
     receivedInterests: interests.receivedInterests,
     matches: matches.activeMatches,
     convoMeta: matches.convoMeta,
-    openChatId: activeTab === 'messages' ? matches.selectedMatch?.id ?? null : null,
+    openChatId: activeTab === 'messages' ? (matches.selectedMatch?.id ?? null) : null,
     refresh: () => {
       interests.fetchInterests({ silent: true });
       matches.fetchMatches({ silent: true });
@@ -224,31 +226,45 @@ function MainApp({ session }: { session: Session }) {
     );
   }
 
-  if (verifying) {
-    return (
-      <View style={local.root}>
-        <VerificationScreen
-          session={session}
-          isRecruiter={!!myProfile?.is_recruiter}
-          onBack={() => setVerifying(false)}
+  // Full-page sub-screens keep the sidebar on desktop (their own back arrow still works).
+  const subScreen = (node: ReactNode) =>
+    desktop ? (
+      <View style={[local.root, local.rootRow]}>
+        <TabBar
+          variant="side"
+          activeTab={activeTab}
+          onTabPress={(tab) => {
+            setVerifying(false);
+            setReviewing(false);
+            setManagingPositions(false);
+            setActiveTab(tab);
+          }}
+          unseenReceivedCount={interests.unseenReceivedCount}
+          unreadMessagesCount={matches.unreadTotal}
         />
+        <View style={[local.container, local.containerDesktop]}>{node}</View>
       </View>
+    ) : (
+      <View style={local.root}>{node}</View>
+    );
+
+  if (verifying) {
+    return subScreen(
+      <VerificationScreen
+        session={session}
+        isRecruiter={!!myProfile?.is_recruiter}
+        onBack={() => setVerifying(false)}
+      />
     );
   }
 
   if (reviewing) {
-    return (
-      <View style={local.root}>
-        <ReviewVerificationsScreen onBack={() => setReviewing(false)} />
-      </View>
-    );
+    return subScreen(<ReviewVerificationsScreen onBack={() => setReviewing(false)} />);
   }
 
   if (managingPositions) {
-    return (
-      <View style={local.root}>
-        <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />
-      </View>
+    return subScreen(
+      <PositionsScreen session={session} onBack={() => setManagingPositions(false)} />
     );
   }
 
@@ -261,10 +277,23 @@ function MainApp({ session }: { session: Session }) {
   }
 
   return (
-    <GestureHandlerRootView style={local.root}>
+    <GestureHandlerRootView style={[local.root, desktop && local.rootRow]}>
+      {/* On wide web windows navigation is a sidebar, like a desktop app. */}
+      {desktop && (
+        <TabBar
+          variant="side"
+          activeTab={activeTab}
+          onTabPress={(tab) => {
+            matches.setSelectedMatch(null);
+            setActiveTab(tab);
+          }}
+          unseenReceivedCount={interests.unseenReceivedCount}
+          unreadMessagesCount={matches.unreadTotal}
+        />
+      )}
       {/* The tab bar handles the bottom inset; chat hides it, so then we do. */}
       <SafeAreaView
-        style={local.container}
+        style={[local.container, desktop && local.containerDesktop]}
         edges={matches.selectedMatch ? ['top', 'bottom'] : ['top']}
       >
         {activeTab === 'discover' && (
@@ -310,8 +339,8 @@ function MainApp({ session }: { session: Session }) {
             interestsRemaining={interests.interestsRemaining}
           />
         )}
-        {activeTab === 'messages' && (
-          matches.selectedMatch ? (
+        {activeTab === 'messages' &&
+          (matches.selectedMatch ? (
             <ChatScreen
               match={matches.selectedMatch}
               userId={session.user.id}
@@ -326,9 +355,7 @@ function MainApp({ session }: { session: Session }) {
               replyRequest={matches.replyRequests.find(
                 (r) => r.interestId === matches.selectedMatch!.id && r.status === 'pending'
               )}
-              onRequestWindow={(hours) =>
-                matches.requestReplyWindow(matches.selectedMatch!, hours)
-              }
+              onRequestWindow={(hours) => matches.requestReplyWindow(matches.selectedMatch!, hours)}
               onRespondWindow={(accept) => {
                 const req = matches.replyRequests.find(
                   (r) => r.interestId === matches.selectedMatch!.id && r.status === 'pending'
@@ -353,8 +380,7 @@ function MainApp({ session }: { session: Session }) {
               }
               onRefresh={matches.fetchMatches}
             />
-          )
-        )}
+          ))}
         {activeTab === 'profile' && (
           <ProfileScreen
             session={session}
@@ -370,7 +396,7 @@ function MainApp({ session }: { session: Session }) {
           />
         )}
       </SafeAreaView>
-      {!matches.selectedMatch && (
+      {!desktop && !matches.selectedMatch && (
         <TabBar
           activeTab={activeTab}
           onTabPress={setActiveTab}
@@ -468,8 +494,18 @@ function useLocalStyles() {
           backgroundColor: c.bg,
         },
 
+        rootRow: {
+          flexDirection: 'row',
+        },
+
         container: {
           flex: 1,
+        },
+
+        // Wide windows: one centred column for header, lists, chat and cards alike.
+        containerDesktop: {
+          maxWidth: 900,
+          marginHorizontal: 'auto',
         },
 
         footerButton: {

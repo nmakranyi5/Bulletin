@@ -5,6 +5,8 @@ export const MAX_INTERESTS = 10;
 export const CARD_MAX_WIDTH = 460;
 // Windows shorter than this (iPhone SE class) get the compact card layout.
 export const COMPACT_HEIGHT = 740;
+// Web windows at least this wide get a sidebar instead of the bottom tab bar.
+export const DESKTOP_MIN_WIDTH = 900;
 
 // Swipe distances scale with the window, so compute them from the live width.
 export function swipeMetrics(width: number) {
