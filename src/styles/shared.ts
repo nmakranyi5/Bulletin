@@ -164,6 +164,10 @@ export function makeSharedStyles(c: Colors) {
     },
 
     interestsList: {
+      // On wide web windows keep rows readable instead of stretching edge to edge.
+      width: '100%',
+      maxWidth: 820,
+      alignSelf: 'center',
       paddingHorizontal: 22,
       paddingTop: 8,
       gap: 12,
