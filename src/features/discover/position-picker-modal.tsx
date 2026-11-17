@@ -25,9 +25,7 @@ export function PositionPickerModal({
   }, [visible]);
 
   const toggle = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
+    setSelected((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
   };
 
   return (
@@ -40,11 +38,7 @@ export function PositionPickerModal({
             {positions.map((p) => {
               const isChecked = selected.includes(p.id);
               return (
-                <Pressable
-                  key={p.id}
-                  style={local.checklistRow}
-                  onPress={() => toggle(p.id)}
-                >
+                <Pressable key={p.id} style={local.checklistRow} onPress={() => toggle(p.id)}>
                   <View style={[local.checkbox, isChecked && local.checkboxChecked]}>
                     {isChecked && <Check size={14} color={c.onAccent} strokeWidth={3} />}
                   </View>
@@ -83,6 +77,9 @@ function useLocalStyles() {
         },
 
         modalCard: {
+          width: '100%',
+          maxWidth: 480,
+          alignSelf: 'center',
           backgroundColor: c.surface,
           borderRadius: 20,
           padding: 22,

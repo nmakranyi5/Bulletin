@@ -688,6 +688,9 @@ function useLocalStyles() {
         },
 
         chatMessages: {
+          width: '100%',
+          maxWidth: 820,
+          alignSelf: 'center',
           paddingHorizontal: 16,
           paddingVertical: 14,
           gap: 2,

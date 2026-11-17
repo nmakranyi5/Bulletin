@@ -284,6 +284,9 @@ function useLocalStyles() {
         },
 
         scrollContent: {
+          width: '100%',
+          maxWidth: 820,
+          alignSelf: 'center',
           paddingBottom: 24,
         },
 

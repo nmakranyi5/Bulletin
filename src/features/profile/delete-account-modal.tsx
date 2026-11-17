@@ -127,6 +127,9 @@ function useLocalStyles() {
         },
 
         card: {
+          width: '100%',
+          maxWidth: 480,
+          alignSelf: 'center',
           backgroundColor: c.surface,
           borderRadius: 20,
           padding: 22,
