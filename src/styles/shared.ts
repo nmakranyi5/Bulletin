@@ -262,6 +262,10 @@ export function makeSharedStyles(c: Colors) {
 
     authContainer: {
       flex: 1,
+      // Forms stay a comfortable width on wide web windows.
+      width: '100%',
+      maxWidth: 560,
+      alignSelf: 'center',
       backgroundColor: c.bg,
     },
 
