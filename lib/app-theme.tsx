@@ -89,7 +89,12 @@ function syncNativeScheme(mode: ThemeMode) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>(system === 'dark' ? 'dark' : 'light');
+  // On the web the page is pre-rendered (light) and then hydrated: a first render that differs
+  // from it leaves the pre-rendered colours stuck on some elements. So the web starts light
+  // and switches to the saved or system theme right after mounting.
+  const [mode, setModeState] = useState<ThemeMode>(
+    Platform.OS !== 'web' && system === 'dark' ? 'dark' : 'light'
+  );
 
   // Restore the saved choice; with none saved, keep following the system.
   useEffect(() => {
@@ -98,6 +103,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         if (saved === 'light' || saved === 'dark') {
           setModeState(saved);
           syncNativeScheme(saved);
+        } else if (Platform.OS === 'web' && system === 'dark') {
+          setModeState('dark');
         }
       })
       .catch(() => {});

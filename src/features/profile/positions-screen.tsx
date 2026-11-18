@@ -766,6 +766,8 @@ function useLocalStyles() {
 
         skillInput: {
           flex: 1,
+          // Lets the field shrink on narrow web screens (inputs have a minimum width there).
+          minWidth: 0,
           marginTop: 0,
         },
 
