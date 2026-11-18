@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { Appearance, useColorScheme } from 'react-native';
+import { Appearance, Platform, useColorScheme } from 'react-native';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -102,6 +102,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {});
   }, []);
+
+  // On the web, theme the page itself too: the area around the app (and the browser's own
+  // toolbar tint on phones) follows the page background, which otherwise stays light.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const bg = mode === 'dark' ? dark.bg : light.bg;
+    document.documentElement.style.backgroundColor = bg;
+    document.documentElement.style.colorScheme = mode;
+    document.body.style.backgroundColor = bg;
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', bg);
+  }, [mode]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
