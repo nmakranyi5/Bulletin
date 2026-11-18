@@ -1,7 +1,7 @@
 import { Session } from '@supabase/supabase-js';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { UserRound } from 'lucide-react-native';
+import { FileCheck, FileUp, UserRound } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
@@ -73,6 +73,16 @@ export function OnboardingScreen({
         : 'The basics',
       subtitle: wizard ? 'Start with the basics.' : 'Your photo, name and username.',
     },
+    // New job seekers add their resume right after the basics; shops look at it first.
+    ...(wizard && !isRecruiter
+      ? [
+          {
+            key: 'resume',
+            title: 'Add your resume',
+            subtitle: 'Shops look at this first. PDF only. You can replace it any time.',
+          },
+        ]
+      : []),
     ...(isRecruiter ? RECRUITER_STEPS : SEEKER_STEPS),
     {
       key: 'replies',
@@ -92,6 +102,9 @@ export function OnboardingScreen({
   const stepProblem = (key: string): { title: string; message: string } | null => {
     if (key === 'basics' && (!name.trim() || !username.trim())) {
       return { title: 'Missing info', message: 'Name and username are required.' };
+    }
+    if (key === 'resume' && !resumeFile) {
+      return { title: 'Resume needed', message: 'Upload your resume (PDF) to continue.' };
     }
     if (isRecruiter) return recruiterStepError(key as any, recruiter);
     return seekerStepError(key as any, seeker);
@@ -170,6 +183,11 @@ export function OnboardingScreen({
   const handleSubmit = async () => {
     if (!name.trim() || !username.trim()) {
       Alert.alert('Missing info', 'Name and username are required.');
+      return;
+    }
+
+    if (wizard && !isRecruiter && !resumeFile) {
+      Alert.alert('Resume needed', 'Upload your resume (PDF) to finish setting up.');
       return;
     }
 
@@ -261,6 +279,31 @@ export function OnboardingScreen({
       );
     }
 
+    if (key === 'resume') {
+      return (
+        <>
+          <Pressable
+            style={[local.resumeDrop, resumeFile && local.resumeDropDone]}
+            onPress={pickResume}
+            accessibilityRole="button"
+            accessibilityLabel={resumeFile ? 'Replace resume' : 'Upload resume'}
+          >
+            {resumeFile ? (
+              <FileCheck size={34} color={c.green} strokeWidth={1.8} />
+            ) : (
+              <FileUp size={34} color={c.muted} strokeWidth={1.8} />
+            )}
+            <Text style={local.resumeDropTitle} numberOfLines={2}>
+              {resumeFile ? resumeFile.name : 'Upload your resume'}
+            </Text>
+            <Text style={local.resumeDropHint}>
+              {resumeFile ? 'Tap to choose a different file' : 'PDF, from your files'}
+            </Text>
+          </Pressable>
+        </>
+      );
+    }
+
     if (key === 'replies') {
       return (
         <>
@@ -291,7 +334,7 @@ export function OnboardingScreen({
             multiline
           />
 
-          {!isRecruiter && (
+          {!isRecruiter && !wizard && (
             <Pressable style={local.resumePicker} onPress={pickResume}>
               <Text style={local.resumePickerText}>
                 {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
@@ -357,6 +400,35 @@ function useLocalStyles() {
         avatarPickerText: {
           fontSize: 13,
           fontWeight: '600',
+          color: c.textSecondary,
+        },
+
+        resumeDrop: {
+          alignItems: 'center',
+          gap: 8,
+          paddingVertical: 36,
+          paddingHorizontal: 20,
+          borderRadius: 18,
+          borderWidth: 1.5,
+          borderStyle: 'dashed',
+          borderColor: c.borderStrong,
+          backgroundColor: c.surface,
+        },
+
+        resumeDropDone: {
+          borderStyle: 'solid',
+          borderColor: c.green,
+        },
+
+        resumeDropTitle: {
+          fontSize: 16,
+          fontWeight: '700',
+          color: c.text,
+          textAlign: 'center',
+        },
+
+        resumeDropHint: {
+          fontSize: 13,
           color: c.textSecondary,
         },
 
