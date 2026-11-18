@@ -260,13 +260,18 @@ export function makeSharedStyles(c: Colors) {
       color: c.text,
     },
 
+    // Full-width background (so dark mode fills the whole window); the form itself sits
+    // in authColumn, a comfortable width on wide web windows.
     authContainer: {
       flex: 1,
-      // Forms stay a comfortable width on wide web windows.
+      alignItems: 'center',
+      backgroundColor: c.bg,
+    },
+
+    authColumn: {
+      flex: 1,
       width: '100%',
       maxWidth: 560,
-      alignSelf: 'center',
-      backgroundColor: c.bg,
     },
 
     // Scrollable variant for short screens / open keyboards: centred when it fits.

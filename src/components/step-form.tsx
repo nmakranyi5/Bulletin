@@ -70,7 +70,7 @@ export function StepForm({
   return (
     <SafeAreaView style={shared.authContainer}>
       <KeyboardAvoidingView
-        style={local.page}
+        style={[shared.authColumn, local.page]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={[local.topRow, exit?.kind === 'back' && local.topRowBack]}>
