@@ -76,7 +76,7 @@ export function ForgotPasswordScreen({
   return (
     <SafeAreaView style={shared.authContainer}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={shared.authColumn}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
