@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 
 import { ThemeProvider, useTheme } from '../../lib/app-theme';
@@ -12,6 +13,9 @@ function ThemedStack() {
 
   return (
     <>
+      <Head>
+        <title>bulletin.</title>
+      </Head>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
