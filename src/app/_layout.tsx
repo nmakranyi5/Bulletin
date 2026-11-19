@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 
 import { ThemeProvider, useTheme } from '../../lib/app-theme';
 import { installWebAlert, WebAlertHost } from '../../lib/web-alert';
@@ -13,9 +14,12 @@ function ThemedStack() {
 
   return (
     <>
-      <Head>
-        <title>bulletin.</title>
-      </Head>
+      {/* Web only: on iOS/Android Head needs a handoff origin and throws without one. */}
+      {Platform.OS === 'web' && (
+        <Head>
+          <title>bulletin.</title>
+        </Head>
+      )}
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
