@@ -1,6 +1,8 @@
 // Document verification: what people can ask to have checked, how it's labelled, and the
 // small amount of validation done before anything is sent (the database checks it again).
 
+import { labelMap, t } from './i18n/core';
+
 export const VERIFICATION_KINDS = ['epa_608', 'contractor_license', 'insurance'] as const;
 export type VerificationKind = (typeof VERIFICATION_KINDS)[number];
 
@@ -18,25 +20,43 @@ export const KIND_INFO: Record<
   }
 > = {
   epa_608: {
-    badge: 'EPA 608 verified',
-    title: 'EPA 608 certification',
-    ask: 'Upload a clear photo of your EPA 608 card. The name on it must match your profile.',
-    checklist: ({ name }) =>
-      `Is the name on the card ${name}? Does it show the certification types they claim?`,
+    get badge() {
+      return t('verif.epa_608.badge');
+    },
+    get title() {
+      return t('verif.epa_608.title');
+    },
+    get ask() {
+      return t('verif.epa_608.ask');
+    },
+    checklist: ({ name }) => t('verif.epa_608.check', { name }),
   },
   contractor_license: {
-    badge: 'Licensed',
-    title: 'Contractor license',
-    ask: 'Enter your contractor license number and state. A photo of the license helps, but is optional.',
+    get badge() {
+      return t('verif.contractor_license.badge');
+    },
+    get title() {
+      return t('verif.contractor_license.title');
+    },
+    get ask() {
+      return t('verif.contractor_license.ask');
+    },
     checklist: ({ name, company, state }) =>
-      `Look the number up on ${state ?? 'the'} state licensing board's site. Is it active, and does it belong to ${company || name}?`,
+      state
+        ? t('verif.contractor_license.check', { state, who: company || name })
+        : t('verif.contractor_license.checkNoState', { who: company || name }),
   },
   insurance: {
-    badge: 'Insured',
-    title: 'Certificate of insurance',
-    ask: 'Upload your certificate of insurance (a photo or PDF). The business name must match your profile.',
-    checklist: ({ name, company }) =>
-      `Does the insured business match ${company || name}? Is the policy current?`,
+    get badge() {
+      return t('verif.insurance.badge');
+    },
+    get title() {
+      return t('verif.insurance.title');
+    },
+    get ask() {
+      return t('verif.insurance.ask');
+    },
+    checklist: ({ name, company }) => t('verif.insurance.check', { who: company || name }),
   },
 };
 
@@ -76,14 +96,14 @@ export function cleanLicenseNumber(input: string): string {
 }
 
 // Why a reviewer turns a request down (shown to the person so they can fix it).
-export const REJECT_REASONS = {
-  unreadable: "The photo or file couldn't be read",
-  name_mismatch: "The name doesn't match the profile",
-  not_found: "We couldn't find that license",
-  expired: 'It has expired',
-  wrong_document: "That isn't the right document",
-  other: 'Something else',
-} as const;
+export const REJECT_REASONS = labelMap('reject', [
+  'unreadable',
+  'name_mismatch',
+  'not_found',
+  'expired',
+  'wrong_document',
+  'other',
+] as const);
 export type RejectReason = keyof typeof REJECT_REASONS;
 
 export const REJECT_REASONS_FOR: Record<VerificationKind, RejectReason[]> = {

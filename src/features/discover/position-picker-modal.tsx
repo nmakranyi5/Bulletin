@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 export function PositionPickerModal({
   visible,
@@ -17,6 +18,7 @@ export function PositionPickerModal({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -32,7 +34,7 @@ export function PositionPickerModal({
     <Modal visible={visible} transparent animationType="fade">
       <View style={local.modalOverlay}>
         <View style={local.modalCard}>
-          <Text style={shared.subtitle}>Which position(s)?</Text>
+          <Text style={shared.subtitle}>{t('discover.whichPositions')}</Text>
 
           <ScrollView style={{ maxHeight: 260, marginTop: 12 }}>
             {positions.map((p) => {
@@ -50,12 +52,12 @@ export function PositionPickerModal({
 
           <Pressable style={shared.authButton} onPress={() => onSubmit(selected)}>
             <Text style={shared.authButtonText}>
-              {selected.length === 0 ? 'Send general interest' : 'Send interest'}
+              {selected.length === 0 ? t('discover.sendGeneral') : t('discover.sendInterest')}
             </Text>
           </Pressable>
 
           <Pressable style={{ marginTop: 10, alignItems: 'center' }} onPress={onCancel}>
-            <Text style={shared.subtitle}>Cancel</Text>
+            <Text style={shared.subtitle}>{t('common.cancel')}</Text>
           </Pressable>
         </View>
       </View>

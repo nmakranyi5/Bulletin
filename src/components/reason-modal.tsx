@@ -13,6 +13,7 @@ import {
 import { useTheme } from '../../lib/app-theme';
 import { DECLINE_NOTE_MAX, cleanNote } from '../../lib/decline-reasons';
 import { useSharedStyles } from '../styles/shared';
+import { useT } from '../../lib/i18n';
 
 export type ReasonOption<K extends string> = {
   key: K;
@@ -31,7 +32,7 @@ export function ReasonModal<K extends string>({
   submitLabel,
   positiveSubmitLabel,
   noNote = false,
-  chooseLabel = 'Choose a reason',
+  chooseLabel,
   neutral = false,
   onCancel,
   onSubmit,
@@ -55,6 +56,7 @@ export function ReasonModal<K extends string>({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [reason, setReason] = useState<K | null>(null);
   const [note, setNote] = useState('');
@@ -127,12 +129,12 @@ export function ReasonModal<K extends string>({
 
             {!noNote && (
               <>
-                <Text style={[shared.sectionLabel, { marginTop: 16 }]}>ADD A NOTE (OPTIONAL)</Text>
+                <Text style={[shared.sectionLabel, { marginTop: 16 }]}>{t('ui.addNote')}</Text>
                 <TextInput
                   style={[shared.authInput, local.note]}
                   value={note}
-                  onChangeText={(t) => setNote(t.slice(0, DECLINE_NOTE_MAX))}
-                  placeholder="A kind word or a bit more detail helps."
+                  onChangeText={(v) => setNote(v.slice(0, DECLINE_NOTE_MAX))}
+                  placeholder={t('ui.notePlaceholder')}
                   placeholderTextColor={c.muted}
                   multiline
                   maxLength={DECLINE_NOTE_MAX}
@@ -156,9 +158,9 @@ export function ReasonModal<K extends string>({
             >
               <Text style={[local.sendText, neutral && local.sendTextNeutral]}>
                 {sending
-                  ? 'Sending...'
+                  ? t('ui.sending')
                   : !reason
-                    ? chooseLabel
+                    ? (chooseLabel ?? t('ui.chooseReason'))
                     : positiveSelected && positiveSubmitLabel
                       ? positiveSubmitLabel
                       : submitLabel}
@@ -166,7 +168,7 @@ export function ReasonModal<K extends string>({
             </Pressable>
 
             <Pressable style={local.cancelButton} onPress={onCancel} disabled={sending}>
-              <Text style={local.cancelText}>Cancel</Text>
+              <Text style={local.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
           </ScrollView>
         </View>

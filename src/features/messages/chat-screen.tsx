@@ -37,6 +37,7 @@ import { Match } from '../../types';
 import { ReplyBanner } from './reply-banner';
 import { ReplyWindowBar } from './reply-window-bar';
 import { ReplyWindowModal } from './reply-window-modal';
+import { useT } from '../../../lib/i18n';
 
 export type ChatMessage = {
   id: string;
@@ -80,6 +81,7 @@ export function ChatScreen({
 }) {
   const { colors: c, mode } = useTheme();
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   // Archived chats are read-only: no sending, editing, deleting or closing.
   const archived = match.status === 'closed';
@@ -119,7 +121,7 @@ export function ChatScreen({
 
     if (!alive.current) return;
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
     setHistoryLoaded(true);
@@ -234,15 +236,15 @@ export function ChatScreen({
     });
     if (error) {
       patchMessage(target.id, { text: target.text, editedAt: target.editedAt });
-      Alert.alert('Could not edit', error.message);
+      Alert.alert(t('chat.couldNotEdit'), error.message);
     }
   };
 
   const deleteMessage = (msg: ChatMessage) => {
-    Alert.alert('Delete message?', 'This removes the message for both of you.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('chat.deleteTitle'), t('chat.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           if (editingId === msg.id) cancelEdit();
@@ -250,7 +252,7 @@ export function ChatScreen({
           const { error } = await supabase.rpc('delete_message', { p_message_id: msg.id });
           if (error) {
             patchMessage(msg.id, { deletedAt: null });
-            Alert.alert('Could not delete', error.message);
+            Alert.alert(t('matches.couldNotDelete'), error.message);
           }
         },
       },
@@ -267,16 +269,16 @@ export function ChatScreen({
     )
       return;
 
-    Alert.alert('Message', undefined, [
+    Alert.alert(t('chat.messageMenu'), undefined, [
       {
-        text: 'Edit',
+        text: t('chat.edit'),
         onPress: () => {
           setEditingId(msg.id);
           setDraft(msg.text);
         },
       },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteMessage(msg) },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: () => deleteMessage(msg) },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -372,12 +374,12 @@ export function ChatScreen({
 
   const statusLabel = (m: ChatMessage) =>
     m.status === 'sending'
-      ? 'Sending...'
+      ? t('chat.sending')
       : m.status === 'failed'
-        ? 'Not sent. Tap to retry'
+        ? t('chat.notSent')
         : m.status === 'read' && m.readAt
-          ? `Read ${formatTime(m.readAt)}`
-          : 'Sent';
+          ? t('chat.readAt', { time: formatTime(m.readAt) })
+          : t('chat.sent');
 
   return (
     <KeyboardAvoidingView
@@ -432,7 +434,9 @@ export function ChatScreen({
           <View style={local.archiveBannerInfo}>
             <Text style={local.archiveTitle}>
               {closeOutcome(match.closed?.reason)}
-              {match.closed?.byMe ? ' · by you' : ` · by ${match.name.split(' ')[0]}`}
+              {match.closed?.byMe
+                ? t('chat.byYouSuffix')
+                : t('chat.byNameSuffix', { name: match.name.split(' ')[0] })}
             </Text>
             {match.closed?.note ? (
               <Text style={local.archiveNote}>"{match.closed.note}"</Text>
@@ -524,7 +528,7 @@ export function ChatScreen({
                   <View style={local.deletedRow}>
                     <Ban size={14} color={c.muted} strokeWidth={2.2} />
                     <Text style={local.deletedText}>
-                      {msg.fromMe ? 'You deleted this message' : 'This message was deleted'}
+                      {msg.fromMe ? t('chat.youDeleted') : t('chat.wasDeleted')}
                     </Text>
                   </View>
                 ) : (
@@ -536,7 +540,7 @@ export function ChatScreen({
                   <Text
                     style={[local.chatTime, msg.fromMe && !msg.deletedAt && local.chatTimeMine]}
                   >
-                    {msg.editedAt && !msg.deletedAt ? 'Edited · ' : ''}
+                    {msg.editedAt && !msg.deletedAt ? t('chat.edited') : ''}
                     {formatTime(msg.createdAt)}
                   </Text>
                   {msg.fromMe &&
@@ -563,7 +567,9 @@ export function ChatScreen({
         }}
         ListEmptyComponent={
           <Text style={local.chatEmptyText}>
-            {archived ? 'No messages were sent.' : `Say hello to ${match.name.split(' ')[0]}.`}
+            {archived
+              ? t('chat.noMessagesSent')
+              : t('chat.sayHelloTo', { name: match.name.split(' ')[0] })}
           </Text>
         }
       />
@@ -571,7 +577,7 @@ export function ChatScreen({
       {!archived && editingId && (
         <View style={local.editBar}>
           <Pencil size={14} color={c.textSecondary} strokeWidth={2.4} />
-          <Text style={local.editBarText}>Editing message</Text>
+          <Text style={local.editBarText}>{t('chat.editing')}</Text>
           <Pressable onPress={cancelEdit} hitSlop={10}>
             <X size={18} color={c.textSecondary} strokeWidth={2.4} />
           </Pressable>
@@ -580,7 +586,7 @@ export function ChatScreen({
 
       {archived ? (
         <View style={local.archivedFooter}>
-          <Text style={local.archivedFooterText}>This chat is archived and read-only.</Text>
+          <Text style={local.archivedFooterText}>{t('chat.archivedReadOnly')}</Text>
         </View>
       ) : (
         <View style={local.chatInputRow}>
@@ -588,7 +594,7 @@ export function ChatScreen({
             style={local.chatInput}
             value={draft}
             onChangeText={setDraft}
-            placeholder="Message..."
+            placeholder={t('chat.placeholder')}
             placeholderTextColor={c.muted}
             multiline
           />

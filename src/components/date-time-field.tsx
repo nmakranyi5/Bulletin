@@ -6,6 +6,7 @@ import { useTheme } from '../../lib/app-theme';
 import { defaultPickerDate, formatCloseField } from '../../lib/close-date';
 import { serverNow } from '../../lib/time';
 import { useSharedStyles } from '../styles/shared';
+import { useT } from '../../lib/i18n';
 
 // A tappable date + time field. iOS opens a wheel picker in a sheet; Android opens the
 // system date dialog and then the time dialog. (On the web see date-time-field.web.tsx.)
@@ -23,6 +24,7 @@ export function DateTimeField({
   placeholder: string;
 }) {
   const { colors: c, mode } = useTheme();
+  const t = useT();
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const [iosOpen, setIosOpen] = useState(false);
@@ -64,7 +66,7 @@ export function DateTimeField({
           {value ? formatCloseField(value) : placeholder}
         </Text>
         {value ? (
-          <Pressable onPress={() => onChange(null)} hitSlop={10} accessibilityLabel="Clear date">
+          <Pressable onPress={() => onChange(null)} hitSlop={10} accessibilityLabel={t('ui.clearDate')}>
             <X size={16} color={c.textSecondary} strokeWidth={2.4} />
           </Pressable>
         ) : null}
@@ -76,7 +78,7 @@ export function DateTimeField({
             <View style={local.sheet}>
               <View style={local.sheetHeader}>
                 <Pressable onPress={() => setIosOpen(false)} hitSlop={10}>
-                  <Text style={local.sheetCancel}>Cancel</Text>
+                  <Text style={local.sheetCancel}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
@@ -85,7 +87,7 @@ export function DateTimeField({
                   }}
                   hitSlop={10}
                 >
-                  <Text style={local.sheetDone}>Done</Text>
+                  <Text style={local.sheetDone}>{t('common.done')}</Text>
                 </Pressable>
               </View>
               <DateTimePicker

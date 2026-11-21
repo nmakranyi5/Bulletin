@@ -1,5 +1,6 @@
 import { CLOSE_REASONS, CloseReason, POSITIVE_CLOSE_REASON } from '../../../lib/close-reasons';
 import { ReasonModal } from '../../components/reason-modal';
+import { useT } from '../../../lib/i18n';
 
 // Asks why you're closing a chat. Both of you see the reason afterwards, in the
 // Archived section.
@@ -17,18 +18,19 @@ export function CloseChatModal({
   // Resolves true when the chat was closed.
   onSubmit: (reason: CloseReason, note: string | null) => Promise<boolean>;
 }) {
+  const t = useT();
   return (
     <ReasonModal
       visible={visible}
-      title="Close this chat?"
-      subtitle={`It moves to Archived for both of you. ${name} will see how you closed it.`}
+      title={t('closeChat.title')}
+      subtitle={t('closeChat.subtitle', { name })}
       options={reasons.map((key) => ({
         key,
         label: CLOSE_REASONS[key],
         positive: key === POSITIVE_CLOSE_REASON,
       }))}
-      submitLabel="Close chat"
-      positiveSubmitLabel="Close deal"
+      submitLabel={t('closeChat.submit')}
+      positiveSubmitLabel={t('closeChat.submitDeal')}
       onCancel={onCancel}
       onSubmit={onSubmit}
     />

@@ -1,3 +1,5 @@
+import { getLanguage, t } from './i18n/core';
+
 // Turning a map pin into the short place name shown on profiles and postings
 // ("Austin, TX"), plus the small amount of coordinate handling the map picker needs.
 
@@ -118,9 +120,9 @@ export function nominatimLabel(address: NominatimAddress | null | undefined): st
 
 async function nominatim(path: string): Promise<any> {
   const res = await fetch(`${NOMINATIM}${path}`, {
-    headers: { Accept: 'application/json', 'Accept-Language': 'en' },
+    headers: { Accept: 'application/json', 'Accept-Language': getLanguage() },
   });
-  if (!res.ok) throw new Error(`Place lookup failed (${res.status})`);
+  if (!res.ok) throw new Error(t('geo.lookupFailed', { status: res.status }));
   return res.json();
 }
 

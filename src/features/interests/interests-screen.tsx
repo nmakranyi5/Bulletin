@@ -13,6 +13,7 @@ import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { MAX_INTERESTS } from '../../constants/app';
 import { useSharedStyles } from '../../styles/shared';
 import { InterestRow } from '../../types';
+import { useT } from '../../../lib/i18n';
 
 export function InterestsScreen({
   sentInterests,
@@ -41,6 +42,7 @@ export function InterestsScreen({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const now = useNow();
   const refreshControl = useRefreshControl(onRefresh);
@@ -50,7 +52,7 @@ export function InterestsScreen({
       <View style={shared.screenHeader}>
         <Text style={shared.screenTitle}>bulletin.</Text>
         <Text style={shared.subtitle}>
-          Explore your interests. {interestsRemaining} of {MAX_INTERESTS} left.
+          {t('interests.subtitle', { left: interestsRemaining, max: MAX_INTERESTS })}
         </Text>
       </View>
 
@@ -62,7 +64,7 @@ export function InterestsScreen({
           <Text
             style={[shared.subTabText, subTab === 'received' && shared.subTabTextActive]}
           >
-            Received ({receivedInterests.length})
+            {t('interests.received', { count: receivedInterests.length })}
           </Text>
         </Pressable>
 
@@ -73,7 +75,7 @@ export function InterestsScreen({
           <Text
             style={[shared.subTabText, subTab === 'sent' && shared.subTabTextActive]}
           >
-            Sent ({sentInterests.length})
+            {t('interests.sent', { count: sentInterests.length })}
           </Text>
         </Pressable>
       </View>
@@ -83,9 +85,9 @@ export function InterestsScreen({
 <RefreshableEmpty refreshControl={refreshControl}>
           <View style={shared.emptyState}>
             <Handshake size={48} color={c.muted} strokeWidth={1.5} />
-            <Text style={shared.emptyTitle}>No interests yet</Text>
+            <Text style={shared.emptyTitle}>{t('interests.emptyTitle')}</Text>
             <Text style={shared.emptySubtitle}>
-              People who show interest in you will show up here.
+              {t('interests.emptyReceived')}
             </Text>
           </View>
 </RefreshableEmpty>
@@ -100,11 +102,11 @@ export function InterestsScreen({
                 <Avatar uri={item.from_profile?.avatar_url} />
                 <View style={shared.interestRowInfo}>
                   <Text numberOfLines={1} style={shared.interestRowName}>
-                    {item.from_profile?.name ?? 'Unknown'}
+                    {item.from_profile?.name ?? t('interests.unknown')}
                   </Text>
                   <Text numberOfLines={1} style={shared.interestRowMeta}>
-                    @{item.from_profile?.username ?? 'unknown'}
-                    {item.position?.title ? ` · ${item.position.title}` : ' · General'}
+                    @{item.from_profile?.username ?? t('interests.unknownUser')}
+                    {item.position?.title ? ` · ${item.position.title}` : ` · ${t('interests.general')}`}
                   </Text>
                   {(() => {
                     const notes = [
@@ -119,7 +121,7 @@ export function InterestsScreen({
                     ].filter(Boolean);
                     return notes.length > 0 ? (
                       <Text numberOfLines={1} style={shared.mismatchText}>
-                        Heads up: {notes.join(' · ')}
+                        {t('discover.headsUp', { notes: notes.join(' · ') })}
                       </Text>
                     ) : null;
                   })()}
@@ -138,9 +140,9 @@ export function InterestsScreen({
 <RefreshableEmpty refreshControl={refreshControl}>
         <View style={shared.emptyState}>
           <Handshake size={48} color={c.muted} strokeWidth={1.5} />
-          <Text style={shared.emptyTitle}>No interests yet</Text>
+          <Text style={shared.emptyTitle}>{t('interests.emptyTitle')}</Text>
           <Text style={shared.emptySubtitle}>
-            Swipe right on Discover to start expressing interest.
+            {t('interests.emptySent')}
           </Text>
         </View>
 </RefreshableEmpty>
@@ -155,22 +157,22 @@ export function InterestsScreen({
               <Avatar uri={item.to_profile?.avatar_url} />
               <View style={shared.interestRowInfo}>
                 <Text numberOfLines={1} style={shared.interestRowName}>
-                  {item.to_profile?.name ?? 'Unknown'}
+                  {item.to_profile?.name ?? t('interests.unknown')}
                 </Text>
                 <Text numberOfLines={1} style={shared.interestRowMeta}>
                   {item.status === 'pending'
-                    ? 'Pending'
+                    ? t('interests.pending')
                     : item.status === 'accepted'
-                    ? 'Matched'
-                    : 'Declined'}
-                  {item.position?.title ? ` · ${item.position.title}` : ' · General'}
+                    ? t('interests.matched')
+                    : t('interests.declined')}
+                  {item.position?.title ? ` · ${item.position.title}` : ` · ${t('interests.general')}`}
                 </Text>
                 {item.status === 'rejected' && (
                   <View style={local.declineBox}>
                     <Text style={local.declineReason}>
                       {reasonLabel(item.decline_reason)
-                        ? `Reason: ${reasonLabel(item.decline_reason)}`
-                        : 'No reason was given'}
+                        ? t('interests.reason', { reason: reasonLabel(item.decline_reason) })
+                        : t('interests.noReason')}
                     </Text>
                     {item.decline_note ? (
                       <Text style={local.declineNote}>"{item.decline_note}"</Text>
@@ -199,7 +201,7 @@ export function InterestsScreen({
                   style={local.interestRowAction}
                   onPress={() => onRemoveDeclined(item)}
                   accessibilityRole="button"
-                  accessibilityLabel="Remove declined interest"
+                  accessibilityLabel={t('interests.removeDeclined')}
                 >
                   <Trash2 size={18} color={c.textSecondary} strokeWidth={2.2} />
                 </Pressable>

@@ -5,23 +5,24 @@
 // without a deal. Labels are worded neutrally because the same text is shown to the
 // person picking it and to the person who reads it afterwards.
 
-import { DECLINE_REASONS, DECLINE_NOTE_MAX } from './decline-reasons';
+import { DECLINE_NOTE_MAX } from './decline-reasons';
+import { labelMap, t } from './i18n/core';
 
-export const CLOSE_REASONS = {
-  deal_closed: 'We made a deal',
-  not_interested: 'Not interested',
-  no_response: 'The conversation went quiet',
-  position_filled: DECLINE_REASONS.position_filled,
-  missing_certification: DECLINE_REASONS.missing_certification,
-  not_enough_experience: DECLINE_REASONS.not_enough_experience,
-  schedule_mismatch: DECLINE_REASONS.schedule_mismatch,
-  too_far: DECLINE_REASONS.too_far,
-  chose_another: DECLINE_REASONS.chose_another,
-  pay_mismatch: DECLINE_REASONS.pay_mismatch,
-  wrong_work: DECLINE_REASONS.wrong_work,
-  took_another_job: DECLINE_REASONS.took_another_job,
-  other: DECLINE_REASONS.other,
-} as const;
+export const CLOSE_REASONS = labelMap('closeR', [
+  'deal_closed',
+  'not_interested',
+  'no_response',
+  'position_filled',
+  'missing_certification',
+  'not_enough_experience',
+  'schedule_mismatch',
+  'too_far',
+  'chose_another',
+  'pay_mismatch',
+  'wrong_work',
+  'took_another_job',
+  'other',
+] as const);
 
 export type CloseReason = keyof typeof CLOSE_REASONS;
 
@@ -72,7 +73,7 @@ export function isDeal(reason: string | null | undefined): boolean {
 
 // One line for an archived chat: "Deal closed" or "Closed · Not interested".
 export function closeOutcome(reason: string | null | undefined): string {
-  if (isDeal(reason)) return 'Deal closed';
+  if (isDeal(reason)) return t('closeR.outcomeDeal');
   const label = closeReasonLabel(reason);
-  return label ? `Closed · ${label}` : 'Closed';
+  return label ? t('closeR.outcomeClosedWhy', { reason: label }) : t('closeR.outcomeClosed');
 }

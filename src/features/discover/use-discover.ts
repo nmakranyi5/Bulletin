@@ -8,6 +8,7 @@ import { serverNow } from '../../../lib/time';
 import { fetchRatings } from '../profile/ratings';
 import { fetchVerifications } from '../profile/verifications';
 import { MyProfile } from '../profile/use-my-profile';
+import { t } from '../../../lib/i18n';
 
 export function useDiscover(
   session: Session | null,
@@ -49,7 +50,7 @@ export function useDiscover(
       .eq('active', true);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return null;
     }
 
@@ -95,7 +96,7 @@ export function useDiscover(
     // If this can't be read, don't build a deck: without it everyone you've already
     // contacted would reappear. Keep the cards already on screen.
     if (sentTo.error || receivedFrom.error) {
-      Alert.alert('Error', (sentTo.error ?? receivedFrom.error)!.message);
+      Alert.alert(t('common.error'), (sentTo.error ?? receivedFrom.error)!.message);
       setDiscoverLoading(false);
       return;
     }
@@ -117,7 +118,7 @@ export function useDiscover(
         .eq('onboarded', true)
         .not('id', 'in', `(${excludeIds.join(',')})`);
 
-      if (error) Alert.alert('Error', error.message);
+      if (error) Alert.alert(t('common.error'), error.message);
       else setDiscoverCards(await withRatings(data ?? []));
     } else {
       const { data, error } = await supabase
@@ -130,7 +131,7 @@ export function useDiscover(
         .not('id', 'in', `(${excludeIds.join(',')})`);
 
       if (error) {
-        Alert.alert('Error', error.message);
+        Alert.alert(t('common.error'), error.message);
       } else {
         const withOpenPositions = (data ?? [])
           .map((r: any) => ({
@@ -157,10 +158,7 @@ export function useDiscover(
 
     const ids = selectedIds.slice(0, interestsRemaining);
     if (ids.length < selectedIds.length) {
-      Alert.alert(
-        'Interest limit',
-        `You only had room for ${ids.length} more, so the rest weren't sent.`
-      );
+      Alert.alert(t('discover.limitTitle'), t('discover.limitBody', { count: ids.length }));
     }
 
     if (selectedIds.length === 0) {
@@ -191,8 +189,8 @@ export function useDiscover(
         relevantPositions = listed.filter((p: any) => isOpenForCandidates(p, serverNow()));
         if (listed.length > 0 && relevantPositions.length === 0) {
           Alert.alert(
-            'Position closed',
-            `${swipedCard.company_name || swipedCard.name} is no longer hiring for that role.`
+            t('discover.closedTitle'),
+            t('discover.closedBody', { company: swipedCard.company_name || swipedCard.name })
           );
           return;
         }

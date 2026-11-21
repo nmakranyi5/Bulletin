@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 
 import { ThemeProvider, useTheme } from '../../lib/app-theme';
+import { I18nProvider } from '../../lib/i18n';
 import { installWebAlert, WebAlertHost } from '../../lib/web-alert';
 
 // On the web, make Alert.alert show real dialogs (it's a no-op there otherwise).
@@ -37,7 +38,9 @@ function ThemedStack() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <ThemedStack />
+      <I18nProvider>
+        <ThemedStack />
+      </I18nProvider>
     </ThemeProvider>
   );
 }

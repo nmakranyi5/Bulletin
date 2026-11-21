@@ -4,6 +4,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useTheme } from '../../../lib/app-theme';
 import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 // Discover card frame. Collapsed: hero + a brief rundown + a "tap for details" hint.
 // Expanded: compact header + the full profile in a scrollable area.
@@ -29,6 +30,7 @@ export function ExpandableCard({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const compact = useIsCompact();
 
@@ -60,7 +62,7 @@ export function ExpandableCard({
           {brief}
 
           <View style={local.hintRow}>
-            <Text style={local.hintText}>Tap for details</Text>
+            <Text style={local.hintText}>{t('discover.tapDetails')}</Text>
             <ChevronDown size={16} color={c.muted} strokeWidth={2.4} />
           </View>
         </View>
@@ -96,7 +98,7 @@ export function ExpandableCard({
 
         {!modal && (
           <Pressable style={local.showLess} onPress={onCollapse}>
-            <Text style={local.showLessText}>Show less</Text>
+            <Text style={local.showLessText}>{t('discover.showLess')}</Text>
             <ChevronUp size={16} color={c.textSecondary} strokeWidth={2.4} />
           </Pressable>
         )}

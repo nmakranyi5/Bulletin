@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { formatDuration, TimerStatus, Urgency, URGENCY } from '../../../lib/response-timers';
+import { useT } from '../../../lib/i18n';
 
 // Shown under the chat header while a reply is outstanding. If you owe the reply it
 // always shows the countdown; if you're waiting on them it only appears once they're
@@ -23,6 +24,7 @@ export function ReplyBanner({
   firstMove?: boolean;
 }) {
   const c = useTheme().colors;
+  const t = useT();
   const local = useLocalStyles();
 
   if (side === 'waiting' && status.state !== 'overdue') return null;
@@ -34,18 +36,22 @@ export function ReplyBanner({
   const text = firstMove
     ? side === 'responder'
       ? status.state === 'overdue'
-        ? `Say hello to ${first} · overdue by ${formatDuration(status.remainingMs)}`
-        : `Say hello to ${first} · ${formatDuration(status.remainingMs)} left`
-      : `${first} hasn't said hello yet · ${formatDuration(
-          status.remainingMs
-        )} past the ${windowLabel} reply time`
+        ? t('banner.sayHelloOverdue', { name: first, time: formatDuration(status.remainingMs) })
+        : t('banner.sayHelloLeft', { name: first, time: formatDuration(status.remainingMs) })
+      : t('banner.notSaidHello', {
+          name: first,
+          time: formatDuration(status.remainingMs),
+          window: windowLabel,
+        })
     : side === 'responder'
       ? status.state === 'overdue'
-        ? `${first} is waiting for your reply · overdue by ${formatDuration(status.remainingMs)}`
-        : `${first} is waiting for your reply · ${formatDuration(status.remainingMs)} left`
-      : `${first} hasn't replied in ${formatDuration(
-          status.remainingMs
-        )} past the ${windowLabel} reply time`;
+        ? t('banner.waitingOverdue', { name: first, time: formatDuration(status.remainingMs) })
+        : t('banner.waitingLeft', { name: first, time: formatDuration(status.remainingMs) })
+      : t('banner.notReplied', {
+          name: first,
+          time: formatDuration(status.remainingMs),
+          window: windowLabel,
+        });
 
   return (
     <View style={[local.banner, { borderColor: status.state === 'ok' ? c.border : tone }]}>

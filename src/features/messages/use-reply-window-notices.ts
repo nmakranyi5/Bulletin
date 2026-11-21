@@ -7,6 +7,7 @@ import {
 } from '../../../lib/reply-window';
 import { useAnnounceOnce } from '../../hooks/use-announce-once';
 import { Match } from '../../types';
+import { t } from '../../../lib/i18n';
 
 // Tells you once when someone asks to change a chat's reply time, and when a request you made is
 // accepted, declined or runs out. (The request itself also shows in that chat.)
@@ -24,7 +25,7 @@ export function useReplyWindowNotices({
   onOpenChat: (matchId: string) => void;
 }) {
   const nameOf = (interestId: string) =>
-    matches.find((m) => m.id === interestId)?.name.split(' ')[0] ?? 'Someone';
+    matches.find((m) => m.id === interestId)?.name.split(' ')[0] ?? t('matches.someone');
 
   // Each request is announced once per state it reaches: a new request to you, or the outcome of
   // one you made.
@@ -51,7 +52,7 @@ export function useReplyWindowNotices({
             status: o.request.status,
           }))
         );
-        Alert.alert(title, message, [{ text: 'OK', onPress: done }], {
+        Alert.alert(title, message, [{ text: t('common.ok'), onPress: done }], {
           cancelable: true,
           onDismiss: done,
         });
@@ -64,9 +65,9 @@ export function useReplyWindowNotices({
         title,
         message,
         [
-          { text: 'Later', style: 'cancel', onPress: done },
+          { text: t('common.later'), style: 'cancel', onPress: done },
           {
-            text: 'Open chat',
+            text: t('notice.openChat'),
             onPress: () => {
               done();
               onOpenChat(first.interestId);

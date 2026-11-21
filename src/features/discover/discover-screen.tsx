@@ -11,6 +11,7 @@ import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { RecruiterCardContent } from './recruiter-card';
 import { WorkerCardContent } from './worker-card';
+import { useT } from '../../../lib/i18n';
 
 export function DiscoverScreen({
   cards,
@@ -46,6 +47,7 @@ export function DiscoverScreen({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const compact = useIsCompact();
   const refreshControl = useRefreshControl(onRefresh);
   const { width } = useWindowDimensions();
@@ -59,7 +61,7 @@ export function DiscoverScreen({
             <Text style={shared.logo}>bulletin.</Text>
             {!compact && (
               <Text style={shared.subtitle}>
-                {isRecruiter ? 'Find your next hire.' : 'Find your next opportunity.'}
+                {isRecruiter ? t('discover.findHire') : t('discover.findJob')}
               </Text>
             )}
           </View>
@@ -114,7 +116,7 @@ export function DiscoverScreen({
                           passStyle,
                         ]}
                       >
-                        <Text style={local.passText}>PASS</Text>
+                        <Text style={local.passText}>{t('discover.pass')}</Text>
                       </Animated.View>
 
                       {/* Interested badge */}
@@ -126,7 +128,7 @@ export function DiscoverScreen({
                         ]}
                       >
                         <Text style={local.interestedText}>
-                          INTERESTED
+                          {t('discover.interested')}
                         </Text>
                       </Animated.View>
 
@@ -153,14 +155,14 @@ export function DiscoverScreen({
           <RefreshableEmpty refreshControl={refreshControl}>
           <View style={shared.emptyState}>
             <Text style={shared.emptyTitle}>
-              {loading ? 'Loading...' : "You're all caught up."}
+              {loading ? t('common.loading') : t('discover.caughtUp')}
             </Text>
 
             {!loading && (
               <Text style={shared.emptySubtitle}>
                 {isRecruiter
-                  ? 'No more candidates right now.'
-                  : 'No more open positions right now.'}
+                  ? t('discover.noCandidates')
+                  : t('discover.noPositions')}
               </Text>
             )}
 
@@ -169,7 +171,7 @@ export function DiscoverScreen({
               onPress={onRefresh}
             >
               <Text style={shared.refreshText}>
-                Refresh
+                {t('common.refresh')}
               </Text>
             </Pressable>
           </View>

@@ -11,6 +11,7 @@ import type { Urgency } from './response-timers';
 
 export { formatHours };
 import { parseServerTime } from './time';
+import { t } from './i18n/core';
 
 export const REPLY_DAY_OPTIONS = [1, 2, 3, 4, 5] as const;
 export const DEFAULT_REPLY_DAYS = 2;
@@ -90,32 +91,32 @@ export function requestOutcomeNotice(
   requests: { name: string; hours: number; status: ReplyRequest['status'] }[]
 ): { title: string; message: string } {
   const line = (r: (typeof requests)[number]) => {
-    const what = `a ${formatHours(r.hours)} reply time`;
+    const what = t('rw.what', { time: formatHours(r.hours) });
     return r.status === 'accepted'
-      ? `${r.name} agreed to ${what}.`
+      ? t('rw.accepted', { name: r.name, what })
       : r.status === 'declined'
-        ? `${r.name} declined ${what}.`
-        : `${r.name} didn't answer your request for ${what} in time, so it expired.`;
+        ? t('rw.declined', { name: r.name, what })
+        : t('rw.expired', { name: r.name, what });
   };
   if (requests.length === 1) {
     const [r] = requests;
     return {
       title:
         r.status === 'accepted'
-          ? 'Reply time changed'
+          ? t('rw.titleAccepted')
           : r.status === 'declined'
-            ? 'Request declined'
-            : 'Request expired',
-      message: line(r) + (r.status === 'accepted' ? '' : ' The reply time stays as it was.'),
+            ? t('rw.titleDeclined')
+            : t('rw.titleExpired'),
+      message: line(r) + (r.status === 'accepted' ? '' : t('rw.stays')),
     };
   }
-  return { title: `${requests.length} reply time updates`, message: requests.map(line).join('\n') };
+  return { title: t('rw.manyTitle', { count: requests.length }), message: requests.map(line).join('\n') };
 }
 
 // What the other person is told when someone asks to change the window.
 export function incomingRequestNotice(name: string, hours: number): { title: string; message: string } {
   return {
-    title: 'Reply time request',
-    message: `${name} would like to change your reply time to ${formatHours(hours)}. Open the chat to accept or decline.`,
+    title: t('rw.incomingTitle'),
+    message: t('rw.incomingMessage', { name, time: formatHours(hours) }),
   };
 }

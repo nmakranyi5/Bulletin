@@ -4,6 +4,7 @@
 // who owes a reply has to give one. Timers never close or change a chat; they only
 // show how much time is left and trigger an alert when the limit is reached.
 
+import { t } from './i18n/core';
 import { parseServerTime, serverNow } from './time';
 
 export const URGENCY_LEVELS = ['urgent', 'standard', 'flexible'] as const;
@@ -11,31 +12,32 @@ export type Urgency = (typeof URGENCY_LEVELS)[number];
 
 const HOUR = 3_600_000;
 
+// Getters, so the text follows the current language each time it is read.
+function level(u: Urgency, windowMs: number) {
+  return {
+    windowMs,
+    get label() {
+      return t(`urgency.${u}.label`);
+    },
+    get article() {
+      return t(`urgency.${u}.article`);
+    },
+    get windowLabel() {
+      return t(`urgency.${u}.window`);
+    },
+    get blurb() {
+      return t(`urgency.${u}.blurb`);
+    },
+  };
+}
+
 export const URGENCY: Record<
   Urgency,
   { label: string; article: string; windowMs: number; windowLabel: string; blurb: string }
 > = {
-  urgent: {
-    label: 'Urgent',
-    article: 'an urgent',
-    windowMs: 2 * HOUR,
-    windowLabel: '2 hours',
-    blurb: 'Hiring fast, e.g. an open emergency-service slot.',
-  },
-  standard: {
-    label: 'Standard',
-    article: 'a standard',
-    windowMs: 24 * HOUR,
-    windowLabel: '24 hours',
-    blurb: 'A normal hiring pace.',
-  },
-  flexible: {
-    label: 'Flexible',
-    article: 'a flexible',
-    windowMs: 72 * HOUR,
-    windowLabel: '3 days',
-    blurb: 'No rush, building a pipeline.',
-  },
+  urgent: level('urgent', 2 * HOUR),
+  standard: level('standard', 24 * HOUR),
+  flexible: level('flexible', 72 * HOUR),
 };
 
 // Postings without an urgency (older ones, or "General" interests) count as standard.
@@ -81,14 +83,14 @@ export function timerStatusFor(
 export function formatDuration(ms: number): string {
   const abs = Math.abs(ms);
   const totalMin = Math.floor(abs / 60_000);
-  if (totalMin < 1) return 'under 1m';
-  if (totalMin < 60) return `${totalMin}m`;
+  if (totalMin < 1) return t('dur.under1m');
+  if (totalMin < 60) return t('dur.m', { m: totalMin });
   const hours = Math.floor(totalMin / 60);
   const mins = totalMin % 60;
-  if (hours < 24) return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  if (hours < 24) return mins ? t('dur.hm', { h: hours, m: mins }) : t('dur.h', { h: hours });
   const days = Math.floor(hours / 24);
   const remHours = hours % 24;
-  return remHours ? `${days}d ${remHours}h` : `${days}d`;
+  return remHours ? t('dur.dh', { d: days, h: remHours }) : t('dur.d', { d: days });
 }
 
 // Whose side of the conversation we're describing.
@@ -97,11 +99,13 @@ export function formatDuration(ms: number): string {
 export function timerLabel(status: TimerStatus, side: 'responder' | 'waiting'): string {
   if (status.state === 'overdue') {
     return side === 'responder'
-      ? `Reply overdue by ${formatDuration(status.remainingMs)}`
-      : `No reply yet, overdue by ${formatDuration(status.remainingMs)}`;
+      ? t('timer.replyOverdue', { time: formatDuration(status.remainingMs) })
+      : t('timer.noReplyOverdue', { time: formatDuration(status.remainingMs) });
   }
   const left = formatDuration(status.remainingMs);
-  return side === 'responder' ? `${left} left to reply` : `Reply due in ${left}`;
+  return side === 'responder'
+    ? t('timer.leftToReply', { time: left })
+    : t('timer.replyDueIn', { time: left });
 }
 
 // A reply someone currently owes.
@@ -127,9 +131,9 @@ export function windowOf(item: PendingReply): number {
 
 // "2 hours", "1 day", "3 days"
 export function formatHours(hours: number): string {
-  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}`;
+  if (hours < 24) return t('hours', { count: hours });
   const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? '' : 's'}`;
+  return t('days', { count: days });
 }
 
 export function overdueReplies(items: PendingReply[], now: number): PendingReply[] {
@@ -156,21 +160,25 @@ export function alertCopy(
     // A chat's reply time was agreed by both people; an interest follows the posting's urgency.
     const rule =
       item.kind === 'chat' && item.windowMs !== undefined
-        ? `You both agreed to reply within ${formatHours(item.windowMs / 3_600_000)}`
-        : `This is ${cfg.article} role, so ${item.firstMove ? 'a first message' : 'a reply'} is expected within ${cfg.windowLabel}`;
+        ? t('timer.ruleAgreed', { window: formatHours(item.windowMs / 3_600_000) })
+        : t('timer.ruleUrgency', {
+            article: cfg.article,
+            what: item.firstMove ? t('timer.firstMessage') : t('timer.aReply'),
+            window: cfg.windowLabel,
+          });
     return {
-      title: 'Time to reply',
+      title: t('timer.alertTitle'),
       message:
         item.kind === 'interest'
-          ? `${item.name} has been waiting ${waited} for an answer to their interest. ${rule}.`
+          ? t('timer.alertInterest', { name: item.name, waited, rule })
           : item.firstMove
-          ? `You matched with ${item.name} ${waited} ago and they're waiting to hear from you. ${rule}.`
-          : `${item.name} has been waiting ${waited} for your reply. ${rule}.`,
+          ? t('timer.alertFirstMove', { name: item.name, waited, rule })
+          : t('timer.alertChat', { name: item.name, waited, rule }),
     };
   }
   const names = due.slice(0, 3).map((d) => d.name).join(', ');
   return {
-    title: `${due.length} replies are overdue`,
-    message: `${names}${due.length > 3 ? ' and others' : ''} are waiting on you.`,
+    title: t('timer.overdueTitle', { count: due.length }),
+    message: t(due.length > 3 ? 'timer.overdueMessageMore' : 'timer.overdueMessage', { names }),
   };
 }

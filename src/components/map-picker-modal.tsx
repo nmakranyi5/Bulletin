@@ -25,6 +25,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSharedStyles } from '../styles/shared';
 import { currentPosition } from './current-position';
 import { MapSurface, MapSurfaceHandle } from './map-surface';
+import { useT } from '../../lib/i18n';
 
 type Place = { text: string; lat: number | null; lng: number | null };
 
@@ -43,6 +44,7 @@ export function MapPickerModal({
   onPick: (place: Place) => void;
 }) {
   const { colors: c, mode } = useTheme();
+  const t = useT();
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const map = useRef<MapSurfaceHandle>(null);
@@ -96,13 +98,10 @@ export function MapPickerModal({
     try {
       const hit = await searchPlace(q);
       if (!hit)
-        Alert.alert(
-          'Not found',
-          "We couldn't find that place. Try a city and state, or an address."
-        );
+        Alert.alert(t('ui.notFoundTitle'), t('ui.notFoundBody'));
       else drop(hit, true);
     } catch {
-      Alert.alert('Search failed', 'Check your connection and try again, or tap the map instead.');
+      Alert.alert(t('ui.searchFailedTitle'), t('ui.searchFailedBody'));
     }
     setSearching(false);
   };
@@ -111,7 +110,7 @@ export function MapPickerModal({
     try {
       drop(await currentPosition(), true);
     } catch {
-      Alert.alert("Couldn't find you", 'Allow location access, or tap the map to drop a pin.');
+      Alert.alert(t('ui.cantFindYouTitle'), t('ui.cantFindYouWeb'));
     }
   };
 
@@ -130,8 +129,8 @@ export function MapPickerModal({
   const content = (
     <>
       <View style={local.header}>
-        <Text style={local.title}>Pick a location</Text>
-        <Pressable onPress={onCancel} hitSlop={10} accessibilityLabel="Close">
+        <Text style={local.title}>{t('ui.pickLocation')}</Text>
+        <Pressable onPress={onCancel} hitSlop={10} accessibilityLabel={t('common.close')}>
           <X size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
       </View>
@@ -140,7 +139,7 @@ export function MapPickerModal({
         <Search size={18} color={c.textSecondary} strokeWidth={2.2} />
         <TextInput
           style={local.searchInput}
-          placeholder="Search a city or address"
+          placeholder={t('ui.searchPlace')}
           placeholderTextColor={c.muted}
           value={query}
           onChangeText={setQuery}
@@ -161,7 +160,7 @@ export function MapPickerModal({
         <Pressable
           style={local.locateButton}
           onPress={useMyLocation}
-          accessibilityLabel="Use my location"
+          accessibilityLabel={t('ui.useMyLocation')}
         >
           <LocateFixed size={20} color={c.text} strokeWidth={2.2} />
         </Pressable>
@@ -169,14 +168,14 @@ export function MapPickerModal({
 
       <View style={local.footer}>
         <Text style={[local.picked, !pin && { color: c.muted }]} numberOfLines={2}>
-          {!pin ? 'Tap the map to drop a pin' : looking ? 'Finding the place name...' : label}
+          {!pin ? t('ui.tapMap') : looking ? t('ui.findingPlace') : label}
         </Text>
         <Pressable
           style={[shared.authButton, (!pin || looking) && shared.authButtonDisabled]}
           onPress={confirm}
           disabled={!pin || looking}
         >
-          <Text style={shared.authButtonText}>Use this location</Text>
+          <Text style={shared.authButtonText}>{t('ui.useThisLocation')}</Text>
         </Pressable>
       </View>
     </>

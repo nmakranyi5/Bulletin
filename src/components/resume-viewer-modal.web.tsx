@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../lib/app-theme';
 import { useResumeUrl } from './use-resume-url';
+import { useT } from '../../lib/i18n';
 
 // Shows a PDF or image document (a resume by default) on the web, using the browser's own PDF viewer.
 export function ResumeViewerModal({
@@ -20,6 +21,7 @@ export function ResumeViewerModal({
   onClose: () => void;
 }) {
   const c = useTheme().colors;
+  const t = useT();
   const local = useLocalStyles();
   const link = useResumeUrl(url, visible);
 
@@ -29,23 +31,23 @@ export function ResumeViewerModal({
         <View style={local.card}>
           <View style={local.header}>
             <Text style={local.title} numberOfLines={1}>
-              {title ?? (name ? `${name}'s resume` : 'Resume')}
+              {title ?? (name ? t('ui.resumeOf', { name }) : t('ui.resume'))}
             </Text>
             <Pressable
               onPress={() => Linking.openURL(link.url ?? url)}
               hitSlop={10}
-              accessibilityLabel="Open in a new tab"
+              accessibilityLabel={t('ui.openNewTab')}
             >
               <ExternalLink size={20} color={c.textSecondary} strokeWidth={2.2} />
             </Pressable>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={t('common.close')}>
               <X size={22} color={c.text} strokeWidth={2.2} />
             </Pressable>
           </View>
           {visible && link.url && (
             <iframe
               src={link.url}
-              title="Resume"
+              title={t('ui.resume')}
               style={{ flex: 1, width: '100%', border: 'none', background: '#fff' }}
             />
           )}

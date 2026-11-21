@@ -3,14 +3,15 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/app-theme';
+import { MessageKey, useT } from '../../lib/i18n';
 
 export type TabKey = 'discover' | 'interests' | 'messages' | 'profile';
 
-export const TABS: { key: TabKey; label: string; Icon: typeof Search }[] = [
-  { key: 'discover', label: 'Discover', Icon: Search },
-  { key: 'interests', label: 'Interests', Icon: Handshake },
-  { key: 'messages', label: 'Messages', Icon: MessageCircle },
-  { key: 'profile', label: 'Profile', Icon: UserRound },
+export const TABS: { key: TabKey; label: MessageKey; Icon: typeof Search }[] = [
+  { key: 'discover', label: 'tabs.discover', Icon: Search },
+  { key: 'interests', label: 'tabs.interests', Icon: Handshake },
+  { key: 'messages', label: 'tabs.messages', Icon: MessageCircle },
+  { key: 'profile', label: 'tabs.profile', Icon: UserRound },
 ];
 
 export function TabBar({
@@ -28,6 +29,7 @@ export function TabBar({
   // 'side' is a vertical sidebar for wide web windows.
   variant?: 'bottom' | 'side';
 }) {
+  const t = useT();
   const c = useTheme().colors;
   const local = useLocalStyles();
   const insets = useSafeAreaInsets();
@@ -59,7 +61,7 @@ export function TabBar({
                 color={isActive ? c.text : c.textSecondary}
                 strokeWidth={isActive ? 2.4 : 2}
               />
-              <Text style={[local.sideLabel, isActive && local.sideLabelActive]}>{label}</Text>
+              <Text style={[local.sideLabel, isActive && local.sideLabelActive]}>{t(label)}</Text>
               {count > 0 && (
                 <View style={local.sideBadge}>
                   <Text style={local.badgeText}>{count > 9 ? '9+' : count}</Text>
@@ -100,7 +102,7 @@ export function TabBar({
                 </View>
               )}
             </View>
-            <Text style={[local.tabLabel, isActive && local.tabLabelActive]}>{label}</Text>
+            <Text style={[local.tabLabel, isActive && local.tabLabelActive]}>{t(label)}</Text>
           </Pressable>
         );
       })}

@@ -14,9 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 import { ForgotPasswordScreen } from './forgot-password-screen';
 
 export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) => void }) {
+  const t = useT();
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
@@ -29,7 +31,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing info', 'Please enter both email and password.');
+      Alert.alert(t('common.missingInfo'), t('auth.enterBoth'));
       return;
     }
 
@@ -47,12 +49,12 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
     setLoading(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
 
     if (mode === 'signUp') {
-      Alert.alert('Check your email', 'Confirm your email to finish signing up.');
+      Alert.alert(t('auth.checkEmailTitle'), t('auth.checkEmailBody'));
     }
   };
 
@@ -79,7 +81,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
         >
         <Text style={shared.logo}>bulletin.</Text>
         <Text style={shared.subtitle}>
-          {mode === 'signIn' ? 'Welcome back.' : 'Create your account.'}
+          {mode === 'signIn' ? t('auth.welcomeBack') : t('auth.createAccount')}
         </Text>
 
         <View style={[shared.subTabBar, local.authModeToggle]}>
@@ -90,7 +92,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
             <Text
               style={[shared.subTabText, mode === 'signIn' && shared.subTabTextActive]}
             >
-              Log In
+              {t('auth.logIn')}
             </Text>
           </Pressable>
 
@@ -101,7 +103,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
             <Text
               style={[shared.subTabText, mode === 'signUp' && shared.subTabTextActive]}
             >
-              Sign Up
+              {t('auth.signUp')}
             </Text>
           </Pressable>
         </View>
@@ -115,7 +117,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
                 onPress={() => setRole(r)}
               >
                 <Text style={[shared.subTabText, role === r && shared.subTabTextActive]}>
-                  {r === 'seeker' ? "I'm a Seeker" : "I'm a Recruiter"}
+                  {r === 'seeker' ? t('auth.imSeeker') : t('auth.imRecruiter')}
                 </Text>
               </Pressable>
             ))}
@@ -124,7 +126,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
 
         <TextInput
           style={shared.authInput}
-          placeholder="Email"
+          placeholder={t('auth.email')}
           placeholderTextColor={c.muted}
           value={email}
           onChangeText={setEmail}
@@ -134,7 +136,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
 
         <TextInput
           style={shared.authInput}
-          placeholder="Password"
+          placeholder={t('auth.password')}
           placeholderTextColor={c.muted}
           value={password}
           onChangeText={setPassword}
@@ -147,7 +149,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
           disabled={loading}
         >
           <Text style={shared.authButtonText}>
-            {loading ? 'Please wait...' : mode === 'signIn' ? 'Log In' : 'Sign Up'}
+            {loading ? t('common.pleaseWait') : mode === 'signIn' ? t('auth.logIn') : t('auth.signUp')}
           </Text>
         </Pressable>
 
@@ -157,7 +159,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
             onPress={() => setShowForgot(true)}
             disabled={loading}
           >
-            <Text style={shared.subtitle}>Forgot password?</Text>
+            <Text style={shared.subtitle}>{t('auth.forgot')}</Text>
           </Pressable>
         )}
         </ScrollView>

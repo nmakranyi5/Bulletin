@@ -1,5 +1,7 @@
 // HVAC-specific field options and EPA 608 matching logic.
 
+import { t } from './i18n/core';
+
 export const EPA_TYPES = ['I', 'II', 'III'] as const;
 export type EpaType = (typeof EPA_TYPES)[number];
 
@@ -17,11 +19,13 @@ export function isUniversal(types: readonly string[] | null | undefined): boolea
 }
 
 export function formatWorkerEpa(types: readonly string[] | null | undefined): string {
-  if (!types || types.length === 0) return 'No EPA 608';
-  if (isUniversal(types)) return 'EPA 608 Universal';
-  return `EPA 608 ${EPA_TYPES.filter((t) => types.includes(t))
-    .map((t) => `Type ${t}`)
-    .join(', ')}`;
+  if (!types || types.length === 0) return t('hvac.noEpa');
+  if (isUniversal(types)) return t('hvac.epaUniversal');
+  return t('hvac.epaTypes', {
+    types: EPA_TYPES.filter((ty) => types.includes(ty))
+      .map((ty) => t('hvac.epaType', { type: ty }))
+      .join(', '),
+  });
 }
 
 // The three types are parallel categories; only Universal is a superset.
@@ -39,11 +43,11 @@ export function epaMismatchNote(
   held: readonly string[] | null | undefined
 ): string | null {
   if (!required || satisfiesEpa(required, held)) return null;
-  return `Requires EPA 608 Type ${required}`;
+  return t('hvac.requiresEpa', { type: required });
 }
 
 export function formatTradeStart(year: number | null | undefined): string | null {
-  return year ? `Started ${year}` : null;
+  return year ? t('hvac.started', { year }) : null;
 }
 
 export function parseYear(input: string, minYear = 1950): number | null | 'invalid' {
@@ -73,7 +77,7 @@ export function experienceMismatchNote(
   if (!minYears) return null;
   const have = yearsInTrade(startYear);
   if (have !== null && have >= minYears) return null;
-  return `Wants ${minYears}+ yrs experience`;
+  return t('hvac.wantsYears', { years: minYears });
 }
 
 // Postings can list several schedules; falls back to the legacy single schedule_type.
@@ -122,7 +126,7 @@ export function formatPay(position: {
 }): string | null {
   const { pay_type: type, pay_min: min, pay_max: max } = position;
   if (type && (min != null || max != null)) {
-    const unit = type === 'Hourly' ? '/hr' : '/yr';
+    const unit = type === 'Hourly' ? t('hvac.perHour') : t('hvac.perYear');
     const lo = min ?? max!;
     const hi = max ?? min!;
     const range = lo === hi ? money(lo, type) : `${money(lo, type)}–${money(hi, type)}`;
@@ -150,9 +154,9 @@ export const WORK_TYPES = [
 ] as const;
 
 export function formatCompanySize(size: string | null | undefined): string | null {
-  return size ? `${size} employees` : null;
+  return size ? t('hvac.employees', { size }) : null;
 }
 
 export function formatEstablished(year: number | null | undefined): string | null {
-  return year ? `Est. ${year}` : null;
+  return year ? t('hvac.est', { year }) : null;
 }

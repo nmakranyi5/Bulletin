@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { declineNotice } from '../../../lib/decline-reasons';
 import { useAnnounceOnce } from '../../hooks/use-announce-once';
 import { InterestRow } from '../../types';
+import { t } from '../../../lib/i18n';
 
 // Tells you once when an interest you sent is declined, with the reason, so it can't go
 // unnoticed in a list.
@@ -24,7 +25,7 @@ export function useDeclineNotices({
     announce: (fresh, done) => {
       const { title, message } = declineNotice(
         fresh.map((i) => ({
-          name: i.to_profile?.name ?? 'Someone',
+          name: i.to_profile?.name ?? t('interests.someone'),
           position: i.position?.title,
           reason: i.decline_reason,
           note: i.decline_note,
@@ -35,9 +36,9 @@ export function useDeclineNotices({
         title,
         message,
         [
-          { text: 'OK', style: 'cancel', onPress: done },
+          { text: t('common.ok'), style: 'cancel', onPress: done },
           {
-            text: 'View',
+            text: t('interests.notice.view'),
             onPress: () => {
               done();
               onView();

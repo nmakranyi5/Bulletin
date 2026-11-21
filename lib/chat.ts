@@ -1,6 +1,7 @@
 // Chat helpers: time formatting and conversation summaries.
 
 import { parseServerTime, serverNow } from './time';
+import { localeTag, t } from './i18n/core';
 
 export type MessageStatus = 'sending' | 'sent' | 'read' | 'failed';
 
@@ -21,7 +22,7 @@ const sameDay = (a: Date, b: Date) =>
   a.getDate() === b.getDate();
 
 export function formatTime(iso: string): string {
-  return parseServerTime(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return parseServerTime(iso).toLocaleTimeString(localeTag(), { hour: 'numeric', minute: '2-digit' });
 }
 
 export function formatDayLabel(iso: string): string {
@@ -29,9 +30,9 @@ export function formatDayLabel(iso: string): string {
   const now = new Date(serverNow());
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (sameDay(d, now)) return 'Today';
-  if (sameDay(d, yesterday)) return 'Yesterday';
-  return d.toLocaleDateString([], {
+  if (sameDay(d, now)) return t('chat.today');
+  if (sameDay(d, yesterday)) return t('chat.yesterday');
+  return d.toLocaleDateString(localeTag(), {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -46,8 +47,8 @@ export function formatListTime(iso: string): string {
   if (sameDay(d, now)) return formatTime(iso);
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (sameDay(d, yesterday)) return 'Yesterday';
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  if (sameDay(d, yesterday)) return t('chat.yesterday');
+  return d.toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' });
 }
 
 export function isSameDay(a: string, b: string): boolean {
@@ -83,7 +84,7 @@ export function summarizeConversations(
   for (const r of rows) {
     const fromMe = r.sender_id === userId;
     const meta = (out[r.interest_id] ??= {
-      lastText: r.deleted_at ? 'Message deleted' : r.body,
+      lastText: r.deleted_at ? t('chat.messageDeleted') : r.body,
       lastAt: r.created_at,
       lastFromMe: fromMe,
       lastRead: !!r.read_at,
