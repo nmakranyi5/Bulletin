@@ -19,6 +19,7 @@ import { ReasonModal } from '../../components/reason-modal';
 import { ResumeViewerModal } from '../../components/resume-viewer-modal';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 type Pending = {
   id: string;
@@ -44,6 +45,7 @@ const BUCKET = 'verification-docs';
 export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [items, setItems] = useState<Pending[]>([]);
   // Signed links for each file path, created when the list loads.
@@ -56,7 +58,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
   const load = async () => {
     const { data, error } = await supabase.rpc('list_pending_verifications');
     if (error) {
-      Alert.alert('Could not load', error.message);
+      Alert.alert(t('rev.couldNotLoad'), error.message);
       setLoading(false);
       return;
     }
@@ -94,12 +96,15 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
 
   const approve = (req: Pending) => {
     Alert.alert(
-      `Approve ${KIND_INFO[req.kind].title}?`,
-      `${req.name ?? 'This person'} gets the "${KIND_INFO[req.kind].badge}" badge.`,
+      t('rev.approveTitle', { kind: KIND_INFO[req.kind].title }),
+      t('rev.approveBody', {
+        name: req.name ?? t('rev.thisPerson'),
+        badge: KIND_INFO[req.kind].badge,
+      }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Approve',
+          text: t('rev.approve'),
           onPress: async () => {
             setBusyId(req.id);
             const { error } = await supabase.rpc('review_verification', {
@@ -108,7 +113,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
               p_reason: null,
             });
             setBusyId(null);
-            if (error) Alert.alert('Could not approve', error.message);
+            if (error) Alert.alert(t('rev.couldNotApprove'), error.message);
             else await finish(req);
           },
         },
@@ -123,7 +128,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
       p_reason: rejectionText(reason, note),
     });
     if (error) {
-      Alert.alert('Could not reject', error.message);
+      Alert.alert(t('rev.couldNotReject'), error.message);
       return false;
     }
     setRejecting(null);
@@ -134,24 +139,24 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
   return (
     <SafeAreaView style={shared.simpleScreen}>
       <View style={shared.chatHeader}>
-        <Pressable onPress={onBack} style={shared.chatBackButton} accessibilityLabel="Go back">
+        <Pressable onPress={onBack} style={shared.chatBackButton} accessibilityLabel={t('ver.goBack')}>
           <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
         <View style={shared.chatHeaderInfo}>
-          <Text style={shared.chatHeaderName}>Review verifications</Text>
+          <Text style={shared.chatHeaderName}>{t('rev.title')}</Text>
         </View>
       </View>
 
       {loading ? (
         <View style={shared.emptyState}>
-          <Text style={shared.emptySubtitle}>Loading...</Text>
+          <Text style={shared.emptySubtitle}>{t('common.loading')}</Text>
         </View>
       ) : items.length === 0 ? (
         <RefreshableEmpty refreshControl={refreshControl}>
           <View style={shared.emptyState}>
             <ShieldCheck size={48} color={c.muted} strokeWidth={1.5} />
-            <Text style={shared.emptyTitle}>All caught up</Text>
-            <Text style={shared.emptySubtitle}>New requests show up here.</Text>
+            <Text style={shared.emptyTitle}>{t('rev.caughtUp')}</Text>
+            <Text style={shared.emptySubtitle}>{t('rev.caughtUpHint')}</Text>
           </View>
         </RefreshableEmpty>
       ) : (
@@ -166,27 +171,27 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
               <View style={local.card}>
                 <View style={local.titleRow}>
                   <Text style={local.kind}>{info.title}</Text>
-                  <Text style={local.role}>{r.is_recruiter ? 'Recruiter' : 'Job seeker'}</Text>
+                  <Text style={local.role}>{r.is_recruiter ? t('rev.recruiter') : t('rev.seeker')}</Text>
                 </View>
                 <Text style={local.name}>
-                  {r.name ?? 'Unknown'}
+                  {r.name ?? t('interests.unknown')}
                   {r.username ? ` · @${r.username}` : ''}
                 </Text>
 
                 {/* What they say about themselves, to compare against the evidence. */}
                 <View style={local.facts}>
                   {r.company_name ? (
-                    <Text style={local.fact}>Company: {r.company_name}</Text>
+                    <Text style={local.fact}>{t('rev.company', { value: r.company_name })}</Text>
                   ) : null}
-                  {r.location ? <Text style={local.fact}>Location: {r.location}</Text> : null}
+                  {r.location ? <Text style={local.fact}>{t('rev.location', { value: r.location })}</Text> : null}
                   {!r.is_recruiter && (r.epa_608_types ?? []).length > 0 ? (
                     <Text style={local.fact}>
-                      Claims EPA 608 Type {(r.epa_608_types ?? []).join(', ')}
+                      {t('rev.claimsEpa', { types: (r.epa_608_types ?? []).join(', ') })}
                     </Text>
                   ) : null}
                   {r.license_number ? (
                     <Text style={local.fact}>
-                      License: {r.license_number} ({r.license_state})
+                      {t('rev.license', { number: r.license_number, state: r.license_state })}
                     </Text>
                   ) : null}
                 </View>
@@ -196,7 +201,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                   if (!url) {
                     return (
                       <Text key={path} style={local.missingFile}>
-                        Couldn't load an attached file. Pull down to retry before deciding.
+                        {t('rev.missingFile')}
                       </Text>
                     );
                   }
@@ -204,7 +209,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                     <Pressable
                       key={path}
                       onPress={() =>
-                        setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })
+                        setViewing({ url, title: `${info.title} · ${r.name ?? t('interests.unknown')}` })
                       }
                     >
                       <Image source={{ uri: url }} style={local.image} resizeMode="contain" />
@@ -214,21 +219,22 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                       key={path}
                       style={local.docButton}
                       onPress={() =>
-                        setViewing({ url, title: `${info.title} · ${r.name ?? 'Unknown'}` })
+                        setViewing({ url, title: `${info.title} · ${r.name ?? t('interests.unknown')}` })
                       }
                     >
                       <FileText size={16} color={c.text} strokeWidth={2.2} />
-                      <Text style={local.docText}>Open document</Text>
+                      <Text style={local.docText}>{t('rev.openDocument')}</Text>
                     </Pressable>
                   );
                 })}
 
                 <Text style={local.checklist}>
-                  Check:{' '}
-                  {info.checklist({
-                    name: r.name ?? 'the applicant',
-                    company: r.company_name,
-                    state: r.license_state,
+                  {t('rev.check', {
+                    text: info.checklist({
+                      name: r.name ?? t('rev.theApplicant'),
+                      company: r.company_name,
+                      state: r.license_state,
+                    }),
                   })}
                 </Text>
 
@@ -238,7 +244,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                     onPress={() => setRejecting(r)}
                     disabled={busyId === r.id}
                   >
-                    <Text style={local.rejectText}>Reject</Text>
+                    <Text style={local.rejectText}>{t('rev.reject')}</Text>
                   </Pressable>
                   <Pressable
                     style={[local.approveButton, busyId === r.id && local.disabled]}
@@ -246,7 +252,7 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
                     disabled={busyId === r.id}
                   >
                     <BadgeCheck size={16} color={c.onAccent} strokeWidth={2.4} />
-                    <Text style={local.approveText}>Approve</Text>
+                    <Text style={local.approveText}>{t('rev.approve')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -257,13 +263,13 @@ export function ReviewVerificationsScreen({ onBack }: { onBack: () => void }) {
 
       <ReasonModal<RejectReason>
         visible={!!rejecting}
-        title="Why not?"
-        subtitle={`${rejecting?.name ?? 'They'} will see this reason and can send a new request.`}
+        title={t('rev.whyNot')}
+        subtitle={t('rev.rejectSubtitle', { name: rejecting?.name ?? t('rev.they') })}
         options={(rejecting ? REJECT_REASONS_FOR[rejecting.kind] : []).map((key) => ({
           key,
           label: REJECT_REASONS[key],
         }))}
-        submitLabel="Reject request"
+        submitLabel={t('rev.rejectRequest')}
         onCancel={() => setRejecting(null)}
         onSubmit={(reason, note) =>
           rejecting ? reject(rejecting, reason, note) : Promise.resolve(false)

@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 
 import { handleAuthUrl } from '../../../lib/auth-links';
 import { supabase } from '../../../lib/supabase';
+import { t } from '../../../lib/i18n';
 
 // Session, email-link handling (confirm signup / reset password) and onboarding status.
 export function useAuthSession() {
@@ -47,7 +48,7 @@ export function useAuthSession() {
       });
       if (result.error) {
         setRecovering(false);
-        Alert.alert('Link problem', result.error);
+        Alert.alert(t('auth.linkProblem'), result.error);
       }
     };
 
@@ -77,7 +78,7 @@ export function useAuthSession() {
         if (cancelled) return;
         // 23505 = row already exists (e.g. a sign-up trigger or a parallel run).
         if (error && error.code !== '23505') {
-          Alert.alert('Could not set up your profile', error.message);
+          Alert.alert(t('auth.profileSetup'), error.message);
         }
         setOnboardedState({ userId: uid, value: false });
       } else {

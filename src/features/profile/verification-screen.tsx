@@ -19,6 +19,7 @@ import { supabase } from '../../../lib/supabase';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { uploadFileToBucket } from './upload';
+import { localeTag, useT } from '../../../lib/i18n';
 
 type RequestRow = {
   kind: VerificationKind;
@@ -42,6 +43,7 @@ export function VerificationScreen({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [badges, setBadges] = useState<BadgeRow[]>([]);
@@ -106,16 +108,16 @@ export function VerificationScreen({
   const submit = async (kind: VerificationKind) => {
     const needsFile = kind !== 'contractor_license';
     if (needsFile && files.length === 0) {
-      Alert.alert('Add a file', 'Attach a clear photo or PDF.');
+      Alert.alert(t('ver.addFileTitle'), t('ver.addFileBody'));
       return;
     }
     if (kind === 'contractor_license') {
       if (!cleanLicenseNumber(licenseNumber)) {
-        Alert.alert('License number', 'Enter your license number.');
+        Alert.alert(t('ver.licenseTitle'), t('ver.licenseBody'));
         return;
       }
       if (!isStateCode(licenseState)) {
-        Alert.alert('State', 'Enter the two-letter state that issued it, e.g. TX.');
+        Alert.alert(t('ver.stateTitle'), t('ver.stateBody'));
         return;
       }
     }
@@ -141,12 +143,9 @@ export function VerificationScreen({
 
       setOpenKind(null);
       await load();
-      Alert.alert(
-        'Request sent',
-        "It's in review now. You'll see the result here, and your badge appears if it's approved."
-      );
+      Alert.alert(t('ver.sentTitle'), t('ver.sentBody'));
     } catch (err: any) {
-      Alert.alert('Could not send', err?.message ?? 'Something went wrong.');
+      Alert.alert(t('ver.couldNotSend'), err?.message ?? t('onb.wentWrong'));
     } finally {
       setSubmitting(false);
     }
@@ -155,11 +154,11 @@ export function VerificationScreen({
   return (
     <SafeAreaView style={shared.simpleScreen}>
       <View style={shared.chatHeader}>
-        <Pressable onPress={onBack} style={shared.chatBackButton} accessibilityLabel="Go back">
+        <Pressable onPress={onBack} style={shared.chatBackButton} accessibilityLabel={t('ver.goBack')}>
           <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
         <View style={shared.chatHeaderInfo}>
-          <Text style={shared.chatHeaderName}>Get verified</Text>
+          <Text style={shared.chatHeaderName}>{t('ver.title')}</Text>
         </View>
       </View>
 
@@ -170,25 +169,24 @@ export function VerificationScreen({
       >
         <Text style={shared.subtitle}>
           {isRecruiter
-            ? 'Show candidates your business is real. A reviewer checks what you send, then adds a badge to your profile.'
-            : 'Show recruiters your certification is real. A reviewer checks what you send, then adds a badge to your profile.'}
+            ? t('ver.introRecruiter')
+            : t('ver.introSeeker')}
         </Text>
         <Text style={local.privacy}>
-          Your files are only seen by reviewers, and they're deleted once a decision is made. Other
-          people see the badge, never your documents or numbers.
+          {t('ver.privacy')}
         </Text>
 
         {!loading && requests.some((r) => r.status === 'pending') && (
           <View style={local.banner}>
             <Clock size={16} color={c.amber} strokeWidth={2.4} />
             <Text style={local.bannerText}>
-              Your request is in review. We'll show a badge when it's approved.
+              {t('ver.inReviewBanner')}
             </Text>
           </View>
         )}
 
         {loading ? (
-          <Text style={shared.subtitle}>Loading...</Text>
+          <Text style={shared.subtitle}>{t('common.loading')}</Text>
         ) : (
           kindsFor(isRecruiter).map((kind) => {
             const info = KIND_INFO[kind];
@@ -205,23 +203,29 @@ export function VerificationScreen({
                   <View style={local.statusRow}>
                     <BadgeCheck size={16} color={c.green} strokeWidth={2.4} />
                     <Text style={[local.status, { color: c.green }]}>
-                      Verified
                       {badge.expires_at
-                        ? ` until ${new Date(badge.expires_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            year: 'numeric',
-                          })}`
-                        : ''}
+                        ? t('ver.verifiedUntil', {
+                            date: new Date(badge.expires_at).toLocaleDateString(localeTag(), {
+                              month: 'short',
+                              year: 'numeric',
+                            }),
+                          })
+                        : t('ver.verified')}
                     </Text>
                   </View>
                 ) : pending ? (
                   <>
                     <View style={local.statusRow}>
                       <Clock size={16} color={c.amber} strokeWidth={2.4} />
-                      <Text style={[local.status, { color: c.amber }]}>In review</Text>
+                      <Text style={[local.status, { color: c.amber }]}>{t('ver.inReview')}</Text>
                     </View>
                     <Text style={local.ask}>
-                      {`Sent ${new Date(last!.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. A reviewer is checking it. Your badge appears when it's approved, and if there's a problem you'll see why here. Nothing more to do for now.`}
+                      {t('ver.sentInReview', {
+                        date: new Date(last!.created_at).toLocaleDateString(localeTag(), {
+                          month: 'short',
+                          day: 'numeric',
+                        }),
+                      })}
                     </Text>
                   </>
                 ) : (
@@ -229,7 +233,9 @@ export function VerificationScreen({
                     <Text style={local.ask}>{info.ask}</Text>
                     {rejected && (
                       <Text style={local.rejected}>
-                        Not approved: {last?.reject_reason ?? 'no reason given'}. You can try again.
+                        {t('ver.notApproved', {
+                          reason: last?.reject_reason ?? t('ver.noReason'),
+                        })}
                       </Text>
                     )}
                   </>
@@ -237,7 +243,7 @@ export function VerificationScreen({
 
                 {!badge && !pending && openKind !== kind && (
                   <Pressable style={local.button} onPress={() => openForm(kind)}>
-                    <Text style={local.buttonText}>{rejected ? 'Try again' : 'Start'}</Text>
+                    <Text style={local.buttonText}>{rejected ? t('ver.tryAgain') : t('ver.start')}</Text>
                   </Pressable>
                 )}
 
@@ -247,7 +253,7 @@ export function VerificationScreen({
                       <View style={local.licenseRow}>
                         <TextInput
                           style={[shared.authInput, local.licenseNumber]}
-                          placeholder="License number"
+                          placeholder={t('ver.licenseNumber')}
                           placeholderTextColor={c.muted}
                           value={licenseNumber}
                           onChangeText={setLicenseNumber}
@@ -259,7 +265,7 @@ export function VerificationScreen({
                           placeholder="TX"
                           placeholderTextColor={c.muted}
                           value={licenseState}
-                          onChangeText={(t) => setLicenseState(cleanState(t))}
+                          onChangeText={(v) => setLicenseState(cleanState(v))}
                           autoCapitalize="characters"
                         />
                       </View>
@@ -274,7 +280,7 @@ export function VerificationScreen({
                         <Pressable
                           onPress={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
                           hitSlop={10}
-                          accessibilityLabel="Remove file"
+                          accessibilityLabel={t('ver.removeFile')}
                         >
                           <X size={16} color={c.textSecondary} strokeWidth={2.4} />
                         </Pressable>
@@ -286,9 +292,9 @@ export function VerificationScreen({
                         <Text style={local.attachText}>
                           {files.length === 0
                             ? kind === 'contractor_license'
-                              ? 'Attach a photo of the license (optional)'
-                              : 'Attach a photo or PDF'
-                            : 'Attach another file'}
+                              ? t('ver.attachLicense')
+                              : t('ver.attachFile')
+                            : t('ver.attachAnother')}
                         </Text>
                       </Pressable>
                     )}
@@ -299,7 +305,7 @@ export function VerificationScreen({
                       disabled={submitting}
                     >
                       <Text style={shared.authButtonText}>
-                        {submitting ? 'Sending...' : 'Send for review'}
+                        {submitting ? t('ui.sending') : t('ver.sendForReview')}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -307,7 +313,7 @@ export function VerificationScreen({
                       onPress={() => setOpenKind(null)}
                       disabled={submitting}
                     >
-                      <Text style={local.cancelText}>Cancel</Text>
+                      <Text style={local.cancelText}>{t('common.cancel')}</Text>
                     </Pressable>
                   </View>
                 )}

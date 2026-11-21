@@ -26,6 +26,7 @@ import { fetchRatings } from './ratings';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { DeleteAccountModal } from './delete-account-modal';
+import { LANGUAGES, tv, useI18n, useT } from '../../../lib/i18n';
 
 export function ProfileScreen({
   session,
@@ -44,6 +45,7 @@ export function ProfileScreen({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [profile, setProfile] = useState<{
     name: string | null;
@@ -67,6 +69,7 @@ export function ProfileScreen({
   const [showSettings, setShowSettings] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const { mode, setMode } = useTheme();
+  const { setting, setSetting: setLanguageSetting } = useI18n();
 
   const loadProfile = async () => {
     const { data, error } = await supabase
@@ -78,7 +81,7 @@ export function ProfileScreen({
       .maybeSingle();
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
     } else if (data) {
       setProfile(data);
     }
@@ -112,8 +115,8 @@ export function ProfileScreen({
     kindsFor(profile.is_recruiter).every((k) => verifications.some((v) => v.kind === k));
 
   const roleLine = profile?.is_recruiter
-    ? [profile.recruiter_title, profile.company_name].filter(Boolean).join(' at ')
-    : [profile?.trade_role, profile && formatWorkerEpa(profile.epa_608_types)]
+    ? [profile.recruiter_title && tv(profile.recruiter_title), profile.company_name].filter(Boolean).join(t('profile.at'))
+    : [profile?.trade_role && tv(profile.trade_role), profile && formatWorkerEpa(profile.epa_608_types)]
         .filter(Boolean)
         .join(' · ');
 
@@ -130,7 +133,7 @@ export function ProfileScreen({
     >
       <View style={shared.screenHeader}>
         <Text style={shared.screenTitle}>bulletin.</Text>
-        <Text style={shared.subtitle}>Manage your account.</Text>
+        <Text style={shared.subtitle}>{t('profile.subtitle')}</Text>
       </View>
 
       <View style={local.profileCard}>
@@ -145,12 +148,12 @@ export function ProfileScreen({
         )}
 
         {loading ? (
-          <Text style={local.profileSubtext}>Loading...</Text>
+          <Text style={local.profileSubtext}>{t('common.loading')}</Text>
         ) : (
           <>
-            <Text style={local.profileName}>{profile?.name || 'Your Name'}</Text>
+            <Text style={local.profileName}>{profile?.name || t('profile.yourName')}</Text>
             <Text style={local.profileSubtext}>
-              {profile?.username ? `@${profile.username}` : 'Complete your profile'}
+              {profile?.username ? `@${profile.username}` : t('profile.completeProfile')}
             </Text>
             {roleLine ? <Text style={local.profileRoleLine}>{roleLine}</Text> : null}
             <RatingBadge rating={rating} />
@@ -164,7 +167,7 @@ export function ProfileScreen({
         {profile?.is_recruiter && (
           <Pressable style={local.accountActionRow} onPress={onManagePositions}>
             <BriefcaseBusiness size={20} color={c.textSecondary} strokeWidth={2} />
-            <Text style={local.accountActionText}>Manage Positions</Text>
+            <Text style={local.accountActionText}>{t('profile.managePositions')}</Text>
             <ChevronRight size={18} color={c.muted} strokeWidth={2} />
           </Pressable>
         )}
@@ -172,10 +175,10 @@ export function ProfileScreen({
         {!loading && verifications !== null && !fullyVerified && (
           <Pressable style={local.accountActionRow} onPress={onVerification}>
             <BadgeCheck size={20} color={c.textSecondary} strokeWidth={2} />
-            <Text style={local.accountActionText}>Get verified</Text>
+            <Text style={local.accountActionText}>{t('profile.getVerified')}</Text>
             {myRequestInReview && (
               <View style={local.inReviewPill}>
-                <Text style={local.inReviewText}>In review</Text>
+                <Text style={local.inReviewText}>{t('profile.inReview')}</Text>
               </View>
             )}
             <ChevronRight size={18} color={c.muted} strokeWidth={2} />
@@ -185,7 +188,7 @@ export function ProfileScreen({
         {profile?.is_reviewer && (
           <Pressable style={local.accountActionRow} onPress={onReviewVerifications}>
             <ShieldCheck size={20} color={c.textSecondary} strokeWidth={2} />
-            <Text style={local.accountActionText}>Review verifications</Text>
+            <Text style={local.accountActionText}>{t('profile.reviewVerifications')}</Text>
             {pendingReviews > 0 && (
               <View style={local.reviewCount}>
                 <Text style={local.reviewCountText}>{pendingReviews}</Text>
@@ -198,7 +201,7 @@ export function ProfileScreen({
         {!loading && !profile?.phone_verified_at && (
           <Pressable style={local.accountActionRow} onPress={() => setShowPhone(true)}>
             <ShieldCheck size={20} color={c.textSecondary} strokeWidth={2} />
-            <Text style={local.accountActionText}>Verify your phone</Text>
+            <Text style={local.accountActionText}>{t('profile.verifyPhone')}</Text>
             <ChevronRight size={18} color={c.muted} strokeWidth={2} />
           </Pressable>
         )}
@@ -208,7 +211,7 @@ export function ProfileScreen({
           onPress={() => setShowSettings((v) => !v)}
         >
           <Settings size={20} color={c.textSecondary} strokeWidth={2} />
-          <Text style={local.accountActionText}>Settings</Text>
+          <Text style={local.accountActionText}>{t('profile.settings')}</Text>
           <ChevronRight
             size={18}
             color={c.muted}
@@ -219,7 +222,7 @@ export function ProfileScreen({
 
         {showSettings && (
           <View style={local.settingsPanel}>
-            <Text style={shared.sectionLabel}>APPEARANCE</Text>
+            <Text style={shared.sectionLabel}>{t('profile.appearance')}</Text>
             <View style={[shared.subTabBar, local.settingsToggle]}>
               {(['light', 'dark'] as const).map((m) => (
                 <Pressable
@@ -228,7 +231,25 @@ export function ProfileScreen({
                   onPress={() => setMode(m)}
                 >
                   <Text style={[shared.subTabText, mode === m && shared.subTabTextActive]}>
-                    {m === 'light' ? 'Light' : 'Dark'}
+                    {m === 'light' ? t('profile.light') : t('profile.dark')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={[shared.sectionLabel, { marginTop: 18 }]}>{t('language.title')}</Text>
+            <View style={[shared.subTabBar, local.settingsToggle]}>
+              {(['system', ...LANGUAGES.map((l) => l.code)] as const).map((code) => (
+                <Pressable
+                  key={code}
+                  style={[shared.subTabItem, setting === code && shared.subTabItemActive]}
+                  onPress={() => setLanguageSetting(code)}
+                  accessibilityRole="button"
+                >
+                  <Text style={[shared.subTabText, setting === code && shared.subTabTextActive]}>
+                    {code === 'system'
+                      ? t('language.system')
+                      : LANGUAGES.find((l) => l.code === code)!.label}
                   </Text>
                 </Pressable>
               ))}
@@ -236,19 +257,19 @@ export function ProfileScreen({
 
             <Pressable style={local.replayRow} onPress={onReplayTutorial}>
               <CircleHelp size={18} color={c.textSecondary} strokeWidth={2.2} />
-              <Text style={local.replayText}>Replay the tour</Text>
+              <Text style={local.replayText}>{t('profile.replayTour')}</Text>
             </Pressable>
 
             <Pressable style={local.deleteAccountRow} onPress={() => setShowDelete(true)}>
               <Trash2 size={18} color={c.danger} strokeWidth={2.2} />
-              <Text style={local.deleteAccountText}>Delete account</Text>
+              <Text style={local.deleteAccountText}>{t('profile.deleteAccount')}</Text>
             </Pressable>
           </View>
         )}
       </View>
 
       <Pressable style={local.signOutButton} onPress={handleSignOut}>
-        <Text style={local.signOutText}>Sign Out</Text>
+        <Text style={local.signOutText}>{t('profile.signOut')}</Text>
       </Pressable>
 
       <PhoneVerifyModal

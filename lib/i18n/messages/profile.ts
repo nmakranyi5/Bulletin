@@ -1,0 +1,40 @@
+import { defineMessages } from './define';
+
+export const profile = defineMessages(
+  {
+    'profile.subtitle': 'Manage your account.',
+    'profile.yourName': 'Your Name',
+    'profile.completeProfile': 'Complete your profile',
+    'profile.at': ' at ',
+    'profile.managePositions': 'Manage Positions',
+    'profile.getVerified': 'Get verified',
+    'profile.inReview': 'In review',
+    'profile.reviewVerifications': 'Review verifications',
+    'profile.verifyPhone': 'Verify your phone',
+    'profile.settings': 'Settings',
+    'profile.appearance': 'APPEARANCE',
+    'profile.light': 'Light',
+    'profile.dark': 'Dark',
+    'profile.replayTour': 'Replay the tour',
+    'profile.deleteAccount': 'Delete account',
+    'profile.signOut': 'Sign Out',
+  },
+  {
+    'profile.subtitle': 'Administra tu cuenta.',
+    'profile.yourName': 'Tu nombre',
+    'profile.completeProfile': 'Completa tu perfil',
+    'profile.at': ' en ',
+    'profile.managePositions': 'Administrar puestos',
+    'profile.getVerified': 'Verifícate',
+    'profile.inReview': 'En revisión',
+    'profile.reviewVerifications': 'Revisar verificaciones',
+    'profile.verifyPhone': 'Verifica tu teléfono',
+    'profile.settings': 'Ajustes',
+    'profile.appearance': 'APARIENCIA',
+    'profile.light': 'Claro',
+    'profile.dark': 'Oscuro',
+    'profile.replayTour': 'Repetir el recorrido',
+    'profile.deleteAccount': 'Eliminar cuenta',
+    'profile.signOut': 'Cerrar sesión',
+  }
+);

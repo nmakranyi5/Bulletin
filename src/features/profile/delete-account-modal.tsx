@@ -3,8 +3,8 @@ import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'reac
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
-const CONFIRM_WORD = 'DELETE';
 
 // Permanently deletes the signed-in user's account and data. The user must type
 // DELETE to confirm; on success they're signed out (the app returns to log-in).
@@ -21,11 +21,13 @@ export function DeleteAccountModal({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
+  const CONFIRM_WORD = t('delete.confirmWord');
   const local = useLocalStyles();
   const [typed, setTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const canDelete = typed.trim().toUpperCase() === CONFIRM_WORD && !deleting;
+  const canDelete = typed.trim().toUpperCase() === CONFIRM_WORD.toUpperCase() && !deleting;
 
   const close = () => {
     if (deleting) return;
@@ -59,7 +61,7 @@ export function DeleteAccountModal({
 
     if (error) {
       setDeleting(false);
-      Alert.alert('Could not delete account', error.message);
+      Alert.alert(t('delete.couldNot'), error.message);
       return;
     }
 
@@ -73,15 +75,13 @@ export function DeleteAccountModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
       <View style={local.overlay}>
         <View style={local.card}>
-          <Text style={local.title}>Delete your account?</Text>
+          <Text style={local.title}>{t('delete.title')}</Text>
           <Text style={local.body}>
-            This permanently deletes your profile
-            {isRecruiter ? ', your job postings' : ' and resume'}, your interests, and all of your
-            conversations. People you matched with will lose those chats too. This can't be undone.
+            {isRecruiter ? t('delete.bodyRecruiter') : t('delete.bodySeeker')}
           </Text>
 
           <Text style={[shared.sectionLabel, { marginTop: 16 }]}>
-            TYPE {CONFIRM_WORD} TO CONFIRM
+            {t('delete.typeToConfirm', { word: CONFIRM_WORD })}
           </Text>
           <TextInput
             style={[shared.authInput, local.input]}
@@ -100,12 +100,12 @@ export function DeleteAccountModal({
             disabled={!canDelete}
           >
             <Text style={local.deleteButtonText}>
-              {deleting ? 'Deleting...' : 'Delete my account'}
+              {deleting ? t('delete.deleting') : t('delete.button')}
             </Text>
           </Pressable>
 
           <Pressable style={local.cancelButton} onPress={close} disabled={deleting}>
-            <Text style={local.cancelText}>Cancel</Text>
+            <Text style={local.cancelText}>{t('common.cancel')}</Text>
           </Pressable>
         </View>
       </View>

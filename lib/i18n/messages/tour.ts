@@ -19,7 +19,8 @@ export const tour = defineMessages(
       'Each card is a company with an open job. Tap it to see pay, schedule and what they need.',
     'tour.discoverS.p1': 'Swipe right, or tap the check, to show interest in a job.',
     'tour.discover.pass': 'Swipe left, or tap the X, to pass.',
-    'tour.discover.slots': 'You can have {slots} interests out at once. A slot comes back when they answer.',
+    'tour.discover.slots':
+      'You can have {slots} interests out at once. A slot comes back when they answer.',
     'tour.interests.title': 'Interests: who is waiting',
     'tour.interests.body':
       'Received is people who want to talk to you. Sent is the interests you have sent.',
@@ -50,7 +51,8 @@ export const tour = defineMessages(
     'tour.loop.bodySeeker':
       'Discover a job, send interest, they accept, you chat, and you close it with a deal or a reason.',
     'tour.loop.p1': 'Reply on time and your rating stays high. Miss deadlines and it drops.',
-    'tour.loop.p2': 'Nothing is closed on you for being slow. The timers just keep everyone honest.',
+    'tour.loop.p2':
+      'Nothing is closed on you for being slow. The timers just keep everyone honest.',
   },
   {
     'tour.welcome.title': 'Te damos la bienvenida a bulletin.',
@@ -68,14 +70,16 @@ export const tour = defineMessages(
     'tour.discoverS.title': 'Descubrir: encuentra talleres',
     'tour.discoverS.body':
       'Cada tarjeta es una empresa con un puesto abierto. Tócala para ver el pago, el horario y lo que piden.',
-    'tour.discoverS.p1': 'Desliza a la derecha, o toca la palomita, para mostrar interés en un puesto.',
+    'tour.discoverS.p1':
+      'Desliza a la derecha, o toca la palomita, para mostrar interés en un puesto.',
     'tour.discover.pass': 'Desliza a la izquierda, o toca la X, para descartar.',
     'tour.discover.slots':
       'Puedes tener {slots} intereses enviados a la vez. Se libera un espacio cuando responden.',
     'tour.interests.title': 'Intereses: quién está esperando',
     'tour.interests.body':
       'Recibidos son las personas que quieren hablar contigo. Enviados son los intereses que enviaste.',
-    'tour.interests.p1': 'Toca a cualquier persona para ver su tarjeta completa y luego Aceptar o Rechazar.',
+    'tour.interests.p1':
+      'Toca a cualquier persona para ver su tarjeta completa y luego Aceptar o Rechazar.',
     'tour.interests.p2': 'Al rechazar se pide un motivo, para que nadie se quede con la duda.',
     'tour.interests.p3': 'Si aceptas, se convierte en un chat.',
     'tour.messages.title': 'Mensajes: tus chats',
@@ -95,8 +99,10 @@ export const tour = defineMessages(
     'tour.profile.rating': 'Tu calificación empieza en 5.0 y refleja qué tan rápido respondes.',
     'tour.profileS.title': 'Perfil: tú',
     'tour.profileS.body': 'Lo que ven los talleres cuando abren tu tarjeta.',
-    'tour.profileS.p1': 'Edita tus certificaciones, experiencia, ubicación y currículum cuando quieras.',
-    'tour.profileS.p3': 'En Ajustes están el modo oscuro y el idioma, y puedes repetir este recorrido.',
+    'tour.profileS.p1':
+      'Edita tus certificaciones, experiencia, ubicación y currículum cuando quieras.',
+    'tour.profileS.p3':
+      'En Ajustes están el modo oscuro y el idioma, y puedes repetir este recorrido.',
     'tour.loop.title': 'Todo el ciclo',
     'tour.loop.bodyRecruiter':
       'Descubres un técnico, envías interés, acepta, chatean y lo cierras con un trato o un motivo.',

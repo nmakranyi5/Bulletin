@@ -14,7 +14,8 @@ export const messages = defineMessages(
     'messages.byName': 'by {name}',
     'messages.sayHello': 'Say hello',
     'closeChat.title': 'Close this chat?',
-    'closeChat.subtitle': 'It moves to Archived for both of you. {name} will see how you closed it.',
+    'closeChat.subtitle':
+      'It moves to Archived for both of you. {name} will see how you closed it.',
     'closeChat.submit': 'Close chat',
     'closeChat.submitDeal': 'Close deal',
     'banner.sayHelloOverdue': 'Say hello to {name} · overdue by {time}',
@@ -74,16 +75,17 @@ export const messages = defineMessages(
     'messages.byName': 'por {name}',
     'messages.sayHello': 'Saluda',
     'closeChat.title': '¿Cerrar este chat?',
-    'closeChat.subtitle':
-      'Pasa a Archivados para ambos. {name} verá cómo lo cerraste.',
+    'closeChat.subtitle': 'Pasa a Archivados para ambos. {name} verá cómo lo cerraste.',
     'closeChat.submit': 'Cerrar chat',
     'closeChat.submitDeal': 'Cerrar trato',
     'banner.sayHelloOverdue': 'Saluda a {name} · atrasado por {time}',
     'banner.sayHelloLeft': 'Saluda a {name} · quedan {time}',
-    'banner.notSaidHello': '{name} aún no saluda · {time} después del tiempo de respuesta de {window}',
+    'banner.notSaidHello':
+      '{name} aún no saluda · {time} después del tiempo de respuesta de {window}',
     'banner.waitingOverdue': '{name} espera tu respuesta · atrasado por {time}',
     'banner.waitingLeft': '{name} espera tu respuesta · quedan {time}',
-    'banner.notReplied': '{name} no responde desde hace {time} después del tiempo de respuesta de {window}',
+    'banner.notReplied':
+      '{name} no responde desde hace {time} después del tiempo de respuesta de {window}',
     'window.waitingFor': 'Esperando que {name} responda tu solicitud de {time}',
     'window.asks': '{name} pide cambiar el tiempo de respuesta a {time}',
     'window.replyTime': 'Tiempo de respuesta: {time}',

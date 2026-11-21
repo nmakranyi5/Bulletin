@@ -5,12 +5,55 @@ import { closedate } from './closedate';
 import { common } from './common';
 import { discover } from './discover';
 import { interests } from './interests';
+import { fields } from './fields';
 import { hvac } from './hvac';
 import { messages } from './messages';
+import { modals } from './modals';
+import { positions } from './positions';
+import { profile } from './profile';
 import { reasons } from './reasons';
 import { timers } from './timers';
 import { tour } from './tour';
 import { ui } from './ui';
+import { verification } from './verification';
 
-export const en = { ...common.en, ...auth.en, ...timers.en, ...closedate.en, ...chatlib.en, ...reasons.en, ...hvac.en, ...discover.en, ...interests.en, ...messages.en, ...app.en, ...tour.en, ...ui.en };
-export const es: Record<keyof typeof en, string> = { ...common.es, ...auth.es, ...timers.es, ...closedate.es, ...chatlib.es, ...reasons.es, ...hvac.es, ...discover.es, ...interests.es, ...messages.es, ...app.es, ...tour.es, ...ui.es };
+export const en = {
+  ...common.en,
+  ...auth.en,
+  ...timers.en,
+  ...closedate.en,
+  ...chatlib.en,
+  ...reasons.en,
+  ...hvac.en,
+  ...discover.en,
+  ...interests.en,
+  ...messages.en,
+  ...modals.en,
+  ...app.en,
+  ...profile.en,
+  ...positions.en,
+  ...fields.en,
+  ...tour.en,
+  ...ui.en,
+  ...verification.en,
+};
+export const es: Record<keyof typeof en, string> = {
+  ...common.es,
+  ...auth.es,
+  ...timers.es,
+  ...closedate.es,
+  ...chatlib.es,
+  ...reasons.es,
+  ...hvac.es,
+  ...discover.es,
+  ...interests.es,
+  ...messages.es,
+  ...modals.es,
+  ...app.es,
+  ...profile.es,
+  ...positions.es,
+  ...fields.es,
+  ...tour.es,
+  ...ui.es,
+  ...verification.es,
+};

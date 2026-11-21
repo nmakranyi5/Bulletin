@@ -7,6 +7,7 @@ import { WorkerCardContent } from '../discover/worker-card';
 import { fetchRatings } from './ratings';
 import { fetchVerifications } from './verifications';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 const PROFILE_COLUMNS =
   'id, name, username, avatar_url, phone_verified_at, description, is_recruiter, certifications, epa_608_types, trade_start_year, trade_role, location, has_drivers_license, open_schedules, resume_url, company_name, recruiter_title, company_size, work_types, company_founded_year, licensed_insured, positions:positions!recruiter_id(id, title, company, pay_range, pay_type, pay_min, pay_max, pay_extras, urgency, location, work_style, experience_level, skills, description, active, epa_608_required, schedule_type, schedule_types, min_experience_years)';
@@ -29,6 +30,7 @@ export function ProfileDetailModal({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [profile, setProfile] = useState<any | null>(null);
   const [failed, setFailed] = useState(false);
@@ -80,9 +82,9 @@ export function ProfileDetailModal({
             <View style={local.loading}>
               {failed ? (
                 <>
-                  <Text style={shared.subtitle}>Couldn't load this profile.</Text>
+                  <Text style={shared.subtitle}>{t('detail.couldNotLoad')}</Text>
                   <Pressable onPress={onClose} style={local.loadingClose}>
-                    <Text style={shared.refreshText}>Close</Text>
+                    <Text style={shared.refreshText}>{t('common.close')}</Text>
                   </Pressable>
                 </>
               ) : (

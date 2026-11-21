@@ -1,9 +1,11 @@
 import { Text, TextInput } from 'react-native';
+import { t } from '../../../lib/i18n/core';
 import { useTheme } from '../../../lib/app-theme';
 import { EPA_TYPES, isUniversal, parseYear, SCHEDULE_TYPES, TRADE_ROLES } from '../../../lib/hvac';
 import { ChipSelect } from '../../components/chip-select';
 import { LocationField } from '../../components/location-field';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 export type SeekerValues = {
   epaCertified: boolean;
@@ -18,22 +20,43 @@ export type SeekerValues = {
 };
 
 // Setup walks through these one screen at a time (editing shows them all together).
+// (Titles are getters so they follow the current language.)
 export const SEEKER_STEPS = [
   {
     key: 'certification',
-    title: 'Your EPA 608',
-    subtitle: 'The refrigerant certification many HVAC jobs ask for.',
+    get title() {
+      return t('seeker.epa.title');
+    },
+    get subtitle() {
+      return t('seeker.epa.subtitle');
+    },
   },
   {
     key: 'experience',
-    title: 'Your experience',
-    subtitle: 'How long you have been in the trade, and what you do.',
+    get title() {
+      return t('seeker.exp.title');
+    },
+    get subtitle() {
+      return t('seeker.exp.subtitle');
+    },
   },
-  { key: 'where', title: 'Where you are', subtitle: 'So shops near you can find you.' },
+  {
+    key: 'where',
+    get title() {
+      return t('seeker.where.title');
+    },
+    get subtitle() {
+      return t('seeker.where.subtitle');
+    },
+  },
   {
     key: 'availability',
-    title: 'What you are open to',
-    subtitle: 'The schedules you would take on.',
+    get title() {
+      return t('seeker.avail.title');
+    },
+    get subtitle() {
+      return t('seeker.avail.subtitle');
+    },
   },
 ] as const;
 export type SeekerStep = (typeof SEEKER_STEPS)[number]['key'];
@@ -44,12 +67,12 @@ export function seekerStepError(
   v: SeekerValues
 ): { title: string; message: string } | null {
   if (step === 'certification' && v.epaCertified && v.epaTypes.length === 0) {
-    return { title: 'EPA 608', message: 'Select at least one certification type, or choose No.' };
+    return { title: t('seeker.epaErrTitle'), message: t('seeker.epaErrBody') };
   }
   if (step === 'experience' && parseYear(v.startYear) === 'invalid') {
     return {
-      title: 'Invalid year',
-      message: 'Enter the four-digit year you started in the trade, e.g. 2020.',
+      title: t('field.invalidYear'),
+      message: t('seeker.yearBody'),
     };
   }
   return null;
@@ -88,16 +111,16 @@ export function buildSeekerPayload(
   if (year === 'invalid') {
     return {
       error: {
-        title: 'Invalid year',
-        message: 'Enter the four-digit year you started in the trade, e.g. 2020.',
+        title: t('field.invalidYear'),
+        message: t('seeker.yearBody'),
       },
     };
   }
   if (v.epaCertified && v.epaTypes.length === 0) {
     return {
       error: {
-        title: 'EPA 608',
-        message: 'Select at least one certification type, or choose No.',
+        title: t('seeker.epaErrTitle'),
+        message: t('seeker.epaErrBody'),
       },
     };
   }
@@ -128,6 +151,7 @@ export function SeekerFields({
   onChange: (patch: Partial<SeekerValues>) => void;
   step: SeekerStep;
 }) {
+  const t = useT();
   const c = useTheme().colors;
   const shared = useSharedStyles();
 
@@ -136,7 +160,7 @@ export function SeekerFields({
       {step === 'certification' && (
         <>
           <ChipSelect
-            label="EPA 608 CERTIFIED?"
+            label={t('seeker.epaCertified')}
             options={['Yes', 'No']}
             selected={[value.epaCertified ? 'Yes' : 'No']}
             onToggle={(o) =>
@@ -147,15 +171,15 @@ export function SeekerFields({
           {value.epaCertified && (
             <>
               <ChipSelect
-                label="CERTIFICATION TYPES"
-                options={EPA_TYPES.map((t) => `Type ${t}`)}
-                selected={value.epaTypes.map((t) => `Type ${t}`)}
+                label={t('seeker.certTypes')}
+                options={EPA_TYPES.map((ty) => `Type ${ty}`)}
+                selected={value.epaTypes.map((ty) => `Type ${ty}`)}
                 onToggle={(o) =>
                   onChange({ epaTypes: toggle(value.epaTypes, o.replace('Type ', '')) })
                 }
               />
               {isUniversal(value.epaTypes) && (
-                <Text style={shared.chipHint}>Shown on your profile as Universal.</Text>
+                <Text style={shared.chipHint}>{t('seeker.universalHint')}</Text>
               )}
             </>
           )}
@@ -166,7 +190,7 @@ export function SeekerFields({
         <>
           <TextInput
             style={shared.authInput}
-            placeholder="Year started in the trade (e.g. 2020)"
+            placeholder={t('seeker.yearPlaceholder')}
             placeholderTextColor={c.muted}
             value={value.startYear}
             onChangeText={(startYear) => onChange({ startYear })}
@@ -175,7 +199,7 @@ export function SeekerFields({
           />
 
           <ChipSelect
-            label="CURRENT / MOST RECENT ROLE"
+            label={t('seeker.role')}
             options={TRADE_ROLES}
             selected={value.tradeRole ? [value.tradeRole] : []}
             onToggle={(o) => onChange({ tradeRole: value.tradeRole === o ? '' : o })}
@@ -186,13 +210,13 @@ export function SeekerFields({
       {step === 'where' && (
         <>
           <LocationField
-            placeholder="Where you're based (e.g. Austin, TX)"
+            placeholder={t('seeker.locationPlaceholder')}
             value={{ text: value.location, lat: value.locationLat, lng: value.locationLng }}
             onChange={(p) => onChange({ location: p.text, locationLat: p.lat, locationLng: p.lng })}
           />
 
           <ChipSelect
-            label="VALID DRIVER'S LICENSE?"
+            label={t('seeker.license')}
             options={['Yes', 'No']}
             selected={[value.hasLicense ? 'Yes' : 'No']}
             onToggle={(o) => onChange({ hasLicense: o === 'Yes' })}
@@ -203,7 +227,7 @@ export function SeekerFields({
       {step === 'availability' && (
         <>
           <ChipSelect
-            label="OPEN TO (SELECT ALL THAT APPLY)"
+            label={t('seeker.openTo')}
             options={SCHEDULE_TYPES}
             selected={value.openSchedules}
             onToggle={(o) => onChange({ openSchedules: toggle(value.openSchedules, o) })}

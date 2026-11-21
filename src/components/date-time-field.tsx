@@ -6,7 +6,7 @@ import { useTheme } from '../../lib/app-theme';
 import { defaultPickerDate, formatCloseField } from '../../lib/close-date';
 import { serverNow } from '../../lib/time';
 import { useSharedStyles } from '../styles/shared';
-import { useT } from '../../lib/i18n';
+import { localeTag, useT } from '../../lib/i18n';
 
 // A tappable date + time field. iOS opens a wheel picker in a sheet; Android opens the
 // system date dialog and then the time dialog. (On the web see date-time-field.web.tsx.)
@@ -98,6 +98,7 @@ export function DateTimeField({
                 maximumDate={maximumDate}
                 minuteInterval={5}
                 themeVariant={mode}
+                locale={localeTag()}
                 textColor={c.text}
                 onValueChange={(_event, date) => setDraft(date)}
               />

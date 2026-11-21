@@ -45,10 +45,12 @@ import { LocationField } from '../../components/location-field';
 import { FormStep, StepForm } from '../../components/step-form';
 import { useSharedStyles } from '../../styles/shared';
 import { confirmPositionClose, promptClose, promptExtend, reopenPosition } from './position-close';
+import { useT } from '../../../lib/i18n';
 
 export function PositionsScreen({ session, onBack }: { session: Session; onBack: () => void }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +94,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
       .eq('recruiter_id', session.user.id)
       .order('created_at', { ascending: false });
 
-    if (error) Alert.alert('Error', error.message);
+    if (error) Alert.alert(t('common.error'), error.message);
     else setPositions(data ?? []);
 
     setLoading(false);
@@ -195,7 +197,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
 
     const checked = checkCloseAt(closeAt, serverNow());
     if (!checked.ok) {
-      Alert.alert('Close date', CLOSE_ERRORS[checked.error]);
+      Alert.alert(t('pos.closeDate'), CLOSE_ERRORS[checked.error]);
       return;
     }
 
@@ -250,7 +252,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
     setSaving(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
 
@@ -259,14 +261,14 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete position', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('pos.deleteTitle'), t('pos.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           const { error } = await supabase.from('positions').delete().eq('id', id);
-          if (error) Alert.alert('Error', error.message);
+          if (error) Alert.alert(t('common.error'), error.message);
           else fetchPositions();
         },
       },
@@ -276,25 +278,25 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
   const STEPS: FormStep[] = [
     {
       key: 'basics',
-      title: 'The basics',
-      subtitle: 'What the job is and how fast you are hiring.',
+      title: t('pos.basics.title'),
+      subtitle: t('pos.basics.subtitle'),
     },
-    { key: 'pay', title: 'Pay', subtitle: 'Techs ask about this first. Leave blank to skip it.' },
-    { key: 'where', title: 'Where and when', subtitle: 'The job site and the schedule.' },
+    { key: 'pay', title: t('pos.pay.title'), subtitle: t('pos.pay.subtitle') },
+    { key: 'where', title: t('pos.where.title'), subtitle: t('pos.where.subtitle') },
     {
       key: 'requirements',
-      title: 'Requirements',
-      subtitle: 'What you need from a candidate. All optional.',
+      title: t('pos.req.title'),
+      subtitle: t('pos.req.subtitle'),
     },
     {
       key: 'details',
-      title: 'About the job',
-      subtitle: 'A short description candidates will see.',
+      title: t('pos.details.title'),
+      subtitle: t('pos.details.subtitle'),
     },
     {
       key: 'timeline',
-      title: 'Hire by',
-      subtitle: 'Optionally set when this position should close.',
+      title: t('pos.timeline.title'),
+      subtitle: t('pos.timeline.subtitle'),
     },
   ];
 
@@ -303,30 +305,30 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
 
   const stepProblem = (key: string): { title: string; message: string } | null => {
     if (key === 'basics' && (!title.trim() || !company.trim())) {
-      return { title: 'Missing info', message: 'Title and company are required.' };
+      return { title: t('common.missingInfo'), message: t('pos.titleCompanyRequired') };
     }
     if (key === 'pay') {
       const min = parsePay(payMin);
       const max = parsePay(payMax);
       if (min === 'invalid' || max === 'invalid') {
-        return { title: 'Invalid pay', message: 'Enter pay as a number, e.g. 28 or 55000.' };
+        return { title: t('pos.invalidPay'), message: t('pos.payNumber') };
       }
       if ((min !== null || max !== null) && !payType) {
-        return { title: 'Pay type', message: 'Choose whether this pay is hourly or salary.' };
+        return { title: t('pos.payType'), message: t('pos.payTypeBody') };
       }
       if (min !== null && max !== null && min > max) {
-        return { title: 'Invalid pay', message: "Minimum pay can't be higher than maximum pay." };
+        return { title: t('pos.invalidPay'), message: t('pos.payMinMax') };
       }
     }
     if (key === 'requirements' && parseMinYears(minYears) === 'invalid') {
       return {
-        title: 'Invalid experience',
-        message: 'Minimum experience must be a whole number of years.',
+        title: t('pos.invalidExp'),
+        message: t('pos.expBody'),
       };
     }
     if (key === 'timeline') {
       const checked = checkCloseAt(closeAt, serverNow());
-      if (!checked.ok) return { title: 'Close date', message: CLOSE_ERRORS[checked.error] };
+      if (!checked.ok) return { title: t('pos.closeDate'), message: CLOSE_ERRORS[checked.error] };
     }
     return null;
   };
@@ -337,7 +339,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
         <>
           <TextInput
             style={shared.authInput}
-            placeholder="Job title"
+            placeholder={t('pos.jobTitle')}
             placeholderTextColor={c.muted}
             value={title}
             onChangeText={setTitle}
@@ -345,14 +347,14 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
 
           <TextInput
             style={shared.authInput}
-            placeholder="Company"
+            placeholder={t('pos.company')}
             placeholderTextColor={c.muted}
             value={company}
             onChangeText={setCompany}
           />
 
           <ChipSelect
-            label="HOW URGENT IS THIS HIRE?"
+            label={t('pos.howUrgent')}
             options={URGENCY_LEVELS.map((u) => URGENCY[u].label)}
             selected={[URGENCY[urgency].label]}
             onToggle={(o) => {
@@ -361,8 +363,10 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
             }}
           />
           <Text style={shared.chipHint}>
-            {URGENCY[urgency].blurb} You and candidates are each expected to reply within{' '}
-            {URGENCY[urgency].windowLabel}. Timers only remind people; nothing is closed.
+            {t('pos.urgencyHint', {
+              blurb: URGENCY[urgency].blurb,
+              window: URGENCY[urgency].windowLabel,
+            })}
           </Text>
         </>
       );
@@ -371,7 +375,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
       return (
         <>
           <ChipSelect
-            label="PAY TYPE"
+            label={t('pos.payTypeLabel')}
             options={PAY_TYPES}
             selected={payType ? [payType] : []}
             onToggle={(o) => setPayType((prev) => (prev === o ? '' : o))}
@@ -382,7 +386,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
               <Text style={local.payDollar}>$</Text>
               <TextInput
                 style={local.payInput}
-                placeholder={payType === 'Salary' ? 'Min /yr' : 'Min /hr'}
+                placeholder={payType === 'Salary' ? t('pos.minYr') : t('pos.minHr')}
                 placeholderTextColor={c.muted}
                 value={payMin}
                 onChangeText={setPayMin}
@@ -393,7 +397,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
               <Text style={local.payDollar}>$</Text>
               <TextInput
                 style={local.payInput}
-                placeholder={payType === 'Salary' ? 'Max /yr' : 'Max /hr'}
+                placeholder={payType === 'Salary' ? t('pos.maxYr') : t('pos.maxHr')}
                 placeholderTextColor={c.muted}
                 value={payMax}
                 onChangeText={setPayMax}
@@ -402,11 +406,11 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
             </View>
           </View>
           {!!legacyPay && !payMin && !payMax && (
-            <Text style={shared.chipHint}>Previously entered as: {legacyPay}</Text>
+            <Text style={shared.chipHint}>{t('pos.previously', { text: legacyPay })}</Text>
           )}
 
           <ChipSelect
-            label="PAY EXTRAS (OPTIONAL)"
+            label={t('pos.payExtras')}
             options={PAY_EXTRAS}
             selected={payExtras}
             onToggle={(o) =>
@@ -422,7 +426,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
       return (
         <>
           <LocationField
-            placeholder="Location"
+            placeholder={t('pos.location')}
             value={{ text: location, lat: locationLat, lng: locationLng }}
             onChange={(p) => {
               setLocation(p.text);
@@ -432,7 +436,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
           />
 
           <ChipSelect
-            label="SCHEDULE (SELECT ALL THAT APPLY)"
+            label={t('pos.schedule')}
             options={SCHEDULE_TYPES}
             selected={scheduleTypes}
             onToggle={(o) =>
@@ -448,21 +452,21 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
       return (
         <>
           <ChipSelect
-            label="EPA 608 REQUIRED (MINIMUM TYPE)"
-            options={EPA_TYPES.map((t) => `Type ${t}`)}
+            label={t('pos.epaRequired')}
+            options={EPA_TYPES.map((ty) => `Type ${ty}`)}
             selected={epaRequired ? [`Type ${epaRequired}`] : []}
             onToggle={(o) => {
-              const t = o.replace('Type ', '');
-              setEpaRequired((prev) => (prev === t ? '' : t));
+              const ty = o.replace('Type ', '');
+              setEpaRequired((prev) => (prev === ty ? '' : ty));
             }}
           />
           <Text style={shared.chipHint}>
-            Universal-certified techs also qualify. Leave unselected if not required.
+            {t('pos.epaHint')}
           </Text>
 
           <TextInput
             style={shared.authInput}
-            placeholder="Minimum years of experience (e.g. 2)"
+            placeholder={t('pos.minYears')}
             placeholderTextColor={c.muted}
             value={minYears}
             onChangeText={setMinYears}
@@ -473,7 +477,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
           <View style={local.skillInputRow}>
             <TextInput
               style={[shared.authInput, local.skillInput]}
-              placeholder="Add a skill or requirement"
+              placeholder={t('pos.addSkill')}
               placeholderTextColor={c.muted}
               value={skillInput}
               onChangeText={setSkillInput}
@@ -481,7 +485,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
               returnKeyType="done"
             />
             <Pressable style={local.skillAddButton} onPress={addSkill}>
-              <Text style={local.skillAddButtonText}>Add</Text>
+              <Text style={local.skillAddButtonText}>{t('pos.add')}</Text>
             </Pressable>
           </View>
 
@@ -502,7 +506,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
       return (
         <TextInput
           style={[shared.authInput, shared.authTextArea]}
-          placeholder="Description"
+          placeholder={t('pos.description')}
           placeholderTextColor={c.muted}
           value={description}
           onChangeText={setDescription}
@@ -513,7 +517,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
     return (
       <>
         <ChipSelect
-          label="HIRE BY / CLOSE DATE (OPTIONAL)"
+          label={t('pos.hireBy')}
           options={CLOSE_PRESETS.map((p) => p.label)}
           selected={CLOSE_PRESETS.filter((p) =>
             sameInstant(presetCloseAt(p.days, serverNow()), closeAt)
@@ -528,12 +532,10 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
           onChange={setCloseAt}
           minimumDate={new Date(serverNow())}
           maximumDate={new Date(serverNow() + MAX_CLOSE_AHEAD_MS)}
-          placeholder="Or pick a date and time"
+          placeholder={t('pos.pickDate')}
         />
         <Text style={shared.chipHint}>
-          When this passes, the position closes on its own: it leaves Discover and anyone still
-          waiting on it gets their interest back. Chats stay open. You'll be reminded before it
-          closes so you can extend or confirm.
+          {t('pos.closeHint')}
         </Text>
       </>
     );
@@ -550,13 +552,13 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
         stepProblem={stepProblem}
         onSubmit={handleSave}
         submitting={saving}
-        submitLabel="Add position"
-        saveLabel="Save changes"
-        editingSubtitle="Edit position."
+        submitLabel={t('pos.addPosition')}
+        saveLabel={t('onb.saveChanges')}
+        editingSubtitle={t('pos.editPosition')}
         exit={
           wizard
-            ? { kind: 'close', label: 'Cancel', onPress: () => setView('list') }
-            : { kind: 'back', label: 'Go back', onPress: () => setView('list') }
+            ? { kind: 'close', label: t('common.cancel'), onPress: () => setView('list') }
+            : { kind: 'back', label: t('onb.goBack'), onPress: () => setView('list') }
         }
       />
     );
@@ -569,24 +571,24 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
           <ArrowLeft size={22} color={c.text} strokeWidth={2.2} />
         </Pressable>
         <View style={shared.chatHeaderInfo}>
-          <Text style={shared.chatHeaderName}>Your Positions</Text>
+          <Text style={shared.chatHeaderName}>{t('pos.yourPositions')}</Text>
         </View>
       </View>
 
       {loading ? (
         <View style={shared.emptyState}>
-          <Text style={shared.emptySubtitle}>Loading...</Text>
+          <Text style={shared.emptySubtitle}>{t('common.loading')}</Text>
         </View>
       ) : positions.length === 0 ? (
         <RefreshableEmpty refreshControl={refreshControl}>
           <View style={shared.emptyState}>
             <BriefcaseBusiness size={48} color={c.muted} strokeWidth={1.5} />
-            <Text style={shared.emptyTitle}>No positions yet</Text>
+            <Text style={shared.emptyTitle}>{t('pos.none')}</Text>
             <Text style={shared.emptySubtitle}>
-              Add an open position for candidates to discover.
+              {t('pos.noneHint')}
             </Text>
             <Pressable style={shared.refreshButton} onPress={openAddForm}>
-              <Text style={shared.refreshText}>Add Position</Text>
+              <Text style={shared.refreshText}>{t('pos.addButton')}</Text>
             </Pressable>
           </View>
         </RefreshableEmpty>
@@ -601,7 +603,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
               style={[shared.refreshButton, { marginTop: 16, marginBottom: 12 }]}
               onPress={openAddForm}
             >
-              <Text style={shared.refreshText}>Add Position</Text>
+              <Text style={shared.refreshText}>{t('pos.addButton')}</Text>
             </Pressable>
           }
           renderItem={({ item }) => (
@@ -612,8 +614,11 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
                   {item.title}
                 </Text>
                 <Text numberOfLines={1} style={shared.interestRowMeta}>
-                  {item.company} · {URGENCY[urgencyOf(item)].label} (replies within{' '}
-                  {URGENCY[urgencyOf(item)].windowLabel})
+                  {t('pos.meta', {
+                    company: item.company,
+                    urgency: URGENCY[urgencyOf(item)].label,
+                    window: URGENCY[urgencyOf(item)].windowLabel,
+                  })}
                 </Text>
                 {(() => {
                   const state = closeState(item, now);
@@ -632,7 +637,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
                           ]}
                         >
                           {label}
-                          {state.kind === 'confirmed' ? ' · confirmed' : ''}
+                          {state.kind === 'confirmed' ? t('pos.confirmed') : ''}
                         </Text>
                       ) : null}
                       <View style={local.closeActions}>
@@ -641,7 +646,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
                             style={local.closeAction}
                             onPress={() => reopenPosition(item, now, refresh)}
                           >
-                            <Text style={local.closeActionText}>Reopen</Text>
+                            <Text style={local.closeActionText}>{t('pos.reopen')}</Text>
                           </Pressable>
                         ) : (
                           <>
@@ -650,7 +655,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
                                 style={local.closeAction}
                                 onPress={() => promptExtend(item, refresh)}
                               >
-                                <Text style={local.closeActionText}>Extend</Text>
+                                <Text style={local.closeActionText}>{t('pos.extend')}</Text>
                               </Pressable>
                             )}
                             {state.kind === 'soon' && (
@@ -660,7 +665,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
                                   if (await confirmPositionClose(item)) refresh();
                                 }}
                               >
-                                <Text style={local.closeActionText}>Confirm closing</Text>
+                                <Text style={local.closeActionText}>{t('pos.confirmClosing')}</Text>
                               </Pressable>
                             )}
                             <Pressable
@@ -668,7 +673,7 @@ export function PositionsScreen({ session, onBack }: { session: Session; onBack:
                               onPress={() => promptClose(item, refresh)}
                             >
                               <Text style={[local.closeActionText, { color: c.danger }]}>
-                                Close position
+                                {t('pos.closePosition')}
                               </Text>
                             </Pressable>
                           </>

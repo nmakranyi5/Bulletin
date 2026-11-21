@@ -6,6 +6,7 @@ import { closeState, reminderCopy } from '../../../lib/close-date';
 import { serverNow } from '../../../lib/time';
 import { supabase } from '../../../lib/supabase';
 import { confirmPositionClose, promptExtend } from './position-close';
+import { t } from '../../../lib/i18n';
 
 const CHECK_MS = 60_000;
 
@@ -65,16 +66,16 @@ export function usePositionReminders({
           title,
           message,
           [
-            { text: 'Later', style: 'cancel', onPress: done },
+            { text: t('common.later'), style: 'cancel', onPress: done },
             {
-              text: 'Confirm closing',
+              text: t('pos.confirmClosing'),
               onPress: async () => {
                 done();
                 await confirmPositionClose(p);
               },
             },
             {
-              text: 'Extend',
+              text: t('pos.extend'),
               onPress: () => {
                 done();
                 promptExtend(p, () => {});
@@ -88,9 +89,9 @@ export function usePositionReminders({
           title,
           message,
           [
-            { text: 'Later', style: 'cancel', onPress: done },
+            { text: t('common.later'), style: 'cancel', onPress: done },
             {
-              text: 'Open positions',
+              text: t('pos.openPositions'),
               onPress: () => {
                 done();
                 onOpenRef.current();

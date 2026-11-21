@@ -67,7 +67,7 @@ export function RecruiterCardContent({
 
       <View style={shared.recruiterMeta}>
         <Text numberOfLines={1} style={shared.recruiterTitle}>
-          {positions.length} open position{positions.length === 1 ? '' : 's'}
+          {t('discover.openPositions', { count: positions.length })}
         </Text>
       </View>
       <RatingBadge rating={recruiter.rating} />

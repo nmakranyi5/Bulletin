@@ -15,6 +15,7 @@ import { useTheme } from '../../../lib/app-theme';
 import { OTP_LENGTH, cleanCode, formatPhone, phoneErrorMessage, toE164 } from '../../../lib/phone';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 const RESEND_SECONDS = 30;
 
@@ -31,6 +32,7 @@ export function PhoneVerifyModal({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [phone, setPhone] = useState('');
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function PhoneVerifyModal({
   const sendCode = async () => {
     const e164 = toE164(phone);
     if (!e164) {
-      setError('Enter a valid phone number, e.g. (512) 555-0123.');
+      setError(t('phone.invalid'));
       return;
     }
     setBusy(true);
@@ -101,7 +103,7 @@ export function PhoneVerifyModal({
       return;
     }
     onVerified();
-    Alert.alert('Phone verified', 'Your profile now shows a "Phone verified" badge.');
+    Alert.alert(t('phone.verifiedTitle'), t('phone.verifiedBody'));
   };
 
   return (
@@ -115,22 +117,21 @@ export function PhoneVerifyModal({
             <View style={local.iconCircle}>
               <ShieldCheck size={22} color={c.onAccent} strokeWidth={2.2} />
             </View>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={t('common.close')}>
               <X size={22} color={c.textSecondary} strokeWidth={2.2} />
             </Pressable>
           </View>
 
-          <Text style={local.title}>Verify your phone</Text>
+          <Text style={local.title}>{t('phone.title')}</Text>
 
           {!sentTo ? (
             <>
               <Text style={local.body}>
-                We'll text you a code. Your profile gets a "Phone verified" badge, so people know
-                you're real. Your number is never shown to anyone.
+                {t('phone.intro')}
               </Text>
               <TextInput
                 style={[shared.authInput, local.input]}
-                placeholder="Phone number"
+                placeholder={t('phone.number')}
                 placeholderTextColor={c.muted}
                 value={phone}
                 onChangeText={setPhone}
@@ -145,20 +146,20 @@ export function PhoneVerifyModal({
                 onPress={sendCode}
                 disabled={busy}
               >
-                <Text style={shared.authButtonText}>{busy ? 'Sending...' : 'Send code'}</Text>
+                <Text style={shared.authButtonText}>{busy ? t('ui.sending') : t('phone.sendCode')}</Text>
               </Pressable>
             </>
           ) : (
             <>
               <Text style={local.body}>
-                Enter the {OTP_LENGTH}-digit code we texted to {formatPhone(sentTo)}.
+                {t('phone.enterCode', { length: OTP_LENGTH, phone: formatPhone(sentTo) })}
               </Text>
               <TextInput
                 style={[shared.authInput, local.input, local.codeInput]}
                 placeholder="123456"
                 placeholderTextColor={c.muted}
                 value={code}
-                onChangeText={(t) => setCode(cleanCode(t))}
+                onChangeText={(v) => setCode(cleanCode(v))}
                 keyboardType="number-pad"
                 textContentType="oneTimeCode"
                 autoComplete="sms-otp"
@@ -174,13 +175,13 @@ export function PhoneVerifyModal({
                 onPress={verify}
                 disabled={busy || code.length !== OTP_LENGTH}
               >
-                <Text style={shared.authButtonText}>{busy ? 'Checking...' : 'Verify'}</Text>
+                <Text style={shared.authButtonText}>{busy ? t('phone.checking') : t('phone.verify')}</Text>
               </Pressable>
 
               <View style={local.linkRow}>
                 <Pressable onPress={resend} disabled={busy || cooldown > 0}>
                   <Text style={[local.link, cooldown > 0 && local.linkDisabled]}>
-                    {cooldown > 0 ? `Send a new code in ${cooldown}s` : 'Send a new code'}
+                    {cooldown > 0 ? t('phone.resendIn', { seconds: cooldown }) : t('phone.resend')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -190,7 +191,7 @@ export function PhoneVerifyModal({
                   }}
                   disabled={busy}
                 >
-                  <Text style={local.link}>Change number</Text>
+                  <Text style={local.link}>{t('phone.change')}</Text>
                 </Pressable>
               </View>
             </>

@@ -28,8 +28,7 @@ export const interests = defineMessages(
     'interests.unavailableTitle': 'No longer available',
     'interests.unavailableBody': 'This interest was taken back or already answered.',
     'interests.removeTitle': 'Remove interest?',
-    'interests.removeBody':
-      'This takes back your interest in {name} and gives you the slot back.',
+    'interests.removeBody': 'This takes back your interest in {name} and gives you the slot back.',
     'interests.thisPerson': 'this person',
     'interests.thisPersonCap': 'This person',
     'interests.couldNotRemove': 'Could not remove',

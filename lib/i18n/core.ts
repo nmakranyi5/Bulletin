@@ -50,14 +50,19 @@ export function localeTag(language: Language = current): string {
 
 type Vars = Record<string, string | number | null | undefined>;
 
-export function translate(language: Language, key: MessageKey | (string & {}), vars?: Vars): string {
+export function translate(
+  language: Language,
+  key: MessageKey | (string & {}),
+  vars?: Vars
+): string {
   const dict = dictionaries[language];
   let template: string | undefined;
 
   if (vars && typeof vars.count === 'number') {
     const rule = new Intl.PluralRules(localeTag(language)).select(vars.count);
     template = dict[`${key}_${rule}`] ?? dict[`${key}_other`];
-    if (template === undefined) template = en[`${key}_${rule}` as MessageKey] ?? en[`${key}_other` as MessageKey];
+    if (template === undefined)
+      template = en[`${key}_${rule}` as MessageKey] ?? en[`${key}_other` as MessageKey];
   }
   template = template ?? dict[key] ?? (en as Record<string, string>)[key] ?? key;
 
