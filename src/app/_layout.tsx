@@ -5,10 +5,13 @@ import { Platform } from 'react-native';
 
 import { ThemeProvider, useTheme } from '../../lib/app-theme';
 import { I18nProvider } from '../../lib/i18n';
+import { startPwa } from '../../lib/pwa';
 import { installWebAlert, WebAlertHost } from '../../lib/web-alert';
 
 // On the web, make Alert.alert show real dialogs (it's a no-op there otherwise).
 installWebAlert();
+// On the web: lets the app be installed to the home screen / desktop.
+startPwa();
 
 function ThemedStack() {
   const { mode, colors } = useTheme();

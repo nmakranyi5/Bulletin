@@ -1,15 +1,5 @@
 import { Session } from '@supabase/supabase-js';
-import {
-  BriefcaseBusiness,
-  BadgeCheck,
-  ChevronRight,
-  CircleHelp,
-  Pencil,
-  Settings,
-  ShieldCheck,
-  Trash2,
-  UserRound,
-} from 'lucide-react-native';
+import { BadgeCheck, BriefcaseBusiness, ChevronRight, CircleHelp, Download, Pencil, Settings, ShieldCheck, Trash2, UserRound } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
@@ -23,6 +13,7 @@ import { kindsFor } from '../../../lib/verification';
 import { Verification, fetchVerifications } from './verifications';
 import { PhoneVerifyModal } from './phone-verify-modal';
 import { fetchRatings } from './ratings';
+import { usePwaInstall } from '../../hooks/use-pwa-install';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { DeleteAccountModal } from './delete-account-modal';
@@ -70,6 +61,7 @@ export function ProfileScreen({
   const [showDelete, setShowDelete] = useState(false);
   const { mode, setMode } = useTheme();
   const { setting, setSetting: setLanguageSetting } = useI18n();
+  const { mode: installMode, install } = usePwaInstall();
 
   const loadProfile = async () => {
     const { data, error } = await supabase
@@ -254,6 +246,20 @@ export function ProfileScreen({
                 </Pressable>
               ))}
             </View>
+
+            {installMode && (
+              <Pressable
+                style={local.replayRow}
+                onPress={() => {
+                  if (installMode === 'prompt') install();
+                  else Alert.alert(t('install.iosTitle'), t('install.iosSteps'));
+                }}
+                accessibilityRole="button"
+              >
+                <Download size={18} color={c.textSecondary} strokeWidth={2.2} />
+                <Text style={local.replayText}>{t('install.row')}</Text>
+              </Pressable>
+            )}
 
             <Pressable style={local.replayRow} onPress={onReplayTutorial}>
               <CircleHelp size={18} color={c.textSecondary} strokeWidth={2.2} />

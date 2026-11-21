@@ -14,6 +14,10 @@ export const app = defineMessages(
     'timerAlert.openChat': 'Open chat',
     'timerAlert.viewInterest': 'View interest',
     'app.thisPerson': 'This person',
+    'install.row': 'Install the app',
+    'install.iosTitle': 'Install bulletin.',
+    'install.iosSteps':
+      'In Safari, tap the Share button, then "Add to Home Screen". bulletin. will open full screen, like an app.',
   },
   {
     'tutorial.offerTitle': '¿Quieres un recorrido rápido?',
@@ -28,5 +32,9 @@ export const app = defineMessages(
     'timerAlert.openChat': 'Abrir chat',
     'timerAlert.viewInterest': 'Ver interés',
     'app.thisPerson': 'Esta persona',
+    'install.row': 'Instalar la app',
+    'install.iosTitle': 'Instalar bulletin.',
+    'install.iosSteps':
+      'En Safari, toca el botón Compartir y luego "Agregar a pantalla de inicio". bulletin. se abrirá a pantalla completa, como una app.',
   }
 );
