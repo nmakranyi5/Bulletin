@@ -11,7 +11,12 @@
       "icon": "./assets/images/bulletin-icon.png",
       "bundleIdentifier": "com.nmakranyi.Bulletin",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleLocalizations": [
+          "en",
+          "es"
+        ],
+        "CFBundleDevelopmentRegion": "en"
       }
     },
     "android": {

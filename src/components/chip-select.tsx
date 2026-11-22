@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../lib/app-theme';
+import { tv, useT } from '../../lib/i18n';
 import { useSharedStyles } from '../styles/shared';
+import {  } from '../../lib/i18n';
 
 export function ChipSelect({
   label,
@@ -14,6 +16,7 @@ export function ChipSelect({
   selected: readonly string[];
   onToggle: (option: string) => void;
 }) {
+  useT(); // re-render when the language changes
   const shared = useSharedStyles();
   const local = useLocalStyles();
   return (
@@ -28,7 +31,7 @@ export function ChipSelect({
               style={[local.chip, active && local.chipActive]}
               onPress={() => onToggle(option)}
             >
-              <Text style={[local.chipText, active && local.chipTextActive]}>{option}</Text>
+              <Text style={[local.chipText, active && local.chipTextActive]}>{tv(option)}</Text>
             </Pressable>
           );
         })}

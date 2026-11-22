@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { TourStep } from '../../../lib/tutorial';
+import { useT } from '../../../lib/i18n';
 
 const ICONS: Record<string, typeof Search> = {
   welcome: Sparkles,
@@ -31,6 +32,7 @@ export function TutorialOverlay({
   onClose: () => void;
 }) {
   const c = useTheme().colors;
+  const t = useT();
   const local = useLocalStyles();
   if (stage === 'idle') return null;
 
@@ -46,16 +48,15 @@ export function TutorialOverlay({
             <View style={local.iconCircle}>
               <Sparkles size={26} color={c.onAccent} strokeWidth={2.2} />
             </View>
-            <Text style={local.title}>Want a quick tour?</Text>
+            <Text style={local.title}>{t('tutorial.offerTitle')}</Text>
             <Text style={local.body}>
-              A one-minute walk through each tab and how it all fits together. You can skip it and
-              replay it later from Profile &gt; Settings.
+              {t('tutorial.offerBody')}
             </Text>
             <Pressable style={local.primary} onPress={onStart} accessibilityRole="button">
-              <Text style={local.primaryText}>Show me around</Text>
+              <Text style={local.primaryText}>{t('tutorial.showMe')}</Text>
             </Pressable>
             <Pressable style={local.secondary} onPress={onClose} accessibilityRole="button">
-              <Text style={local.secondaryText}>Skip for now</Text>
+              <Text style={local.secondaryText}>{t('tutorial.skipNow')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -65,7 +66,7 @@ export function TutorialOverlay({
                 <Icon size={24} color={c.onAccent} strokeWidth={2.2} />
               </View>
               <Text style={local.counter}>
-                {step + 1} of {steps.length}
+                {t('tutorial.counter', { step: step + 1, total: steps.length })}
               </Text>
             </View>
 
@@ -90,7 +91,7 @@ export function TutorialOverlay({
             <View style={local.buttons}>
               {step > 0 && (
                 <Pressable style={local.back} onPress={() => onStep(step - 1)}>
-                  <Text style={local.backText}>Back</Text>
+                  <Text style={local.backText}>{t('common.back')}</Text>
                 </Pressable>
               )}
               <Pressable
@@ -98,13 +99,13 @@ export function TutorialOverlay({
                 onPress={() => (isLast ? onClose() : onStep(step + 1))}
                 accessibilityRole="button"
               >
-                <Text style={local.primaryText}>{isLast ? 'Start exploring' : 'Next'}</Text>
+                <Text style={local.primaryText}>{isLast ? t('tutorial.start') : t('common.next')}</Text>
               </Pressable>
             </View>
 
             {!isLast && (
               <Pressable style={local.secondary} onPress={onClose} accessibilityRole="button">
-                <Text style={local.secondaryText}>Skip tour</Text>
+                <Text style={local.secondaryText}>{t('tutorial.skipTour')}</Text>
               </Pressable>
             )}
           </View>

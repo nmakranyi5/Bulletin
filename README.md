@@ -67,3 +67,20 @@ src/constants/app.ts  Layout/swipe constants and the interest limit
 lib/                Supabase client, theme, and pure helpers (hvac, chat, auth links)
 supabase/migrations/  SQL to run against your Supabase project
 ```
+
+## Languages
+
+The app is available in English and Spanish. It follows the device language and can be changed
+in Profile > Settings > Language (and on the login screen).
+
+Text lives in `lib/i18n/messages/<area>.ts`, with the English and Spanish side by side:
+`defineMessages({ 'key': 'English' }, { 'key': 'Español' })`. The Spanish object is typed to have
+exactly the same keys as the English one, so a missing translation is a compile error.
+
+- In components: `const t = useT(); t('key', { name })`. Plurals use `key_one` / `key_other` with `count`.
+- Outside React (helpers, hooks): `import { t } from 'lib/i18n'`.
+- Values stored in the database in English (work types, schedules, roles...) are shown through
+  `tv(value)`; add a `val.<English value>` key to translate one.
+- To add a language: add it to `LANGUAGES` and the dictionaries in `lib/i18n/core.ts`, extend
+  `defineMessages` with the new language, and fill in each area file (the compiler lists what is
+  missing).

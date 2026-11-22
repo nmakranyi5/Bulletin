@@ -2,6 +2,8 @@
 // recovers it after a miss); missing a reply deadline lowers it. The database computes
 // it (get_ratings); this mirrors the formula for display and tests.
 
+import { t } from './i18n/core';
+
 export const RATING_MAX = 5;
 // Only the most recent responses count, so a rough patch fades.
 export const RATING_RECENT_COUNT = 30;
@@ -29,7 +31,7 @@ export function formatRating(rating: number): string {
 export function ratingDetail(r: Rating): string | null {
   const total = r.onTime + r.late;
   if (total === 0) return null;
-  return `${r.onTime} of ${total} ${total === 1 ? 'reply' : 'replies'} on time`;
+  return t('rating.detail', { count: total, onTime: r.onTime, total });
 }
 
 export function parseRatingRow(row: any): Rating {

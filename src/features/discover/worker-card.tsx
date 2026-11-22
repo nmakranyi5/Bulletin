@@ -10,6 +10,7 @@ import { VerifiedBadge } from '../../components/verified-badge';
 import { Tag } from '../../components/tag';
 import { useSharedStyles } from '../../styles/shared';
 import { ExpandableCard } from './expandable-card';
+import { useT } from '../../../lib/i18n';
 
 export function WorkerCardContent({
   candidate,
@@ -25,6 +26,7 @@ export function WorkerCardContent({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const [resumeOpen, setResumeOpen] = useState(false);
 
   const info = (
@@ -51,7 +53,7 @@ export function WorkerCardContent({
 
   const basics = (
     <>
-      <Text style={shared.sectionLabel}>EPA 608</Text>
+      <Text style={shared.sectionLabel}>{t('discover.epa608')}</Text>
       {/* shared.position is flex: 1 for rows; don't let it stretch in this column. */}
       <Text
         numberOfLines={1}
@@ -106,7 +108,7 @@ export function WorkerCardContent({
           {candidate.trade_start_year ? (
             <Tag text={formatTradeStart(candidate.trade_start_year)!} />
           ) : null}
-          {candidate.has_drivers_license ? <Tag text="Valid driver's license" /> : null}
+          {candidate.has_drivers_license ? <Tag text={t('discover.licenseTag')} /> : null}
         </View>
       )}
 
@@ -114,7 +116,7 @@ export function WorkerCardContent({
 
       {(candidate.open_schedules ?? []).length > 0 && (
         <>
-          <Text style={[shared.sectionLabel, { marginTop: 18 }]}>OPEN TO</Text>
+          <Text style={[shared.sectionLabel, { marginTop: 18 }]}>{t('discover.openTo')}</Text>
           <View style={[shared.tags, { marginTop: 8 }]}>
             {candidate.open_schedules.map((s: string) => (
               <Tag key={s} text={s} />
@@ -123,9 +125,9 @@ export function WorkerCardContent({
         </>
       )}
 
-      <Text style={[shared.sectionLabel, { marginTop: 18 }]}>ABOUT</Text>
+      <Text style={[shared.sectionLabel, { marginTop: 18 }]}>{t('discover.about')}</Text>
       <Text style={[shared.note, { marginTop: 8 }]}>
-        {candidate.description || 'No description provided.'}
+        {candidate.description || t('discover.noDescription')}
       </Text>
 
       {candidate.resume_url ? (
@@ -146,7 +148,7 @@ export function WorkerCardContent({
             accessibilityRole="button"
           >
             <FileText size={18} color={c.text} strokeWidth={2.2} />
-            <Text style={{ fontSize: 15, fontWeight: '700', color: c.text }}>View resume</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: c.text }}>{t('discover.viewResume')}</Text>
           </Pressable>
           <ResumeViewerModal
             visible={resumeOpen}

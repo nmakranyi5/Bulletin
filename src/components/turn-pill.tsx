@@ -2,11 +2,13 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../lib/app-theme';
 import { Turn } from '../../lib/chat';
+import { useT } from '../../lib/i18n';
 
 // "Your turn" / "Their turn": whose move it is in a chat. Your turn is filled so it stands
 // out in a list; their turn is quiet.
 export function TurnPill({ turn }: { turn: Turn }) {
   const c = useTheme().colors;
+  const t = useT();
   const local = useMemo(
     () =>
       StyleSheet.create({
@@ -32,7 +34,7 @@ export function TurnPill({ turn }: { turn: Turn }) {
       ]}
     >
       <Text style={[local.text, { color: mine ? c.onAccent : c.muted }]}>
-        {mine ? 'Your turn' : 'Their turn'}
+        {mine ? t('ui.yourTurn') : t('ui.theirTurn')}
       </Text>
     </View>
   );

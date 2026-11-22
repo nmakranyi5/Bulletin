@@ -3,6 +3,8 @@
 
 // Accepts "(512) 555-0123", "512-555-0123", "1 512 555 0123" and "+44 20 7946 0958".
 // Numbers without a "+" are treated as US/Canada. Returns null when it can't be a real number.
+import { t } from './i18n/core';
+
 export function toE164(input: string): string | null {
   const trimmed = input.trim();
   const digits = trimmed.replace(/\D/g, '');
@@ -35,16 +37,16 @@ export function cleanCode(input: string): string {
 export function phoneErrorMessage(message: string | undefined): string {
   const m = (message ?? '').toLowerCase();
   if (m.includes('sms') && (m.includes('provider') || m.includes('send'))) {
-    return "Text messages aren't set up for this app yet, so we can't send a code right now.";
+    return t('phone.errSms');
   }
   if (m.includes('already') || m.includes('registered') || m.includes('exists')) {
-    return 'That number is already used by another account.';
+    return t('phone.errUsed');
   }
   if (m.includes('security purposes') || m.includes('rate limit') || m.includes('too many')) {
-    return 'Too many tries. Wait a minute and try again.';
+    return t('phone.errRate');
   }
   if (m.includes('expired') || m.includes('invalid')) {
-    return 'That code is wrong or has expired. Check it, or send a new one.';
+    return t('phone.errCode');
   }
-  return message || 'Something went wrong. Try again.';
+  return message || t('phone.errGeneric');
 }

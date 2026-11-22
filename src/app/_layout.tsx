@@ -1,21 +1,29 @@
 import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 
 import { ThemeProvider, useTheme } from '../../lib/app-theme';
+import { I18nProvider } from '../../lib/i18n';
+import { startPwa } from '../../lib/pwa';
 import { installWebAlert, WebAlertHost } from '../../lib/web-alert';
 
 // On the web, make Alert.alert show real dialogs (it's a no-op there otherwise).
 installWebAlert();
+// On the web: lets the app be installed to the home screen / desktop.
+startPwa();
 
 function ThemedStack() {
   const { mode, colors } = useTheme();
 
   return (
     <>
-      <Head>
-        <title>bulletin.</title>
-      </Head>
+      {/* Web only: on iOS/Android Head needs a handoff origin and throws without one. */}
+      {Platform.OS === 'web' && (
+        <Head>
+          <title>bulletin.</title>
+        </Head>
+      )}
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -33,7 +41,9 @@ function ThemedStack() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <ThemedStack />
+      <I18nProvider>
+        <ThemedStack />
+      </I18nProvider>
     </ThemeProvider>
   );
 }

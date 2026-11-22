@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/app-theme';
 import { useSharedStyles } from '../styles/shared';
+import { useT } from '../../lib/i18n';
 
 export type FormStep = { key: string; title: string; subtitle: string };
 
@@ -52,6 +53,7 @@ export function StepForm({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const index = Math.min(stepIndex, steps.length - 1);
   const current = steps[index];
@@ -103,13 +105,13 @@ export function StepForm({
         </View>
 
         {loading ? (
-          <Text style={shared.subtitle}>Loading...</Text>
+          <Text style={shared.subtitle}>{t('common.loading')}</Text>
         ) : (
           <>
             {wizard ? (
               <View
                 style={local.progress}
-                accessibilityLabel={`Step ${index + 1} of ${steps.length}`}
+                accessibilityLabel={t('ui.stepOf', { step: index + 1, total: steps.length })}
               >
                 {steps.map((step, i) => (
                   <View
@@ -144,7 +146,7 @@ export function StepForm({
                   onPress={() => onStepChange(Math.max(0, index - 1))}
                   disabled={submitting}
                 >
-                  <Text style={local.backButtonText}>Back</Text>
+                  <Text style={local.backButtonText}>{t('common.back')}</Text>
                 </Pressable>
               )}
               <Pressable
@@ -153,7 +155,7 @@ export function StepForm({
                 disabled={submitting}
               >
                 <Text style={shared.authButtonText}>
-                  {submitting ? 'Saving...' : !wizard ? saveLabel : isLast ? submitLabel : 'Next'}
+                  {submitting ? t('ui.saving') : !wizard ? saveLabel : isLast ? submitLabel : t('common.next')}
                 </Text>
               </Pressable>
             </View>

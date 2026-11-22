@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { useT } from '../../lib/i18n';
 import { MapCommand, MapMessage, parseMapMessage } from '../../lib/map-html';
 import type { MapSurfaceHandle } from './map-surface';
 
@@ -10,6 +11,7 @@ export const MapSurface = forwardRef<
   { html: string; onMessage: (message: MapMessage) => void }
 >(function MapSurface({ html, onMessage }, ref) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const t = useT();
   const handler = useRef(onMessage);
   handler.current = onMessage;
 
@@ -31,7 +33,7 @@ export const MapSurface = forwardRef<
     <iframe
       ref={frame}
       srcDoc={html}
-      title="Map"
+      title={t('ui.map')}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
     />
   );

@@ -4,18 +4,20 @@
 // Labels are worded neutrally because the same text is shown to the person picking it
 // and to the person who reads it afterwards.
 
-export const DECLINE_REASONS = {
-  position_filled: 'The position has been filled',
-  missing_certification: 'Missing a required certification',
-  not_enough_experience: 'Needs more experience',
-  schedule_mismatch: "The schedule doesn't work",
-  too_far: 'Too far away',
-  chose_another: 'Went with another candidate',
-  pay_mismatch: "The pay doesn't match",
-  wrong_work: 'Not the right type of work',
-  took_another_job: 'Accepted another job',
-  other: 'Something else',
-} as const;
+import { labelMap, t } from './i18n/core';
+
+export const DECLINE_REASONS = labelMap('decline', [
+  'position_filled',
+  'missing_certification',
+  'not_enough_experience',
+  'schedule_mismatch',
+  'too_far',
+  'chose_another',
+  'pay_mismatch',
+  'wrong_work',
+  'took_another_job',
+  'other',
+] as const);
 
 export type DeclineReason = keyof typeof DECLINE_REASONS;
 
@@ -68,22 +70,23 @@ export function declineNotice(
     note?: string | null;
   }[]
 ): { title: string; message: string } {
-  const describe = (d: (typeof declined)[number]) => reasonLabel(d.reason) ?? 'No reason given';
+  const describe = (d: (typeof declined)[number]) => reasonLabel(d.reason) ?? t('declineN.noReason');
 
   if (declined.length === 1) {
     const [d] = declined;
-    const where = d.position ? ` in ${d.position}` : '';
+    const where = d.position ? t('declineN.inPosition', { position: d.position }) : '';
     const note = d.note ? `\n\n"${d.note}"` : '';
     return {
-      title: 'Not moving forward',
-      message: `${d.name} declined your interest${where}.\n\nReason: ${describe(d)}${note}`,
+      title: t('declineN.title'),
+      message: t('declineN.message', { name: d.name, where, reason: describe(d), note }),
     };
   }
 
   const lines = declined.slice(0, 3).map((d) => `${d.name}: ${describe(d)}`);
-  const more = declined.length > 3 ? `\nand ${declined.length - 3} more` : '';
+  const more =
+    declined.length > 3 ? `\n${t('declineN.andMore', { count: declined.length - 3 })}` : '';
   return {
-    title: `${declined.length} interests were declined`,
+    title: t('declineN.manyTitle', { count: declined.length }),
     message: `${lines.join('\n')}${more}`,
   };
 }

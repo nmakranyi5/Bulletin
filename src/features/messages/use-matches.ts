@@ -9,6 +9,7 @@ import { ConversationMeta, summarizeConversations } from '../../../lib/chat';
 import { urgencyOf } from '../../../lib/response-timers';
 import { supabase } from '../../../lib/supabase';
 import { Match } from '../../types';
+import { t } from '../../../lib/i18n';
 
 // A match is an accepted interest. Also tracks conversation previews and the open chat.
 export function useMatches(
@@ -99,7 +100,7 @@ export function useMatches(
       .or(`from_user.eq.${me},to_user.eq.${me}`);
 
     if (error) {
-      if (!opts?.silent) Alert.alert('Error', error.message);
+      if (!opts?.silent) Alert.alert(t('common.error'), error.message);
       return;
     }
 
@@ -107,7 +108,7 @@ export function useMatches(
     if (seq !== fetchSeq.current) return;
     // Without summaries every chat would look empty, so keep what's on screen and try again.
     if (meta === null) {
-      if (!opts?.silent) Alert.alert('Error', "Couldn't load your messages. Pull down to retry.");
+      if (!opts?.silent) Alert.alert(t('common.error'), t('matches.couldNotLoad'));
       return;
     }
     setConvoMeta(meta);
@@ -203,7 +204,7 @@ export function useMatches(
     });
 
     if (error) {
-      Alert.alert('Could not close chat', error.message);
+      Alert.alert(t('matches.couldNotClose'), error.message);
       return false;
     }
 
@@ -217,19 +218,19 @@ export function useMatches(
   // Removes an archived chat from your list only; the other person keeps theirs.
   const deleteArchived = (match: Match) => {
     Alert.alert(
-      'Delete this chat?',
-      `This removes it from your archive. ${match.name} keeps their copy.`,
+      t('matches.deleteTitle'),
+      t('matches.deleteBody', { name: match.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             const { error } = await supabase.rpc('hide_archived_chat', {
               p_interest_id: match.id,
             });
             if (error) {
-              Alert.alert('Could not delete', error.message);
+              Alert.alert(t('matches.couldNotDelete'), error.message);
               return;
             }
             setSelectedId(null);
@@ -247,7 +248,7 @@ export function useMatches(
       p_hours: hours,
     });
     if (error) {
-      Alert.alert('Could not send request', error.message);
+      Alert.alert(t('matches.couldNotRequest'), error.message);
       return false;
     }
     await fetchMatches({ silent: true });
@@ -259,7 +260,7 @@ export function useMatches(
       p_request_id: request.id,
       p_accept: accept,
     });
-    if (error) Alert.alert('Could not answer', error.message);
+    if (error) Alert.alert(t('matches.couldNotAnswer'), error.message);
     await fetchMatches({ silent: true });
   };
 

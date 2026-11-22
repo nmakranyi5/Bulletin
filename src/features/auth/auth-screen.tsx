@@ -14,9 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
+import { LANGUAGES, useI18n, useT } from '../../../lib/i18n';
 import { ForgotPasswordScreen } from './forgot-password-screen';
 
 export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) => void }) {
+  const t = useT();
+  const { language, setSetting: setLanguageSetting } = useI18n();
   const c = useTheme().colors;
   const shared = useSharedStyles();
   const local = useLocalStyles();
@@ -29,7 +32,7 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing info', 'Please enter both email and password.');
+      Alert.alert(t('common.missingInfo'), t('auth.enterBoth'));
       return;
     }
 
@@ -47,12 +50,12 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
     setLoading(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
 
     if (mode === 'signUp') {
-      Alert.alert('Check your email', 'Confirm your email to finish signing up.');
+      Alert.alert(t('auth.checkEmailTitle'), t('auth.checkEmailBody'));
     }
   };
 
@@ -77,89 +80,111 @@ export function AuthScreen({ setRecovering }: { setRecovering: (value: boolean) 
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <Text style={shared.logo}>bulletin.</Text>
-        <Text style={shared.subtitle}>
-          {mode === 'signIn' ? 'Welcome back.' : 'Create your account.'}
-        </Text>
+          <Text style={shared.logo}>bulletin.</Text>
+          <Text style={shared.subtitle}>
+            {mode === 'signIn' ? t('auth.welcomeBack') : t('auth.createAccount')}
+          </Text>
 
-        <View style={[shared.subTabBar, local.authModeToggle]}>
-          <Pressable
-            style={[shared.subTabItem, mode === 'signIn' && shared.subTabItemActive]}
-            onPress={() => setMode('signIn')}
-          >
-            <Text
-              style={[shared.subTabText, mode === 'signIn' && shared.subTabTextActive]}
-            >
-              Log In
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[shared.subTabItem, mode === 'signUp' && shared.subTabItemActive]}
-            onPress={() => setMode('signUp')}
-          >
-            <Text
-              style={[shared.subTabText, mode === 'signUp' && shared.subTabTextActive]}
-            >
-              Sign Up
-            </Text>
-          </Pressable>
-        </View>
-
-        {mode === 'signUp' && (
           <View style={[shared.subTabBar, local.authModeToggle]}>
-            {(['seeker', 'recruiter'] as const).map((r) => (
+            <Pressable
+              style={[shared.subTabItem, mode === 'signIn' && shared.subTabItemActive]}
+              onPress={() => setMode('signIn')}
+            >
+              <Text style={[shared.subTabText, mode === 'signIn' && shared.subTabTextActive]}>
+                {t('auth.logIn')}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[shared.subTabItem, mode === 'signUp' && shared.subTabItemActive]}
+              onPress={() => setMode('signUp')}
+            >
+              <Text style={[shared.subTabText, mode === 'signUp' && shared.subTabTextActive]}>
+                {t('auth.signUp')}
+              </Text>
+            </Pressable>
+          </View>
+
+          {mode === 'signUp' && (
+            <View style={[shared.subTabBar, local.authModeToggle]}>
+              {(['seeker', 'recruiter'] as const).map((r) => (
+                <Pressable
+                  key={r}
+                  style={[shared.subTabItem, role === r && shared.subTabItemActive]}
+                  onPress={() => setRole(r)}
+                >
+                  <Text style={[shared.subTabText, role === r && shared.subTabTextActive]}>
+                    {r === 'seeker' ? t('auth.imSeeker') : t('auth.imRecruiter')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <TextInput
+            style={shared.authInput}
+            placeholder={t('auth.email')}
+            placeholderTextColor={c.muted}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <TextInput
+            style={shared.authInput}
+            placeholder={t('auth.password')}
+            placeholderTextColor={c.muted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <Pressable
+            style={[shared.authButton, loading && shared.authButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            <Text style={shared.authButtonText}>
+              {loading
+                ? t('common.pleaseWait')
+                : mode === 'signIn'
+                  ? t('auth.logIn')
+                  : t('auth.signUp')}
+            </Text>
+          </Pressable>
+
+          {mode === 'signIn' && (
+            <Pressable
+              style={{ marginTop: 14, alignItems: 'center' }}
+              onPress={() => setShowForgot(true)}
+              disabled={loading}
+            >
+              <Text style={shared.subtitle}>{t('auth.forgot')}</Text>
+            </Pressable>
+          )}
+
+          <View style={local.languageRow}>
+            {LANGUAGES.map((l, i) => (
               <Pressable
-                key={r}
-                style={[shared.subTabItem, role === r && shared.subTabItemActive]}
-                onPress={() => setRole(r)}
+                key={l.code}
+                onPress={() => setLanguageSetting(l.code)}
+                accessibilityRole="button"
+                hitSlop={8}
               >
-                <Text style={[shared.subTabText, role === r && shared.subTabTextActive]}>
-                  {r === 'seeker' ? "I'm a Seeker" : "I'm a Recruiter"}
+                <Text
+                  style={[
+                    shared.subtitle,
+                    local.languageText,
+                    language === l.code && local.languageTextActive,
+                    i > 0 && { marginLeft: 14 },
+                  ]}
+                >
+                  {l.label}
                 </Text>
               </Pressable>
             ))}
           </View>
-        )}
-
-        <TextInput
-          style={shared.authInput}
-          placeholder="Email"
-          placeholderTextColor={c.muted}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        <TextInput
-          style={shared.authInput}
-          placeholder="Password"
-          placeholderTextColor={c.muted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <Pressable
-          style={[shared.authButton, loading && shared.authButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          <Text style={shared.authButtonText}>
-            {loading ? 'Please wait...' : mode === 'signIn' ? 'Log In' : 'Sign Up'}
-          </Text>
-        </Pressable>
-
-        {mode === 'signIn' && (
-          <Pressable
-            style={{ marginTop: 14, alignItems: 'center' }}
-            onPress={() => setShowForgot(true)}
-            disabled={loading}
-          >
-            <Text style={shared.subtitle}>Forgot password?</Text>
-          </Pressable>
-        )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -172,6 +197,22 @@ function useLocalStyles() {
   return useMemo(
     () =>
       StyleSheet.create({
+        languageRow: {
+          flexDirection: 'row',
+          justifyContent: 'center',
+          marginTop: 28,
+        },
+
+        languageText: {
+          marginTop: 0,
+          fontWeight: '600',
+        },
+
+        languageTextActive: {
+          color: c.text,
+          textDecorationLine: 'underline',
+        },
+
         authModeToggle: {
           marginHorizontal: 0,
           marginTop: 20,

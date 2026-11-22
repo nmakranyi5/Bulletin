@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '../../lib/app-theme';
 import { useSharedStyles } from '../styles/shared';
 import { MapPickerModal } from './map-picker-modal';
+import { useT } from '../../lib/i18n';
 
 export type PlaceValue = { text: string; lat: number | null; lng: number | null };
 
@@ -19,6 +20,7 @@ export function LocationField({
   placeholder: string;
 }) {
   const c = useTheme().colors;
+  const t = useT();
   const shared = useSharedStyles();
   const local = useLocalStyles();
   const [open, setOpen] = useState(false);
@@ -38,7 +40,7 @@ export function LocationField({
           style={[local.mapButton, pinned && local.mapButtonPinned]}
           onPress={() => setOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="Pick on map"
+          accessibilityLabel={t('ui.pickOnMap')}
         >
           <MapPin size={20} color={pinned ? c.onAccent : c.text} strokeWidth={2.2} />
         </Pressable>

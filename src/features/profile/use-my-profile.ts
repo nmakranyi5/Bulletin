@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { supabase } from '../../../lib/supabase';
+import { t } from '../../../lib/i18n';
 
 export type MyProfile = {
   id: string;
@@ -27,7 +28,7 @@ export function useMyProfile(session: Session | null, onboarded: boolean | null)
       .maybeSingle();
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
 

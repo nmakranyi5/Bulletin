@@ -12,21 +12,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/app-theme';
 import { supabase } from '../../../lib/supabase';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 export function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
     if (password.length < 6) {
-      Alert.alert('Password too short', 'Use at least 6 characters.');
+      Alert.alert(t('auth.passwordShortTitle'), t('auth.passwordShortBody'));
       return;
     }
     if (password !== confirm) {
-      Alert.alert('Passwords do not match', 'Please re-enter them.');
+      Alert.alert(t('auth.mismatchTitle'), t('auth.mismatchBody'));
       return;
     }
 
@@ -35,11 +37,11 @@ export function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
 
-    Alert.alert('Password updated', 'You are all set.');
+    Alert.alert(t('auth.updatedTitle'), t('auth.updatedBody'));
     onDone();
   };
 
@@ -55,11 +57,11 @@ export function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
           showsVerticalScrollIndicator={false}
         >
         <Text style={shared.logo}>bulletin.</Text>
-        <Text style={shared.subtitle}>Choose a new password.</Text>
+        <Text style={shared.subtitle}>{t('auth.chooseNew')}</Text>
 
         <TextInput
           style={shared.authInput}
-          placeholder="New password"
+          placeholder={t('auth.newPassword')}
           placeholderTextColor={c.muted}
           value={password}
           onChangeText={setPassword}
@@ -67,7 +69,7 @@ export function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
         />
         <TextInput
           style={shared.authInput}
-          placeholder="Confirm password"
+          placeholder={t('auth.confirmPassword')}
           placeholderTextColor={c.muted}
           value={confirm}
           onChangeText={setConfirm}
@@ -79,7 +81,7 @@ export function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
           onPress={handleSave}
           disabled={loading}
         >
-          <Text style={shared.authButtonText}>{loading ? 'Please wait...' : 'Save password'}</Text>
+          <Text style={shared.authButtonText}>{loading ? t('common.pleaseWait') : t('auth.savePassword')}</Text>
         </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

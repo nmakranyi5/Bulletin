@@ -29,6 +29,7 @@ import {
   seekerStepError,
   SeekerValues,
 } from './seeker-fields';
+import { useT } from '../../../lib/i18n';
 
 export function OnboardingScreen({
   session,
@@ -45,6 +46,7 @@ export function OnboardingScreen({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -68,43 +70,41 @@ export function OnboardingScreen({
       // (Editing an existing profile isn't "getting set up".)
       title: wizard
         ? isRecruiter
-          ? "Let's set up your company"
-          : "Let's get you set up"
-        : 'The basics',
-      subtitle: wizard ? 'Start with the basics.' : 'Your photo, name and username.',
+          ? t('onb.setupCompany')
+          : t('onb.setupYou')
+        : t('onb.basics'),
+      subtitle: wizard ? t('onb.startBasics') : t('onb.basicsSub'),
     },
     // New job seekers add their resume right after the basics; shops look at it first.
     ...(wizard && !isRecruiter
       ? [
           {
             key: 'resume',
-            title: 'Add your resume',
-            subtitle: 'Shops look at this first. PDF only. You can replace it any time.',
+            title: t('onb.resumeTitle'),
+            subtitle: t('onb.resumeSub'),
           },
         ]
       : []),
     ...(isRecruiter ? RECRUITER_STEPS : SEEKER_STEPS),
     {
       key: 'replies',
-      title: 'How fast do you reply?',
-      subtitle: 'The more you reply on time, the higher your rating.',
+      title: t('onb.repliesTitle'),
+      subtitle: t('onb.repliesSub'),
     },
     {
       key: 'about',
-      title: isRecruiter ? 'About your company' : 'About you',
-      subtitle: isRecruiter
-        ? 'A short description candidates will see.'
-        : 'Tell shops who you are. A resume helps too.',
+      title: isRecruiter ? t('onb.aboutCompany') : t('onb.aboutYou'),
+      subtitle: isRecruiter ? t('onb.aboutCompanySub') : t('onb.aboutYouSub'),
     },
   ];
 
   // What stops you moving on from a step, or null when it is fine to continue.
   const stepProblem = (key: string): { title: string; message: string } | null => {
     if (key === 'basics' && (!name.trim() || !username.trim())) {
-      return { title: 'Missing info', message: 'Name and username are required.' };
+      return { title: t('common.missingInfo'), message: t('onb.nameUsernameRequired') };
     }
     if (key === 'resume' && !resumeFile) {
-      return { title: 'Resume needed', message: 'Upload your resume (PDF) to continue.' };
+      return { title: t('onb.resumeNeeded'), message: t('onb.resumeContinue') };
     }
     if (isRecruiter) return recruiterStepError(key as any, recruiter);
     return seekerStepError(key as any, seeker);
@@ -141,7 +141,7 @@ export function OnboardingScreen({
   const pickAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
+      Alert.alert(t('onb.permissionTitle'), t('onb.permissionBody'));
       return;
     }
 
@@ -182,12 +182,12 @@ export function OnboardingScreen({
 
   const handleSubmit = async () => {
     if (!name.trim() || !username.trim()) {
-      Alert.alert('Missing info', 'Name and username are required.');
+      Alert.alert(t('common.missingInfo'), t('onb.nameUsernameRequired'));
       return;
     }
 
     if (wizard && !isRecruiter && !resumeFile) {
-      Alert.alert('Resume needed', 'Upload your resume (PDF) to finish setting up.');
+      Alert.alert(t('onb.resumeNeeded'), t('onb.resumeFinish'));
       return;
     }
 
@@ -236,9 +236,9 @@ export function OnboardingScreen({
     } catch (err: any) {
       const message =
         err?.code === '23505'
-          ? 'That username is already taken.'
-          : (err?.message ?? 'Something went wrong.');
-      Alert.alert('Error', message);
+          ? t('onb.usernameTaken')
+          : (err?.message ?? t('onb.wentWrong'));
+      Alert.alert(t('common.error'), message);
     } finally {
       setSubmitting(false);
     }
@@ -255,13 +255,17 @@ export function OnboardingScreen({
               <UserRound size={40} color={c.muted} strokeWidth={1.5} />
             )}
             <Text style={local.avatarPickerText}>
-              {avatarUri ? 'Change photo' : isRecruiter ? 'Add company logo' : 'Add profile photo'}
+              {avatarUri
+                ? t('onb.changePhoto')
+                : isRecruiter
+                  ? t('onb.addLogo')
+                  : t('onb.addPhoto')}
             </Text>
           </Pressable>
 
           <TextInput
             style={shared.authInput}
-            placeholder={isRecruiter ? 'Your name' : 'Name'}
+            placeholder={isRecruiter ? t('onb.yourName') : t('onb.name')}
             placeholderTextColor={c.muted}
             value={name}
             onChangeText={setName}
@@ -269,7 +273,7 @@ export function OnboardingScreen({
 
           <TextInput
             style={shared.authInput}
-            placeholder="Username"
+            placeholder={t('onb.username')}
             placeholderTextColor={c.muted}
             value={username}
             onChangeText={setUsername}
@@ -286,7 +290,7 @@ export function OnboardingScreen({
             style={[local.resumeDrop, resumeFile && local.resumeDropDone]}
             onPress={pickResume}
             accessibilityRole="button"
-            accessibilityLabel={resumeFile ? 'Replace resume' : 'Upload resume'}
+            accessibilityLabel={resumeFile ? t('onb.replaceResume') : t('onb.uploadResumeLabel')}
           >
             {resumeFile ? (
               <FileCheck size={34} color={c.green} strokeWidth={1.8} />
@@ -294,10 +298,10 @@ export function OnboardingScreen({
               <FileUp size={34} color={c.muted} strokeWidth={1.8} />
             )}
             <Text style={local.resumeDropTitle} numberOfLines={2}>
-              {resumeFile ? resumeFile.name : 'Upload your resume'}
+              {resumeFile ? resumeFile.name : t('onb.uploadYourResume')}
             </Text>
             <Text style={local.resumeDropHint}>
-              {resumeFile ? 'Tap to choose a different file' : 'PDF, from your files'}
+              {resumeFile ? t('onb.chooseDifferent') : t('onb.pdfFromFiles')}
             </Text>
           </Pressable>
         </>
@@ -308,15 +312,13 @@ export function OnboardingScreen({
       return (
         <>
           <ChipSelect
-            label="I USUALLY REPLY WITHIN"
+            label={t('onb.replyWithin')}
             options={REPLY_DAY_OPTIONS.map((d) => `${d} day${d === 1 ? '' : 's'}`)}
             selected={[`${replyDays} day${replyDays === 1 ? '' : 's'}`]}
             onToggle={(o) => setReplyDays(parseInt(o, 10))}
           />
           <Text style={shared.chipHint}>
-            When you match with someone, the reply time for that chat is the midpoint of both your
-            settings, rounded up to a whole day. You can ask to change it in any chat, and urgent
-            roles start at their own faster time. Pick what you can really keep.
+            {t('onb.replyHint')}
           </Text>
         </>
       );
@@ -327,7 +329,7 @@ export function OnboardingScreen({
         <>
           <TextInput
             style={[shared.authInput, shared.authTextArea]}
-            placeholder={isRecruiter ? 'About your company' : 'A bit about yourself'}
+            placeholder={isRecruiter ? t('onb.aboutCompanyPlaceholder') : t('onb.aboutYouPlaceholder')}
             placeholderTextColor={c.muted}
             value={description}
             onChangeText={setDescription}
@@ -337,7 +339,7 @@ export function OnboardingScreen({
           {!isRecruiter && !wizard && (
             <Pressable style={local.resumePicker} onPress={pickResume}>
               <Text style={local.resumePickerText}>
-                {resumeFile ? resumeFile.name : 'Upload resume (PDF)'}
+                {resumeFile ? resumeFile.name : t('onb.uploadResumePdf')}
               </Text>
             </Pressable>
           )}
@@ -371,14 +373,14 @@ export function OnboardingScreen({
       stepProblem={stepProblem}
       onSubmit={handleSubmit}
       submitting={submitting}
-      submitLabel="Finish setup"
-      saveLabel="Save changes"
-      editingSubtitle="Edit your profile."
+      submitLabel={t('onb.finish')}
+      saveLabel={t('onb.saveChanges')}
+      editingSubtitle={t('onb.editSubtitle')}
       exit={
         onCancel
-          ? { kind: 'back', label: 'Go back', onPress: onCancel }
+          ? { kind: 'back', label: t('onb.goBack'), onPress: onCancel }
           : onBackToLogin
-            ? { kind: 'close', label: 'Cancel and return to login', onPress: onBackToLogin }
+            ? { kind: 'close', label: t('onb.cancelLogin'), onPress: onBackToLogin }
             : undefined
       }
     />

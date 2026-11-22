@@ -42,6 +42,7 @@ import { TutorialOverlay } from '../features/tutorial/tutorial-overlay';
 import { markTutorialOffer, useTutorial } from '../features/tutorial/use-tutorial';
 import { useResponseTimers } from '../features/timers/use-response-timers';
 import { useSharedStyles } from '../styles/shared';
+import { useT } from '../../lib/i18n';
 
 // App shell. `Index` decides which auth state we're in; once someone is signed in and
 // onboarded, `MainApp` takes over. MainApp is keyed by user id, so signing out and
@@ -49,6 +50,7 @@ import { useSharedStyles } from '../styles/shared';
 // instead of inheriting the previous account's profile, interests and matches.
 export default function Index() {
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const { session, authLoading, recovering, setRecovering, onboarded, setOnboarded } =
     useAuthSession();
@@ -56,7 +58,7 @@ export default function Index() {
   if (authLoading || (session && onboarded === null)) {
     return (
       <View style={local.authLoadingContainer}>
-        <Text style={shared.subtitle}>Loading...</Text>
+        <Text style={shared.subtitle}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -92,6 +94,7 @@ export default function Index() {
 // this only connects them.
 function MainApp({ session }: { session: Session }) {
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const desktop = useIsDesktop();
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
@@ -271,7 +274,7 @@ function MainApp({ session }: { session: Session }) {
   if (myProfile === null) {
     return (
       <View style={local.authLoadingContainer}>
-        <Text style={shared.subtitle}>Loading...</Text>
+        <Text style={shared.subtitle}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -440,7 +443,7 @@ function MainApp({ session }: { session: Session }) {
                   interests.requestDecline(interest);
                 }}
               >
-                <Text style={local.declineText}>Decline</Text>
+                <Text style={local.declineText}>{t('interests.decline')}</Text>
               </Pressable>
               <Pressable
                 style={[local.footerButton, local.acceptButton]}
@@ -450,7 +453,7 @@ function MainApp({ session }: { session: Session }) {
                   interests.acceptInterest(interest.id);
                 }}
               >
-                <Text style={local.acceptText}>Accept</Text>
+                <Text style={local.acceptText}>{t('interests.accept')}</Text>
               </Pressable>
             </>
           ) : null
@@ -459,7 +462,7 @@ function MainApp({ session }: { session: Session }) {
 
       <DeclineModal
         visible={!!interests.decliningInterest}
-        name={interests.decliningInterest?.from_profile?.name ?? 'This person'}
+        name={interests.decliningInterest?.from_profile?.name ?? t('app.thisPerson')}
         reasons={reasonsFor(interests.declineAsRecruiter)}
         onCancel={interests.cancelDecline}
         onSubmit={interests.declineInterest}
@@ -467,7 +470,7 @@ function MainApp({ session }: { session: Session }) {
 
       <CloseChatModal
         visible={!!matches.closingMatch}
-        name={matches.closingMatch?.name ?? 'This person'}
+        name={matches.closingMatch?.name ?? t('app.thisPerson')}
         reasons={closeReasonsFor(!!myProfile?.is_recruiter)}
         onCancel={matches.cancelClose}
         onSubmit={matches.closeChat}

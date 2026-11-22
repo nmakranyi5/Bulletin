@@ -14,6 +14,7 @@ import { WebView } from 'react-native-webview';
 import { useTheme } from '../../lib/app-theme';
 import { resumeViewerUrl } from '../../lib/resume';
 import { useResumeUrl } from './use-resume-url';
+import { useT } from '../../lib/i18n';
 
 // Shows a PDF or image document (a resume by default) inside the app. (The web version is resume-viewer-modal.web.tsx.)
 export function ResumeViewerModal({
@@ -31,6 +32,7 @@ export function ResumeViewerModal({
   onClose: () => void;
 }) {
   const c = useTheme().colors;
+  const t = useT();
   const local = useLocalStyles();
   const [loading, setLoading] = useState(true);
   const link = useResumeUrl(url, visible);
@@ -42,9 +44,9 @@ export function ResumeViewerModal({
         <SafeAreaView style={local.screen}>
           <View style={local.header}>
             <Text style={local.title} numberOfLines={1}>
-              {title ?? (name ? `${name}'s resume` : 'Resume')}
+              {title ?? (name ? t('ui.resumeOf', { name }) : t('ui.resume'))}
             </Text>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={t('common.close')}>
               <X size={22} color={c.text} strokeWidth={2.2} />
             </Pressable>
           </View>

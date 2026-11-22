@@ -1,9 +1,11 @@
 import { TextInput } from 'react-native';
+import { t } from '../../../lib/i18n/core';
 import { useTheme } from '../../../lib/app-theme';
 import { COMPANY_SIZES, parseYear, RECRUITER_TITLES, WORK_TYPES } from '../../../lib/hvac';
 import { ChipSelect } from '../../components/chip-select';
 import { LocationField } from '../../components/location-field';
 import { useSharedStyles } from '../../styles/shared';
+import { useT } from '../../../lib/i18n';
 
 export type RecruiterValues = {
   companyName: string;
@@ -19,12 +21,32 @@ export type RecruiterValues = {
 
 // Setup walks through these one screen at a time (editing shows them all together).
 export const RECRUITER_STEPS = [
-  { key: 'company', title: 'Your company', subtitle: 'Who candidates will be hearing from.' },
-  { key: 'work', title: 'What you do', subtitle: 'The kind of work your crews take on.' },
+  {
+    key: 'company',
+    get title() {
+      return t('recruiter.company.title');
+    },
+    get subtitle() {
+      return t('recruiter.company.subtitle');
+    },
+  },
+  {
+    key: 'work',
+    get title() {
+      return t('recruiter.work.title');
+    },
+    get subtitle() {
+      return t('recruiter.work.subtitle');
+    },
+  },
   {
     key: 'area',
-    title: 'Where you work',
-    subtitle: 'Your service area, so nearby techs can find you.',
+    get title() {
+      return t('recruiter.area.title');
+    },
+    get subtitle() {
+      return t('recruiter.area.subtitle');
+    },
   },
 ] as const;
 export type RecruiterStep = (typeof RECRUITER_STEPS)[number]['key'];
@@ -35,12 +57,12 @@ export function recruiterStepError(
   v: RecruiterValues
 ): { title: string; message: string } | null {
   if (step === 'company' && !v.companyName.trim()) {
-    return { title: 'Missing info', message: 'Company name is required.' };
+    return { title: t('common.missingInfo'), message: t('recruiter.companyRequired') };
   }
   if (step === 'work' && parseYear(v.foundedYear, 1800) === 'invalid') {
     return {
-      title: 'Invalid year',
-      message: 'Enter the four-digit year your company was established, e.g. 2005.',
+      title: t('field.invalidYear'),
+      message: t('recruiter.yearBody'),
     };
   }
   return null;
@@ -76,14 +98,14 @@ export function buildRecruiterPayload(
   v: RecruiterValues
 ): { payload: Record<string, unknown> } | { error: { title: string; message: string } } {
   if (!v.companyName.trim()) {
-    return { error: { title: 'Missing info', message: 'Company name is required.' } };
+    return { error: { title: t('common.missingInfo'), message: t('recruiter.companyRequired') } };
   }
   const year = parseYear(v.foundedYear, 1800);
   if (year === 'invalid') {
     return {
       error: {
-        title: 'Invalid year',
-        message: 'Enter the four-digit year your company was established, e.g. 2005.',
+        title: t('field.invalidYear'),
+        message: t('recruiter.yearBody'),
       },
     };
   }
@@ -115,6 +137,7 @@ export function RecruiterFields({
   onChange: (patch: Partial<RecruiterValues>) => void;
   step: RecruiterStep;
 }) {
+  const t = useT();
   const c = useTheme().colors;
   const shared = useSharedStyles();
 
@@ -124,21 +147,21 @@ export function RecruiterFields({
         <>
           <TextInput
             style={shared.authInput}
-            placeholder="Company name"
+            placeholder={t('recruiter.companyName')}
             placeholderTextColor={c.muted}
             value={value.companyName}
             onChangeText={(companyName) => onChange({ companyName })}
           />
 
           <ChipSelect
-            label="YOUR ROLE AT THE COMPANY"
+            label={t('recruiter.roleLabel')}
             options={RECRUITER_TITLES}
             selected={value.recruiterTitle ? [value.recruiterTitle] : []}
             onToggle={(o) => onChange({ recruiterTitle: value.recruiterTitle === o ? '' : o })}
           />
 
           <ChipSelect
-            label="COMPANY SIZE"
+            label={t('recruiter.sizeLabel')}
             options={COMPANY_SIZES.map((s) => `${s}`)}
             selected={value.companySize ? [value.companySize] : []}
             onToggle={(o) => onChange({ companySize: value.companySize === o ? '' : o })}
@@ -149,7 +172,7 @@ export function RecruiterFields({
       {step === 'work' && (
         <>
           <ChipSelect
-            label="TYPE OF WORK (SELECT ALL THAT APPLY)"
+            label={t('recruiter.workTypes')}
             options={WORK_TYPES}
             selected={value.workTypes}
             onToggle={(o) => onChange({ workTypes: toggle(value.workTypes, o) })}
@@ -157,7 +180,7 @@ export function RecruiterFields({
 
           <TextInput
             style={shared.authInput}
-            placeholder="Year established (e.g. 2005)"
+            placeholder={t('recruiter.yearPlaceholder')}
             placeholderTextColor={c.muted}
             value={value.foundedYear}
             onChangeText={(foundedYear) => onChange({ foundedYear })}
@@ -166,7 +189,7 @@ export function RecruiterFields({
           />
 
           <ChipSelect
-            label="LICENSED & INSURED?"
+            label={t('recruiter.licensedInsured')}
             options={['Yes', 'No']}
             selected={[value.licensedInsured ? 'Yes' : 'No']}
             onToggle={(o) => onChange({ licensedInsured: o === 'Yes' })}
@@ -177,7 +200,7 @@ export function RecruiterFields({
       {step === 'area' && (
         <>
           <LocationField
-            placeholder="Service area (e.g. Austin, TX)"
+            placeholder={t('recruiter.areaPlaceholder')}
             value={{ text: value.location, lat: value.locationLat, lng: value.locationLng }}
             onChange={(p) => onChange({ location: p.text, locationLat: p.lat, locationLng: p.lng })}
           />

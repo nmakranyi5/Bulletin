@@ -14,6 +14,7 @@ import { useNow } from '../../hooks/use-now';
 import { useRefreshControl } from '../../hooks/use-refresh-control';
 import { useSharedStyles } from '../../styles/shared';
 import { Match } from '../../types';
+import { useT } from '../../../lib/i18n';
 
 export function MessagesScreen({
   view,
@@ -39,6 +40,7 @@ export function MessagesScreen({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const now = useNow();
   const refreshControl = useRefreshControl(onRefresh);
@@ -64,7 +66,7 @@ export function MessagesScreen({
     <View style={shared.simpleScreen}>
       <View style={shared.screenHeader}>
         <Text style={shared.screenTitle}>bulletin.</Text>
-        <Text style={shared.subtitle}>Real conversations. No BS.</Text>
+        <Text style={shared.subtitle}>{t('messages.subtitle')}</Text>
       </View>
 
       <View style={shared.subTabBar}>
@@ -77,7 +79,7 @@ export function MessagesScreen({
               onPress={() => onViewChange(v)}
             >
               <Text style={[shared.subTabText, view === v && shared.subTabTextActive]}>
-                {v === 'active' ? 'Active' : 'Archived'}
+                {v === 'active' ? t('messages.active') : t('messages.archived')}
                 {count > 0 ? ` (${count})` : ''}
               </Text>
             </Pressable>
@@ -94,12 +96,12 @@ export function MessagesScreen({
               <MessageCircle size={48} color={c.muted} strokeWidth={1.5} />
             )}
             <Text style={shared.emptyTitle}>
-              {isArchive ? 'Nothing archived.' : 'No messages yet.'}
+              {isArchive ? t('messages.nothingArchived') : t('messages.noMessages')}
             </Text>
             <Text style={shared.emptySubtitle}>
               {isArchive
-                ? 'Chats you close, and chats closed on you, are kept here.'
-                : 'Once you match with someone, your conversation shows up here.'}
+                ? t('messages.archivedHint')
+                : t('messages.matchHint')}
             </Text>
           </View>
         </RefreshableEmpty>
@@ -146,7 +148,7 @@ export function MessagesScreen({
                       ]}
                     >
                       {m
-                        ? `${m.lastFromMe ? 'You: ' : ''}${m.lastText}`
+                        ? `${m.lastFromMe ? t('messages.youPrefix') : ''}${m.lastText}`
                         : item.company
                           ? `${item.position} · ${item.company}`
                           : item.position}
@@ -174,7 +176,9 @@ export function MessagesScreen({
                         </Text>
                       </View>
                       <Text style={local.outcomeBy}>
-                        {item.closed.byMe ? 'by you' : `by ${item.name.split(' ')[0]}`}
+                        {item.closed.byMe
+                          ? t('messages.byYou')
+                          : t('messages.byName', { name: item.name.split(' ')[0] })}
                       </Text>
                     </View>
                   ) : (
@@ -188,7 +192,7 @@ export function MessagesScreen({
                             windowMsAt(item.windows, item.matchedAt, item.urgency),
                             now
                           )}
-                          prefix={item.firstMoveMine ? 'Say hello' : undefined}
+                          prefix={item.firstMoveMine ? t('messages.sayHello') : undefined}
                         />
                       ) : m?.awaitingSince ? (
                         <TimerChip

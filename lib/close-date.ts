@@ -3,6 +3,7 @@
 // A position can have a date and time when it closes automatically. Dates are entered
 // and shown in the phone's local time and stored as UTC instants (`close_at`).
 
+import { localeTag, t } from './i18n/core';
 import { formatDuration } from './response-timers';
 import { parseServerTime } from './time';
 
@@ -13,18 +14,19 @@ export const REMINDER_LEAD_MS = 2 * DAY;
 // How far ahead a close date can be set.
 export const MAX_CLOSE_AHEAD_MS = 365 * DAY;
 
-export const CLOSE_PRESETS = [
-  { label: '3 days', days: 3 },
-  { label: '1 week', days: 7 },
-  { label: '2 weeks', days: 14 },
-  { label: '30 days', days: 30 },
-] as const;
+// Labels are getters so they follow the current language.
+const preset = (days: number) => ({
+  days,
+  get label() {
+    if (days === 7) return t('closeP.week');
+    if (days === 14) return t('closeP.twoWeeks');
+    return t('days', { count: days });
+  },
+});
 
-export const EXTEND_OPTIONS = [
-  { label: '3 days', days: 3 },
-  { label: '1 week', days: 7 },
-  { label: '2 weeks', days: 14 },
-] as const;
+export const CLOSE_PRESETS = [preset(3), preset(7), preset(14), preset(30)] as const;
+
+export const EXTEND_OPTIONS = [preset(3), preset(7), preset(14)] as const;
 
 // The time of day quick picks and a fresh picker start at.
 export const DEFAULT_CLOSE_HOUR = 17;
@@ -62,9 +64,13 @@ export function checkCloseAt(date: Date | null, now: number): CloseAtResult {
 }
 
 export const CLOSE_ERRORS = {
-  past: 'The close date and time must be in the future.',
-  too_far: 'Choose a close date within the next year.',
-} as const;
+  get past() {
+    return t('closeErr.past');
+  },
+  get too_far() {
+    return t('closeErr.tooFar');
+  },
+};
 
 // The saved close_at as a Date to edit (null when there isn't one).
 export function closeAtToDate(iso: string | null | undefined): Date | null {
@@ -73,8 +79,8 @@ export function closeAtToDate(iso: string | null | undefined): Date | null {
 
 // "Fri, Oct 30 · 5:00 PM" for the picker field.
 export function formatCloseField(date: Date): string {
-  const day = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const day = date.toLocaleDateString(localeTag(), { weekday: 'short', month: 'short', day: 'numeric' });
+  const time = date.toLocaleTimeString(localeTag(), { hour: 'numeric', minute: '2-digit' });
   return `${day} · ${time}`;
 }
 
@@ -125,8 +131,8 @@ export function isOpenForCandidates(position: Closable, now: number): boolean {
 
 function stamp(iso: string): string {
   const d = parseServerTime(iso);
-  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const date = d.toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString(localeTag(), { hour: 'numeric', minute: '2-digit' });
   return `${date}, ${time}`;
 }
 
@@ -134,15 +140,22 @@ function stamp(iso: string): string {
 export function closesOn(position: Closable): string | null {
   if (!position.close_at) return null;
   const d = parseServerTime(position.close_at);
-  return `Closes ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  return t('close.closes', {
+    date: d.toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' }),
+  });
 }
 
 // "Closes Oct 30, 5:00 PM · in 2d 3h" / "Closed Oct 30, 5:00 PM"
 export function closeLabel(position: Closable, now: number): string | null {
   const state = closeState(position, now);
   if (state.kind === 'none') return null;
-  if (state.kind === 'closed') return `Closed ${stamp((position.closed_at ?? position.close_at)!)}`;
-  return `Closes ${stamp(position.close_at!)} · in ${formatDuration(state.msLeft)}`;
+  if (state.kind === 'closed') {
+    return t('close.closedAt', { stamp: stamp((position.closed_at ?? position.close_at)!) });
+  }
+  return t('close.closesIn', {
+    stamp: stamp(position.close_at!),
+    time: formatDuration(state.msLeft),
+  });
 }
 
 // A new close date this many days after the later of the current one and now, keeping
@@ -165,16 +178,17 @@ export function reminderCopy(
   if (due.length === 1) {
     const [p] = due;
     return {
-      title: 'Position closing soon',
-      message: `${p.title} closes in ${formatDuration(p.msLeft)}. Extend the date to keep it open, or confirm that it should close then. People who are still waiting on it get their interest back, and chats stay open.`,
+      title: t('close.soonTitle'),
+      message: t('close.soonMessage', { title: p.title, time: formatDuration(p.msLeft) }),
     };
   }
   const names = due.slice(0, 3).map((p) => p.title).join(', ');
   return {
-    title: `${due.length} positions closing soon`,
-    message: `${names}${due.length > 3 ? ' and others' : ''} will close within ${formatDuration(
-      Math.max(...due.map((p) => p.msLeft))
-    )}. Open Your Positions to extend or confirm them.`,
+    title: t('close.soonManyTitle', { count: due.length }),
+    message: t(due.length > 3 ? 'close.soonManyMessageMore' : 'close.soonManyMessage', {
+      names,
+      time: formatDuration(Math.max(...due.map((p) => p.msLeft))),
+    }),
   };
 }
 
@@ -185,14 +199,17 @@ export function closedNotice(
   if (closed.length === 1) {
     const [c] = closed;
     return {
-      title: 'Position closed',
-      message: `${c.position ?? 'A position'} at ${c.name} has closed, so your interest was returned. You can use it again.`,
+      title: t('close.closedTitle'),
+      message: t('close.closedMessage', {
+        position: c.position ?? t('close.aPosition'),
+        company: c.name,
+      }),
     };
   }
-  const lines = closed.slice(0, 3).map((c) => `${c.position ?? 'A position'} · ${c.name}`);
-  const more = closed.length > 3 ? `\nand ${closed.length - 3} more` : '';
+  const lines = closed.slice(0, 3).map((c) => `${c.position ?? t('close.aPosition')} · ${c.name}`);
+  const more = closed.length > 3 ? `\n${t('close.andMore', { count: closed.length - 3 })}` : '';
   return {
-    title: `${closed.length} positions closed`,
-    message: `${lines.join('\n')}${more}\n\nYour interests were returned.`,
+    title: t('close.closedManyTitle', { count: closed.length }),
+    message: t('close.closedManyMessage', { lines: lines.join('\n'), more }),
   };
 }

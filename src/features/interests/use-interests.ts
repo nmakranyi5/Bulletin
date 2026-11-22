@@ -6,6 +6,7 @@ import { DeclineReason } from '../../../lib/decline-reasons';
 import { supabase } from '../../../lib/supabase';
 import { MAX_INTERESTS } from '../../constants/app';
 import { InterestRow } from '../../types';
+import { t } from '../../../lib/i18n';
 
 export function useInterests(
   session: Session | null,
@@ -53,7 +54,7 @@ export function useInterests(
 
     if (seq !== fetchSeq.current) return;
     if (sentError) {
-      if (!silent) Alert.alert('Error', sentError.message);
+      if (!silent) Alert.alert(t('common.error'), sentError.message);
     } else {
       // Declined interests the sender has removed stay on record but out of sight.
       setSentInterests((sent ?? []).filter((i: InterestRow) => !i.sender_hidden));
@@ -70,7 +71,7 @@ export function useInterests(
 
     if (seq !== fetchSeq.current) return;
     if (receivedError) {
-      if (!silent) Alert.alert('Error', receivedError.message);
+      if (!silent) Alert.alert(t('common.error'), receivedError.message);
     } else {
       // Interests from someone who never finished setting up (no name) aren't actionable and
       // would show up as "Unknown", so they're left out until that person finishes.
@@ -93,7 +94,7 @@ export function useInterests(
 
     if (error && error.code !== '23505') {
       // 23505 = unique violation (already sent) — safe to ignore silently
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
     } else {
       fetchInterests();
     }
@@ -112,11 +113,11 @@ export function useInterests(
       .select('id');
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
     if (!data || data.length === 0) {
-      Alert.alert('No longer available', 'This interest was taken back or already answered.');
+      Alert.alert(t('interests.unavailableTitle'), t('interests.unavailableBody'));
       setReceivedInterests((prev) => prev.filter((r) => r.id !== interestId));
       fetchInterests();
       return;
@@ -129,12 +130,12 @@ export function useInterests(
 
   const withdrawInterest = (interest: InterestRow) => {
     Alert.alert(
-      'Remove interest?',
-      `This takes back your interest in ${interest.to_profile?.name ?? 'this person'} and gives you the slot back.`,
+      t('interests.removeTitle'),
+      t('interests.removeBody', { name: interest.to_profile?.name ?? t('interests.thisPerson') }),
       [
-        { text: 'Keep', style: 'cancel' },
+        { text: t('common.keep'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('common.remove'),
           style: 'destructive',
           onPress: async () => {
             const { data, error } = await supabase
@@ -145,11 +146,11 @@ export function useInterests(
               .select('id');
 
             if (error) {
-              Alert.alert('Error', error.message);
+              Alert.alert(t('common.error'), error.message);
               return;
             }
             if (!data || data.length === 0) {
-              Alert.alert('Could not remove', 'This interest was already answered.');
+              Alert.alert(t('interests.couldNotRemove'), t('interests.alreadyAnswered'));
               // Nothing was taken back, so no slot was freed: just refresh the list.
               fetchInterests();
               return;
@@ -175,7 +176,7 @@ export function useInterests(
     });
 
     if (error) {
-      Alert.alert('Could not decline', error.message);
+      Alert.alert(t('interests.couldNotDecline'), error.message);
       return false;
     }
 
@@ -188,19 +189,21 @@ export function useInterests(
   // who declined doesn't reappear in Discover.)
   const removeDeclinedInterest = (interest: InterestRow) => {
     Alert.alert(
-      'Remove from your list?',
-      `${interest.to_profile?.name ?? 'This person'} declined, so this just clears it from your list. They won't show up in Discover again.`,
+      t('interests.removeListTitle'),
+      t('interests.removeListBody', {
+        name: interest.to_profile?.name ?? t('interests.thisPersonCap'),
+      }),
       [
-        { text: 'Keep', style: 'cancel' },
+        { text: t('common.keep'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('common.remove'),
           style: 'destructive',
           onPress: async () => {
             const { error } = await supabase.rpc('hide_declined_interest', {
               p_interest_id: interest.id,
             });
             if (error) {
-              Alert.alert('Could not remove', error.message);
+              Alert.alert(t('interests.couldNotRemove'), error.message);
               return;
             }
             setSentInterests((prev) => prev.filter((i) => i.id !== interest.id));

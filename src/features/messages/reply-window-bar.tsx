@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../lib/app-theme';
 import { ReplyRequest, formatHours } from '../../../lib/reply-window';
+import { useT } from '../../../lib/i18n';
 
 // The chat's agreed reply time, with a way to ask for a change. If a change has been asked for, it
 // shows that instead: Accept / Decline for the person who was asked, a note for the person who asked.
@@ -22,6 +23,7 @@ export function ReplyWindowBar({
   onRespond: (accept: boolean) => void;
 }) {
   const c = useTheme().colors;
+  const t = useT();
   const local = useLocalStyles();
   const first = name.split(' ')[0];
 
@@ -32,16 +34,16 @@ export function ReplyWindowBar({
         <Clock size={14} color={c.amber} strokeWidth={2.4} />
         <Text style={local.text}>
           {mine
-            ? `Waiting for ${first} to answer your request for ${formatHours(request.hours)}`
-            : `${first} asks to change the reply time to ${formatHours(request.hours)}`}
+            ? t('window.waitingFor', { name: first, time: formatHours(request.hours) })
+            : t('window.asks', { name: first, time: formatHours(request.hours) })}
         </Text>
         {!mine && (
           <View style={local.actions}>
             <Pressable style={local.decline} onPress={() => onRespond(false)}>
-              <Text style={local.declineText}>Decline</Text>
+              <Text style={local.declineText}>{t('interests.decline')}</Text>
             </Pressable>
             <Pressable style={local.accept} onPress={() => onRespond(true)}>
-              <Text style={local.acceptText}>Accept</Text>
+              <Text style={local.acceptText}>{t('interests.accept')}</Text>
             </Pressable>
           </View>
         )}
@@ -52,9 +54,9 @@ export function ReplyWindowBar({
   return (
     <View style={local.bar}>
       <Clock size={14} color={c.textSecondary} strokeWidth={2.4} />
-      <Text style={local.text}>Reply time: {formatHours(hours)}</Text>
+      <Text style={local.text}>{t('window.replyTime', { time: formatHours(hours) })}</Text>
       <Pressable onPress={onChange} hitSlop={8}>
-        <Text style={local.change}>Change</Text>
+        <Text style={local.change}>{t('window.change')}</Text>
       </Pressable>
     </View>
   );

@@ -19,6 +19,7 @@ import { Tag } from '../../components/tag';
 import { useIsCompact } from '../../hooks/use-compact';
 import { useSharedStyles } from '../../styles/shared';
 import { ExpandableCard } from './expandable-card';
+import { useT } from '../../../lib/i18n';
 
 export function RecruiterCardContent({
   recruiter,
@@ -36,6 +37,7 @@ export function RecruiterCardContent({
 }) {
   const c = useTheme().colors;
   const shared = useSharedStyles();
+  const t = useT();
   const local = useLocalStyles();
   const compact = useIsCompact();
   const positions = recruiter.positions ?? [];
@@ -65,7 +67,7 @@ export function RecruiterCardContent({
 
       <View style={shared.recruiterMeta}>
         <Text numberOfLines={1} style={shared.recruiterTitle}>
-          {positions.length} open position{positions.length === 1 ? '' : 's'}
+          {t('discover.openPositions', { count: positions.length })}
         </Text>
       </View>
       <RatingBadge rating={recruiter.rating} />
@@ -76,7 +78,7 @@ export function RecruiterCardContent({
 
   const headline = (
     <>
-      <Text style={shared.sectionLabel}>LOOKING FOR</Text>
+      <Text style={shared.sectionLabel}>{t('discover.lookingFor')}</Text>
 
       <View style={local.positionRow}>
         <BriefcaseBusiness size={20} color={c.text} strokeWidth={2.2} />
@@ -100,11 +102,17 @@ export function RecruiterCardContent({
 
   const requirementTags = [
     // The recruiter's commitment to answer, set by the posting's urgency.
-    primary ? `Replies within ${URGENCY[urgencyOf(primary)].windowLabel}` : null,
+    primary
+      ? t('discover.repliesWithin', { window: URGENCY[urgencyOf(primary)].windowLabel })
+      : null,
     primary ? closesOn(primary) : null,
     ...schedules,
-    primary?.epa_608_required ? `EPA 608 Type ${primary.epa_608_required}+` : null,
-    primary?.min_experience_years ? `${primary.min_experience_years}+ yrs` : null,
+    primary?.epa_608_required
+      ? t('discover.epaPlus', { type: primary.epa_608_required })
+      : null,
+    primary?.min_experience_years
+      ? t('discover.yearsPlus', { years: primary.min_experience_years })
+      : null,
   ].filter(Boolean) as string[];
 
   const brief = (
@@ -113,17 +121,19 @@ export function RecruiterCardContent({
 
       {requirementTags.length > 0 && (
         <View style={shared.tags}>
-          {requirementTags.slice(0, compact ? 2 : 3).map((t) => (
-            <Tag key={t} text={t} />
+          {requirementTags.slice(0, compact ? 2 : 3).map((tag) => (
+            <Tag key={tag} text={tag} />
           ))}
           {requirementTags.length > (compact ? 2 : 3) && (
-            <Tag text={`+${requirementTags.length - (compact ? 2 : 3)} more`} />
+            <Tag text={t('discover.moreTags', { count: requirementTags.length - (compact ? 2 : 3) })} />
           )}
         </View>
       )}
 
       {mismatches.length > 0 && (
-        <Text style={shared.mismatchText}>Heads up: {mismatches.join(' · ')}</Text>
+        <Text style={shared.mismatchText}>
+          {t('discover.headsUp', { notes: mismatches.join(' · ') })}
+        </Text>
       )}
     </>
   );
@@ -134,8 +144,8 @@ export function RecruiterCardContent({
 
       {requirementTags.length > 0 || primary?.pay_extras?.length ? (
         <View style={shared.tags}>
-          {requirementTags.map((t) => (
-            <Tag key={t} text={t} />
+          {requirementTags.map((tag) => (
+            <Tag key={tag} text={tag} />
           ))}
           {(primary?.pay_extras ?? []).map((extra: string) => (
             <Tag key={extra} text={extra} />
@@ -144,7 +154,9 @@ export function RecruiterCardContent({
       ) : null}
 
       {mismatches.length > 0 && (
-        <Text style={shared.mismatchText}>Heads up: {mismatches.join(' · ')}</Text>
+        <Text style={shared.mismatchText}>
+          {t('discover.headsUp', { notes: mismatches.join(' · ') })}
+        </Text>
       )}
 
       {primary?.description ? (
@@ -153,7 +165,7 @@ export function RecruiterCardContent({
 
       {positions.length > 1 && (
         <>
-          <Text style={[shared.sectionLabel, { marginTop: 22 }]}>ALL OPEN POSITIONS</Text>
+          <Text style={[shared.sectionLabel, { marginTop: 22 }]}>{t('discover.allOpen')}</Text>
           <View style={[shared.tags, { marginTop: 10 }]}>
             {positions.map((p: any) => (
               <Tag key={p.id} text={p.title} />
@@ -169,18 +181,18 @@ export function RecruiterCardContent({
         recruiter.description
       ) && (
         <>
-          <Text style={[shared.sectionLabel, { marginTop: 22 }]}>ABOUT THE COMPANY</Text>
+          <Text style={[shared.sectionLabel, { marginTop: 22 }]}>{t('discover.aboutCompany')}</Text>
 
           {!!(companyTags.length || recruiter.licensed_insured) && (
             <View style={[shared.tags, { marginTop: 10 }]}>
               {recruiter.licensed_insured ? (
                 <View style={local.trustTag}>
                   <ShieldCheck size={13} color={c.green} strokeWidth={2.4} />
-                  <Text style={local.trustTagText}>Licensed & insured</Text>
+                  <Text style={local.trustTagText}>{t('discover.licensedInsured')}</Text>
                 </View>
               ) : null}
-              {companyTags.map((t) => (
-                <Tag key={t} text={t} />
+              {companyTags.map((tag) => (
+                <Tag key={tag} text={tag} />
               ))}
             </View>
           )}
@@ -189,7 +201,7 @@ export function RecruiterCardContent({
             <View style={local.locationRow}>
               <MapPin size={15} color={c.textSecondary} strokeWidth={2} />
               <Text numberOfLines={1} style={local.location}>
-                Serves {recruiter.location}
+                {t('discover.serves', { place: recruiter.location })}
               </Text>
             </View>
           ) : null}

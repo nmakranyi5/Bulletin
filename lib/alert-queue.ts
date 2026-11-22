@@ -8,6 +8,8 @@
 //  - pressing a button closes the alert first, then runs that button's onPress
 //  - the cancel button is what Escape / the back button triggers
 
+import { t } from './i18n/core';
+
 export type AlertButton = {
   text?: string;
   onPress?: (value?: string) => void;
@@ -54,7 +56,7 @@ export function createAlertQueue() {
           id: nextId++,
           title,
           message,
-          buttons: buttons && buttons.length > 0 ? buttons : [{ text: 'OK' }],
+          buttons: buttons && buttons.length > 0 ? buttons : [{ text: t('common.ok') }],
           options,
         },
       ];

@@ -1,13 +1,16 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../lib/app-theme';
+import { tv, useT } from '../../lib/i18n';
+import {  } from '../../lib/i18n';
 
 export function Tag({ text }: { text: string }) {
+  useT(); // re-render when the language changes
   const local = useLocalStyles();
   return (
     <View style={local.tag}>
       <Text style={local.tagText}>
-        {text}
+        {tv(text)}
       </Text>
     </View>
   );

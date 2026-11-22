@@ -15,6 +15,7 @@ import { supabase } from '../../../lib/supabase';
 import { windowMsAt } from '../../../lib/reply-window';
 import { useNow } from '../../hooks/use-now';
 import { InterestRow, Match } from '../../types';
+import { t } from '../../../lib/i18n';
 
 const REFRESH_MS = 60_000;
 // Re-measure the clock gap every N refreshes (every 5 minutes).
@@ -135,9 +136,13 @@ export function useResponseTimers({
       title,
       message,
       [
-        { text: 'Later', style: 'cancel', onPress: done },
+        { text: t('common.later'), style: 'cancel', onPress: done },
         {
-          text: due.length > 1 ? 'View' : first.kind === 'chat' ? 'Open chat' : 'View interest',
+          text: due.length > 1
+            ? t('timerAlert.view')
+            : first.kind === 'chat'
+              ? t('timerAlert.openChat')
+              : t('timerAlert.viewInterest'),
           onPress: () => {
             done();
             if (first.kind === 'chat') openRef.current.onOpenChat(first.id);
